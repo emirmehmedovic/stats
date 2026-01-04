@@ -18,12 +18,14 @@ export async function GET(
     const employee = await prisma.employee.findUnique({
       where: { id },
       include: {
+        sector: true,
         licenses: {
           include: {
             documents: true,
           },
           orderBy: { expiryDate: 'asc' },
         },
+        documents: true,
         notifications: {
           orderBy: { createdAt: 'desc' },
           take: 10,
@@ -135,9 +137,13 @@ export async function PUT(
         ...(validated.position && { position: validated.position }),
         ...(validated.department !== undefined && { department: validated.department || null }),
         ...(validated.status && { status: validated.status }),
+        ...((body.sectorId !== undefined) && { sectorId: body.sectorId || null }),
+        ...((body.photo !== undefined) && { photo: body.photo || null }),
       },
       include: {
+        sector: true,
         licenses: true,
+        documents: true,
       },
     });
 

@@ -270,6 +270,36 @@ model AirlineDelayCode {
 // MODUL 2 - RADNICI I LICENCE
 // ---------------------------------------------------------
 
+// Sektori/Odjeli
+model Sector {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  code        String?    @unique // Kratki kod npr. "OPS", "SEC", "ADM"
+  description String?
+  color       String?    // Hex color za UI
+  isActive    Boolean    @default(true)
+  employees   Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Tipovi licenci (reusable)
+model LicenseType {
+  id                   String    @id @default(cuid())
+  name                 String    @unique // npr. "AVSEC Inspector", "Fire Safety", "First Aid"
+  code                 String?   @unique // Kratki kod npr. "AVSEC", "FIRE", "FA"
+  description          String?
+  validityPeriodMonths Int?      // Period važenja u mjesecima (npr. 12, 24)
+  requiresRenewal      Boolean   @default(true)
+  isActive             Boolean   @default(true)
+  category             String?   // npr. "Safety", "Security", "Operations"
+  licenses             License[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Radnici
 model Employee {
   id             String                @id @default(cuid())
@@ -282,14 +312,19 @@ model Employee {
   dateOfBirth    DateTime?
   hireDate       DateTime
   position       String
-  department     String?
+  department     String?               // DEPRECATED: koristiti sector umjesto ovoga
+  sector         Sector?               @relation(fields: [sectorId], references: [id])
+  sectorId       String?
   photo          String?               // URL to photo
   status         String                @default("ACTIVE") // ACTIVE, INACTIVE, ON_LEAVE
   licenses       License[]
+  documents      EmployeeDocument[]
   notifications  LicenseNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([sectorId])
 }
 
 // Licence
@@ -297,7 +332,9 @@ model License {
   id                  String                @id @default(cuid())
   employee            Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId          String
-  licenseType         String                // tip licence
+  licenseType         String?               // DEPRECATED: koristiti licenseTypeId
+  type                LicenseType?          @relation(fields: [licenseTypeId], references: [id])
+  licenseTypeId       String?
   licenseNumber       String
   issuedDate          DateTime
   expiryDate          DateTime
@@ -314,6 +351,7 @@ model License {
 
   @@index([employeeId])
   @@index([expiryDate])
+  @@index([licenseTypeId])
 }
 
 // Dokumentacija licence
@@ -328,6 +366,24 @@ model LicenseDocument {
   uploadedAt DateTime @default(now())
 
   @@index([licenseId])
+}
+
+// Dokumenti radnika (opšti dokumenti, ne vezani za licence)
+model EmployeeDocument {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  title       String   // Naziv dokumenta
+  description String?  // Opis dokumenta
+  fileName    String
+  filePath    String
+  fileType    String
+  fileSize    Int
+  category    String?  // npr. "Contract", "Certificate", "Personal", "Medical"
+  uploadedAt  DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([category])
 }
 
 // Notifikacije za istek licenci

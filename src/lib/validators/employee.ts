@@ -11,6 +11,8 @@ export const createEmployeeSchema = z.object({
   hireDate: z.string(), // ISO date string, required
   position: z.string().min(1, 'Position is required'),
   department: z.string().optional(),
+  sectorId: z.string().optional(),
+  photo: z.string().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'ON_LEAVE']).default('ACTIVE'),
 });
 

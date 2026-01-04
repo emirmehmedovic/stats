@@ -1,11 +1,21 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { X, Save } from 'lucide-react';
+import { useState, useEffect, FormEvent } from 'react';
+import { X, Save, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { showToast } from '../ui/toast';
+
+type LicenseType = {
+  id: string;
+  name: string;
+  code: string | null;
+  validityPeriodMonths: number | null;
+  category: string | null;
+  isActive: boolean;
+};
 
 type AddLicenseModalProps = {
   employeeId: string;
@@ -17,9 +27,11 @@ type AddLicenseModalProps = {
 export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess }: AddLicenseModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(false);
 
   const [formData, setFormData] = useState({
-    licenseType: '',
+    licenseTypeId: '',
     licenseNumber: '',
     issuedDate: '',
     expiryDate: '',
@@ -27,6 +39,59 @@ export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess
     status: 'ACTIVE',
     requiredForPosition: '',
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchLicenseTypes();
+    }
+  }, [isOpen]);
+
+  const fetchLicenseTypes = async () => {
+    setLoadingTypes(true);
+    try {
+      const res = await fetch('/api/license-types');
+      if (res.ok) {
+        const data = await res.json();
+        setLicenseTypes(data.filter((lt: LicenseType) => lt.isActive));
+      }
+    } catch (err) {
+      console.error('Error fetching license types:', err);
+    } finally {
+      setLoadingTypes(false);
+    }
+  };
+
+  const handleLicenseTypeChange = (licenseTypeId: string) => {
+    setFormData(prev => ({ ...prev, licenseTypeId }));
+
+    // Auto-calculate expiry date if validity period is set
+    const selectedType = licenseTypes.find(lt => lt.id === licenseTypeId);
+    if (selectedType?.validityPeriodMonths && formData.issuedDate) {
+      const issuedDate = new Date(formData.issuedDate);
+      const expiryDate = new Date(issuedDate);
+      expiryDate.setMonth(expiryDate.getMonth() + selectedType.validityPeriodMonths);
+      setFormData(prev => ({
+        ...prev,
+        expiryDate: expiryDate.toISOString().split('T')[0],
+      }));
+    }
+  };
+
+  const handleIssuedDateChange = (issuedDate: string) => {
+    setFormData(prev => ({ ...prev, issuedDate }));
+
+    // Auto-calculate expiry date if validity period is set
+    const selectedType = licenseTypes.find(lt => lt.id === formData.licenseTypeId);
+    if (selectedType?.validityPeriodMonths && issuedDate) {
+      const issued = new Date(issuedDate);
+      const expiry = new Date(issued);
+      expiry.setMonth(expiry.getMonth() + selectedType.validityPeriodMonths);
+      setFormData(prev => ({
+        ...prev,
+        expiryDate: expiry.toISOString().split('T')[0],
+      }));
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,7 +124,7 @@ export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess
 
   const handleClose = () => {
     setFormData({
-      licenseType: '',
+      licenseTypeId: '',
       licenseNumber: '',
       issuedDate: '',
       expiryDate: '',
@@ -96,18 +161,41 @@ export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">Osnovne informacije</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="licenseType">Tip licence *</Label>
-                <Input
-                  id="licenseType"
-                  required
-                  value={formData.licenseType}
-                  onChange={(e) => handleChange('licenseType', e.target.value)}
-                  placeholder="AVSEC, Fire Fighter, Security..."
-                  className="mt-1"
-                />
+              <div className="md:col-span-2">
+                <Label htmlFor="licenseTypeId">
+                  Tip licence *
+                  <Link
+                    href="/admin/license-types"
+                    target="_blank"
+                    className="ml-2 text-xs text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Upravljaj tipovima
+                  </Link>
+                </Label>
+                {loadingTypes ? (
+                  <div className="mt-1 px-4 py-2.5 border border-slate-300 rounded-lg text-slate-500">
+                    Učitavanje tipova...
+                  </div>
+                ) : (
+                  <select
+                    id="licenseTypeId"
+                    required
+                    value={formData.licenseTypeId}
+                    onChange={(e) => handleLicenseTypeChange(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Izaberite tip licence...</option>
+                    {licenseTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name} {type.code ? `(${type.code})` : ''}
+                        {type.category ? ` - ${type.category}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -129,7 +217,7 @@ export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess
                   type="date"
                   required
                   value={formData.issuedDate}
-                  onChange={(e) => handleChange('issuedDate', e.target.value)}
+                  onChange={(e) => handleIssuedDateChange(e.target.value)}
                   className="mt-1"
                 />
               </div>

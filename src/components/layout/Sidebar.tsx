@@ -21,6 +21,8 @@ import {
   Package,
   Settings2,
   LogOut,
+  Shield,
+  Briefcase,
 } from 'lucide-react';
 
 interface NavItem {
@@ -108,7 +110,16 @@ const navSections: NavSection[] = [
   {
     title: 'MANAGEMENT',
     items: [
-      { label: 'Radnici', href: '/employees', icon: Users },
+      {
+        label: 'Radnici',
+        href: '/employees',
+        icon: Users,
+        subItems: [
+          { label: 'Svi radnici', href: '/employees', icon: Users },
+          { label: 'Tipovi licenci', href: '/admin/license-types', icon: Shield },
+          { label: 'Sektori', href: '/admin/sectors', icon: Briefcase },
+        ],
+      },
     ],
   },
 ];

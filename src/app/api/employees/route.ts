@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
     const department = searchParams.get('department') || '';
+    const sectorId = searchParams.get('sectorId') || '';
     const status = searchParams.get('status') || '';
 
     const skip = (page - 1) * limit;
@@ -32,6 +33,10 @@ export async function GET(request: NextRequest) {
       where.department = department;
     }
 
+    if (sectorId) {
+      where.sectorId = sectorId;
+    }
+
     if (status) {
       where.status = status;
     }
@@ -44,10 +49,12 @@ export async function GET(request: NextRequest) {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
+          sector: true,
           licenses: {
             select: {
               id: true,
               licenseType: true,
+              licenseNumber: true,
               expiryDate: true,
               status: true,
             },
