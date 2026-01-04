@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       whereSql.push(Prisma.sql`f."airlineId" = ${whereClause.airlineId}`);
     }
 
-    const whereClauseSql = Prisma.join(whereSql, Prisma.sql` AND `);
+    const whereClauseSql = Prisma.join(whereSql, ' AND ');
 
     const routeStatsQuery = Prisma.sql`
       WITH route_stats AS (
@@ -279,8 +279,9 @@ export async function GET(request: NextRequest) {
     }>();
 
     topRoutes.forEach((route) => {
-      const parts = route.route.split('-');
-      const destinations = Array.from(new Set(parts)).filter(d => d !== 'TZL');
+      const parts = typeof route.route === 'string' ? route.route.split('-') : [];
+      const destinations = Array.from(new Set(parts))
+        .filter((d): d is string => typeof d === 'string' && d !== 'TZL' && d.length > 0);
 
       destinations.forEach((dest) => {
         if (!destinationStats.has(dest)) {

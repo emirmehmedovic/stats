@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const whereClauseSql = Prisma.join(whereSql, Prisma.sql` AND `);
+    const whereClauseSql = Prisma.join(whereSql, ' AND ');
 
     const summaryQuery = Prisma.sql`
       WITH flight_stats AS (

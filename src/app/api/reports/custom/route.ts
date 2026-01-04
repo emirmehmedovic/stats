@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     if (whereClause.operationTypeId) {
       whereSql.push(Prisma.sql`f."operationTypeId" = ${whereClause.operationTypeId}`);
     }
-    const whereClauseSql = Prisma.join(whereSql, Prisma.sql` AND `);
+    const whereClauseSql = Prisma.join(whereSql, ' AND ');
 
     const totalsQuery = Prisma.sql`
       SELECT
