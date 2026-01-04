@@ -196,6 +196,7 @@ model Flight {
   @@index([operationTypeId])
   @@index([aircraftTypeId])
   @@index([date, airlineId]) // Composite index za česte kombinacije
+  @@index([date, route]) // Za rute analitiku u velikim opsezima
   @@index([date, operationTypeId]) // Za dashboard analytics
 }
 

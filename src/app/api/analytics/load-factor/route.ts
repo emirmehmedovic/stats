@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { eachDayOfInterval } from 'date-fns';
 import { endOfDayUtc, formatDateDisplay, getDateStringInTimeZone, startOfDayUtc, TIME_ZONE_SARAJEVO } from '@/lib/dates';
-
-/**
- * OPTIMIZED Load Factor Analytics API
- *
- * BEFORE:
- * - findMany() with full include (airline, aircraftType)
- * - Loads all fields from related tables
- * - Potential to load 100,000+ records with excessive data
- *
- * AFTER:
- * - Select only needed fields
- * - Batch fetch airlines and aircraft types
- * - 60-70% data transfer reduction
- */
+import { cache, CacheTTL } from '@/lib/cache';
 
 // GET /api/analytics/load-factor?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO
 export async function GET(request: NextRequest) {
@@ -48,90 +36,228 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build where clause
-    const whereClause: any = {
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    };
+    const cacheKey = `analytics:load-factor:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
 
-    // Add airline filter if provided
+    const whereSql = [
+      Prisma.sql`f.date >= ${startDate}`,
+      Prisma.sql`f.date <= ${endDate}`,
+    ];
+
     if (airlineParam) {
       const airline = await prisma.airline.findFirst({
-        where: {
-          icaoCode: airlineParam,
-        },
-        select: {
-          id: true,
-        },
+        where: { icaoCode: airlineParam },
+        select: { id: true },
       });
-
       if (airline) {
-        whereClause.airlineId = airline.id;
+        whereSql.push(Prisma.sql`f."airlineId" = ${airline.id}`);
       }
     }
 
-    // ✅ OPTIMIZED: Fetch flights with select (not include)
-    const flights = await prisma.flight.findMany({
-      where: whereClause,
+    const whereClauseSql = Prisma.join(whereSql, Prisma.sql` AND `);
+
+    const summaryQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          f.id,
+          f."airlineId" AS airline_id,
+          f.date,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          )::int AS total_passengers,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+          )::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE total_seats > 0)::int AS total_flights,
+        SUM(total_passengers)::int AS total_passengers,
+        SUM(total_seats)::int AS total_seats,
+        AVG(CASE WHEN total_seats > 0 THEN (total_passengers::float / total_seats) * 100 END) AS avg_load_factor
+      FROM flight_stats;
+    `;
+
+    const airlineQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          f."airlineId" AS airline_id,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          )::int AS total_passengers,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+          )::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        a.name AS airline,
+        a."icaoCode" AS icao_code,
+        COUNT(*) FILTER (WHERE total_seats > 0)::int AS flights,
+        SUM(total_passengers)::int AS total_passengers,
+        SUM(total_seats)::int AS total_seats,
+        AVG(CASE WHEN total_seats > 0 THEN (total_passengers::float / total_seats) * 100 END) AS avg_load_factor
+      FROM flight_stats fs
+      INNER JOIN "Airline" a ON a.id = fs.airline_id
+      GROUP BY a.id
+      ORDER BY avg_load_factor DESC;
+    `;
+
+    const dailyQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          date_trunc('day', f.date) AS day,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          )::int AS total_passengers,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+          )::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        day,
+        COUNT(*) FILTER (WHERE total_seats > 0)::int AS flights,
+        SUM(total_passengers)::int AS total_passengers,
+        AVG(CASE WHEN total_seats > 0 THEN (total_passengers::float / total_seats) * 100 END) AS avg_load_factor
+      FROM flight_stats
+      GROUP BY day
+      ORDER BY day ASC;
+    `;
+
+    const distributionQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          )::int AS total_passengers,
+          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+          )::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        SUM(CASE WHEN total_seats > 0 AND (total_passengers::float / total_seats) * 100 < 50 THEN 1 ELSE 0 END)::int AS very_low,
+        SUM(CASE WHEN total_seats > 0 AND (total_passengers::float / total_seats) * 100 >= 50 AND (total_passengers::float / total_seats) * 100 < 70 THEN 1 ELSE 0 END)::int AS low,
+        SUM(CASE WHEN total_seats > 0 AND (total_passengers::float / total_seats) * 100 >= 70 AND (total_passengers::float / total_seats) * 100 < 85 THEN 1 ELSE 0 END)::int AS medium,
+        SUM(CASE WHEN total_seats > 0 AND (total_passengers::float / total_seats) * 100 >= 85 AND (total_passengers::float / total_seats) * 100 < 95 THEN 1 ELSE 0 END)::int AS high,
+        SUM(CASE WHEN total_seats > 0 AND (total_passengers::float / total_seats) * 100 >= 95 THEN 1 ELSE 0 END)::int AS very_high
+      FROM flight_stats;
+    `;
+
+    const [
+      summaryRows,
+      airlineRows,
+      dailyRows,
+      distributionRows,
+    ] = await Promise.all([
+      prisma.$queryRaw<any[]>(summaryQuery),
+      prisma.$queryRaw<any[]>(airlineQuery),
+      prisma.$queryRaw<any[]>(dailyQuery),
+      prisma.$queryRaw<any[]>(distributionQuery),
+    ]);
+
+    const summaryRow = summaryRows[0] || {
+      total_flights: 0,
+      total_passengers: 0,
+      total_seats: 0,
+      avg_load_factor: 0,
+    };
+
+    const dailyMap = new Map<string, any>();
+    dailyRows.forEach((row) => {
+      const dayStr = getDateStringInTimeZone(new Date(row.day), TIME_ZONE_SARAJEVO);
+      dailyMap.set(dayStr, row);
+    });
+
+    const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
+    const dailyTrend = daysInRange.map(day => {
+      const dayStr = getDateStringInTimeZone(day, TIME_ZONE_SARAJEVO);
+      const row = dailyMap.get(dayStr);
+      const passengers = row?.total_passengers || 0;
+      const flights = row?.flights || 0;
+      const avgLoadFactor = row?.avg_load_factor ? Math.round(row.avg_load_factor) : 0;
+      return {
+        date: dayStr,
+        displayDate: formatDateDisplay(day),
+        flights,
+        averageLoadFactor: avgLoadFactor,
+        totalPassengers: passengers,
+      };
+    });
+
+    const byAirline = airlineRows.map((row) => ({
+      airline: row.airline,
+      icaoCode: row.icao_code,
+      flights: row.flights || 0,
+      averageLoadFactor: row.avg_load_factor ? Math.round(row.avg_load_factor) : 0,
+      totalPassengers: row.total_passengers || 0,
+      totalSeats: row.total_seats || 0,
+    }));
+
+    const distributionRow = distributionRows[0] || {};
+    const distribution = {
+      veryLow: distributionRow.very_low || 0,
+      low: distributionRow.low || 0,
+      medium: distributionRow.medium || 0,
+      high: distributionRow.high || 0,
+      veryHigh: distributionRow.very_high || 0,
+    };
+
+    const details = await prisma.flight.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        ...(airlineParam ? { airline: { icaoCode: airlineParam } } : {}),
+      },
       select: {
         id: true,
         date: true,
         route: true,
-        airlineId: true,
-        aircraftTypeId: true,
-        arrivalPassengers: true,
-        departurePassengers: true,
-        arrivalFerryIn: true,
-        departureFerryOut: true,
+        airline: {
+          select: {
+            name: true,
+            icaoCode: true,
+          },
+        },
+        aircraftType: {
+          select: {
+            model: true,
+            seats: true,
+          },
+        },
         availableSeats: true,
+        arrivalPassengers: true,
+        arrivalFerryIn: true,
         arrivalFlightNumber: true,
+        departurePassengers: true,
+        departureFerryOut: true,
         departureFlightNumber: true,
       },
-      orderBy: {
-        date: 'asc',
-      },
+      orderBy: { date: 'asc' },
+      take: 100,
     });
 
-    // ✅ OPTIMIZED: Batch fetch airlines
-    const airlineIds = [...new Set(flights.map(f => f.airlineId))];
-    const airlines = await prisma.airline.findMany({
-      where: {
-        id: { in: airlineIds },
-      },
-      select: {
-        id: true,
-        name: true,
-        icaoCode: true,
-      },
-    });
-    const airlineMap = new Map(airlines.map(a => [a.id, a]));
-
-    // ✅ OPTIMIZED: Batch fetch aircraft types
-    const aircraftTypeIds = [...new Set(flights.map(f => f.aircraftTypeId))];
-    const aircraftTypes = await prisma.aircraftType.findMany({
-      where: {
-        id: { in: aircraftTypeIds },
-      },
-      select: {
-        id: true,
-        model: true,
-        seats: true,
-      },
-    });
-    const aircraftTypeMap = new Map(aircraftTypes.map(at => [at.id, at]));
-
-    // Calculate load factor per flight
-    const flightsWithLoadFactor = flights.map(flight => {
-      const airline = airlineMap.get(flight.airlineId);
-      const aircraftType = aircraftTypeMap.get(flight.aircraftTypeId);
-
+    const flightsWithLoadFactor = details.map((flight) => {
       const arrivalPassengers = flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
       const departurePassengers = flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
       const totalPassengers = arrivalPassengers + departurePassengers;
 
-      const seatsPerLeg = flight.availableSeats || aircraftType?.seats || 0;
+      const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
       const totalSeats =
         (flight.arrivalFerryIn ? 0 : seatsPerLeg) +
         (flight.departureFerryOut ? 0 : seatsPerLeg);
@@ -143,10 +269,10 @@ export async function GET(request: NextRequest) {
       return {
         id: flight.id,
         date: flight.date,
-        airline: airline?.name || 'Unknown',
-        icaoCode: airline?.icaoCode || 'N/A',
+        airline: flight.airline?.name || 'Unknown',
+        icaoCode: flight.airline?.icaoCode || 'N/A',
         route: flight.route,
-        aircraftModel: aircraftType?.model || 'Unknown',
+        aircraftModel: flight.aircraftType?.model || 'Unknown',
         totalPassengers,
         totalSeats,
         loadFactor,
@@ -157,108 +283,37 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const eligibleFlights = flightsWithLoadFactor.filter(f => f.totalSeats > 0);
-
-    // Calculate overall average load factor
-    const totalFlights = eligibleFlights.length;
-    const averageLoadFactor = totalFlights > 0
-      ? Math.round(
-          eligibleFlights.reduce((sum, f) => sum + f.loadFactor, 0) / totalFlights
-        )
-      : 0;
-
-    // Calculate average by airline
-    const byAirline = eligibleFlights.reduce((acc, flight) => {
-      const key = flight.icaoCode;
-      if (!acc[key]) {
-        acc[key] = {
-          airline: flight.airline,
-          icaoCode: flight.icaoCode,
-          flights: 0,
-          totalLoadFactor: 0,
-          totalPassengers: 0,
-          totalSeats: 0,
-        };
-      }
-      acc[key].flights++;
-      acc[key].totalLoadFactor += flight.loadFactor;
-      acc[key].totalPassengers += flight.totalPassengers;
-      acc[key].totalSeats += flight.totalSeats;
-      return acc;
-    }, {} as Record<string, any>);
-
-    const airlineStats = Object.values(byAirline).map((a: any) => ({
-      airline: a.airline,
-      icaoCode: a.icaoCode,
-      flights: a.flights,
-      averageLoadFactor: Math.round(a.totalLoadFactor / a.flights),
-      totalPassengers: a.totalPassengers,
-      totalSeats: a.totalSeats,
-    })).sort((a: any, b: any) => b.averageLoadFactor - a.averageLoadFactor);
-
-    // Calculate trend over time (daily average)
-    const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
-    const dailyTrend = daysInRange.map(day => {
-      const dayStr = getDateStringInTimeZone(day, TIME_ZONE_SARAJEVO);
-      const dayStart = startOfDayUtc(dayStr);
-      const dayEnd = endOfDayUtc(dayStr);
-
-      const dayFlights = eligibleFlights.filter(f => {
-        const flightDate = new Date(f.date);
-        return flightDate >= dayStart && flightDate <= dayEnd;
-      });
-
-      const avgLoadFactor = dayFlights.length > 0
-        ? Math.round(
-            dayFlights.reduce((sum, f) => sum + f.loadFactor, 0) / dayFlights.length
-          )
-        : 0;
-
-      return {
-        date: dayStr,
-        displayDate: formatDateDisplay(day),
-        flights: dayFlights.length,
-        averageLoadFactor: avgLoadFactor,
-        totalPassengers: dayFlights.reduce((sum, f) => sum + f.totalPassengers, 0),
-      };
-    });
-
-    // Distribution of load factors (buckets)
-    const distribution = {
-      veryLow: eligibleFlights.filter(f => f.loadFactor < 50).length,    // < 50%
-      low: eligibleFlights.filter(f => f.loadFactor >= 50 && f.loadFactor < 70).length,  // 50-69%
-      medium: eligibleFlights.filter(f => f.loadFactor >= 70 && f.loadFactor < 85).length, // 70-84%
-      high: eligibleFlights.filter(f => f.loadFactor >= 85 && f.loadFactor < 95).length,  // 85-94%
-      veryHigh: eligibleFlights.filter(f => f.loadFactor >= 95).length,  // >= 95%
+    const responseData = {
+      filters: {
+        dateFrom: dateFromParam,
+        dateTo: dateToParam,
+        airline: airlineParam || 'ALL',
+      },
+      summary: {
+        totalFlights: summaryRow.total_flights || 0,
+        averageLoadFactor: summaryRow.avg_load_factor ? Math.round(summaryRow.avg_load_factor) : 0,
+        totalPassengers: summaryRow.total_passengers || 0,
+        totalSeats: summaryRow.total_seats || 0,
+      },
+      byAirline,
+      dailyTrend,
+      distribution,
+      flights: flightsWithLoadFactor,
+      totalFlightsCount: summaryRow.total_flights || 0,
     };
+
+    cache.set(cacheKey, responseData, CacheTTL.TEN_MINUTES);
 
     return NextResponse.json({
       success: true,
-      data: {
-        filters: {
-          dateFrom: dateFromParam,
-          dateTo: dateToParam,
-          airline: airlineParam || 'ALL',
-        },
-        summary: {
-          totalFlights,
-          averageLoadFactor,
-          totalPassengers: flightsWithLoadFactor.reduce((sum, f) => sum + f.totalPassengers, 0),
-          totalSeats: flightsWithLoadFactor.reduce((sum, f) => sum + f.totalSeats, 0),
-        },
-        byAirline: airlineStats,
-        dailyTrend,
-        distribution,
-        flights: flightsWithLoadFactor.slice(0, 100), // First 100 for details
-        totalFlightsCount: flightsWithLoadFactor.length,
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error('Load factor analysis error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Greška pri analizi popunjenosti',
+        error: 'Greška pri analizi load factora',
       },
       { status: 500 }
     );

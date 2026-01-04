@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { endOfDayUtc, startOfDayUtc } from '@/lib/dates';
+import { cache, CacheTTL } from '@/lib/cache';
 
 // GET /api/analytics/routes?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO&limit=20&page=1
 export async function GET(request: NextRequest) {
@@ -33,6 +34,16 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(limitParam), 100);
     const page = Math.max(parseInt(pageParam), 1);
     const offset = (page - 1) * limit;
+
+    const cacheKey = `analytics:routes:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}:${limit}:${page}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
 
     const whereClause: { airlineId?: string } = {};
     if (airlineParam) {
@@ -127,9 +138,31 @@ export async function GET(request: NextRequest) {
             CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
           )::int AS total_seats,
           SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_count,
-          SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_count
+          SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_count,
+          ARRAY_AGG(DISTINCT a.name) AS airlines,
+          SUM(
+            CASE
+              WHEN f."arrivalFlightNumber" IS NOT NULL
+                AND f."arrivalActualTime" IS NOT NULL
+                AND f."arrivalScheduledTime" IS NOT NULL
+                AND f."arrivalActualTime" > f."arrivalScheduledTime"
+              THEN EXTRACT(EPOCH FROM (f."arrivalActualTime" - f."arrivalScheduledTime")) / 60
+              ELSE 0
+            END
+          )::float AS total_delay_arr,
+          SUM(
+            CASE
+              WHEN f."departureFlightNumber" IS NOT NULL
+                AND f."departureActualTime" IS NOT NULL
+                AND f."departureScheduledTime" IS NOT NULL
+                AND f."departureActualTime" > f."departureScheduledTime"
+              THEN EXTRACT(EPOCH FROM (f."departureActualTime" - f."departureScheduledTime")) / 60
+              ELSE 0
+            END
+          )::float AS total_delay_dep
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        LEFT JOIN "Airline" a ON f."airlineId" = a.id
         WHERE f.route IS NOT NULL AND ${whereClauseSql}
         GROUP BY f.route
       )
@@ -190,6 +223,38 @@ export async function GET(request: NextRequest) {
       busiest_route: null,
     };
 
+    const mapRouteRow = (row: any) => {
+      if (!row) return null;
+      const totalMovements = (row.arrival_count || 0) + (row.departure_count || 0);
+      const avgPassengersPerFlight = totalMovements > 0
+        ? Math.round((row.total_passengers / totalMovements) * 10) / 10
+        : 0;
+      const loadFactor = row.total_seats > 0
+        ? Math.round((row.total_passengers / row.total_seats) * 100 * 10) / 10
+        : 0;
+      const avgDelayArr = row.arrival_count > 0
+        ? Math.round((row.total_delay_arr / row.arrival_count) * 10) / 10
+        : 0;
+      const avgDelayDep = row.departure_count > 0
+        ? Math.round((row.total_delay_dep / row.departure_count) * 10) / 10
+        : 0;
+
+      return {
+        route: row.route,
+        frequency: row.frequency,
+        totalPassengers: row.total_passengers,
+        totalSeatsOffered: row.total_seats,
+        arrivalCount: row.arrival_count,
+        departureCount: row.departure_count,
+        airlines: row.airlines || [],
+        airlinesCount: (row.airlines || []).length,
+        avgPassengersPerFlight,
+        loadFactor,
+        avgDelayArrival: avgDelayArr,
+        avgDelayDeparture: avgDelayDep,
+      };
+    };
+
     const summary = {
       totalRoutes: summaryRow.total_routes || 0,
       totalFlights: summaryRow.total_flights || 0,
@@ -200,8 +265,8 @@ export async function GET(request: NextRequest) {
       avgPassengersPerRoute: summaryRow.avg_passengers_per_route
         ? Math.round(summaryRow.avg_passengers_per_route)
         : 0,
-      topRoute: summaryRow.top_route || null,
-      busiestRoute: summaryRow.busiest_route || null,
+      topRoute: mapRouteRow(summaryRow.top_route),
+      busiestRoute: mapRouteRow(summaryRow.busiest_route),
     };
 
     const topRoutes = routeAnalysis;
@@ -237,17 +302,21 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.totalFlights - a.totalFlights)
       .slice(0, 10);
 
+    const responseData = {
+      summary,
+      routes: topRoutes,
+      destinationAnalysis,
+      pagination: {
+        page,
+        limit,
+      },
+    };
+
+    cache.set(cacheKey, responseData, CacheTTL.TEN_MINUTES);
+
     return NextResponse.json({
       success: true,
-      data: {
-        summary,
-        routes: topRoutes,
-        destinationAnalysis,
-        pagination: {
-          page,
-          limit,
-        },
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error('Routes analysis error:', error);
