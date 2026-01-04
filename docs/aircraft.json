@@ -1,0 +1,159 @@
+{
+    "avioni": [
+      {
+        "model_aviona": "Airbus A318-100",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 110,
+        "broj_sjedista_max": 132,
+        "mtow_kg": 68000
+      },
+      {
+        "model_aviona": "Airbus A319-100 (ceo)",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 134,
+        "broj_sjedista_max": 156,
+        "mtow_kg": 75500
+      },
+      {
+        "model_aviona": "Airbus A319neo",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 140,
+        "broj_sjedista_max": 160,
+        "mtow_kg": 75500
+      },
+      {
+        "model_aviona": "Airbus A320-200 (ceo)",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 165,
+        "broj_sjedista_max": 180,
+        "mtow_kg": 78000
+      },
+      {
+        "model_aviona": "Airbus A320neo",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 165,
+        "broj_sjedista_max": 194,
+        "mtow_kg": 79000
+      },
+      {
+        "model_aviona": "Airbus A321-200 (ceo)",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 200,
+        "broj_sjedista_max": 220,
+        "mtow_kg": 93500
+      },
+      {
+        "model_aviona": "Airbus A321neo (standard)",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 200,
+        "broj_sjedista_max": 244,
+        "mtow_kg": 89000
+      },
+      {
+        "model_aviona": "Airbus A321LR",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 206,
+        "broj_sjedista_max": 220,
+        "mtow_kg": 97000
+      },
+      {
+        "model_aviona": "Airbus A321XLR",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 200,
+        "broj_sjedista_max": 244,
+        "mtow_kg": 101000
+      },
+      {
+        "model_aviona": "Airbus A220-100",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 110,
+        "broj_sjedista_max": 135,
+        "mtow_kg": 63700
+      },
+      {
+        "model_aviona": "Airbus A220-300",
+        "proizvodjac": "Airbus",
+        "broj_sjedista_tipicno": 145,
+        "broj_sjedista_max": 160,
+        "mtow_kg": 70900
+      },
+      {
+        "model_aviona": "Boeing 737-700 (NG)",
+        "proizvodjac": "Boeing",
+        "broj_sjedista_tipicno": 128,
+        "broj_sjedista_max": 149,
+        "mtow_kg": 70000
+      },
+      {
+        "model_aviona": "Boeing 737-800 (NG)",
+        "proizvodjac": "Boeing",
+        "broj_sjedista_tipicno": 162,
+        "broj_sjedista_max": 189,
+        "mtow_kg": 79016
+      },
+      {
+        "model_aviona": "Boeing 737-900 (NG)",
+        "proizvodjac": "Boeing",
+        "broj_sjedista_tipicno": 177,
+        "broj_sjedista_max": 215,
+        "mtow_kg": 85130
+      },
+      {
+        "model_aviona": "Boeing 737 MAX 8",
+        "proizvodjac": "Boeing",
+        "broj_sjedista_tipicno": 178,
+        "broj_sjedista_max": 210,
+        "mtow_kg": 82191
+      },
+      {
+        "model_aviona": "Embraer E170",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 66,
+        "broj_sjedista_max": 78,
+        "mtow_kg": 38600
+      },
+      {
+        "model_aviona": "Embraer E175",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 76,
+        "broj_sjedista_max": 88,
+        "mtow_kg": 40370
+      },
+      {
+        "model_aviona": "Embraer E190",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 96,
+        "broj_sjedista_max": 114,
+        "mtow_kg": 51800
+      },
+      {
+        "model_aviona": "Embraer E195",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 100,
+        "broj_sjedista_max": 124,
+        "mtow_kg": 52290
+      },
+      {
+        "model_aviona": "Embraer E190-E2",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 106,
+        "broj_sjedista_max": 114,
+        "mtow_kg": 56400
+      },
+      {
+        "model_aviona": "Embraer E195-E2",
+        "proizvodjac": "Embraer",
+        "broj_sjedista_tipicno": 132,
+        "broj_sjedista_max": 146,
+        "mtow_kg": 62500
+      },
+      {
+        "model_aviona": "Bombardier CRJ900",
+        "proizvodjac": "Bombardier / MHI RJ",
+        "broj_sjedista_tipicno": 76,
+        "broj_sjedista_max": 90,
+        "mtow_kg": 38300
+      }
+    ]
+  }
+  

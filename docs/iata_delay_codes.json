@@ -1,0 +1,479 @@
+{
+    "IATA_Delay_Codes": [
+        {
+            "code": "01",
+            "category": "Carrier",
+            "description": "Kašnjenje zbog kompanije (opšti razlog)"
+        },
+        {
+            "code": "02",
+            "category": "Carrier",
+            "description": "Operativne odluke aviokompanije"
+        },
+        {
+            "code": "03",
+            "category": "Carrier",
+            "description": "Rotacija aviona – raspored flote"
+        },
+        {
+            "code": "04",
+            "category": "Carrier",
+            "description": "Kašnjenje posade"
+        },
+        {
+            "code": "05",
+            "category": "Carrier",
+            "description": "Nedostatak kabinskog osoblja"
+        },
+        {
+            "code": "06",
+            "category": "Carrier",
+            "description": "Planiranje leta / Weight & Balance"
+        },
+        {
+            "code": "07",
+            "category": "Carrier",
+            "description": "Problemi sa dokumentacijom"
+        },
+        {
+            "code": "08",
+            "category": "Carrier",
+            "description": "Problemi s balansom"
+        },
+        {
+            "code": "09",
+            "category": "Carrier",
+            "description": "Parking pozicija nedostupna"
+        },
+        {
+            "code": "10",
+            "category": "Carrier",
+            "description": "Transfer putnici kasne (odgovornost kompanije)"
+        },
+        {
+            "code": "11",
+            "category": "Technical",
+            "description": "Planirano održavanje"
+        },
+        {
+            "code": "12",
+            "category": "Technical",
+            "description": "Neplanirano održavanje"
+        },
+        {
+            "code": "13",
+            "category": "Technical",
+            "description": "Hangarsko održavanje"
+        },
+        {
+            "code": "14",
+            "category": "Technical",
+            "description": "APU neispravan"
+        },
+        {
+            "code": "15",
+            "category": "Technical",
+            "description": "Problemi s motorima"
+        },
+        {
+            "code": "16",
+            "category": "Technical",
+            "description": "Hidraulika"
+        },
+        {
+            "code": "17",
+            "category": "Technical",
+            "description": "Električni problemi"
+        },
+        {
+            "code": "18",
+            "category": "Technical",
+            "description": "Rezervni dijelovi nedostupni"
+        },
+        {
+            "code": "19",
+            "category": "Technical",
+            "description": "Ground equipment neispravan"
+        },
+        {
+            "code": "20",
+            "category": "Ground Handling",
+            "description": "Ramp handling kašnjenje"
+        },
+        {
+            "code": "21",
+            "category": "Ground Handling",
+            "description": "Prtljag – utovar/istovar"
+        },
+        {
+            "code": "22",
+            "category": "Ground Handling",
+            "description": "Teret nije spreman"
+        },
+        {
+            "code": "23",
+            "category": "Ground Handling",
+            "description": "Specijalni teret"
+        },
+        {
+            "code": "24",
+            "category": "Ground Handling",
+            "description": "Neispravan ULD"
+        },
+        {
+            "code": "25",
+            "category": "Ground Handling",
+            "description": "Problemi sa prtljagom"
+        },
+        {
+            "code": "26",
+            "category": "Ground Handling",
+            "description": "Balansiranje"
+        },
+        {
+            "code": "27",
+            "category": "Ground Handling",
+            "description": "Kasni teret"
+        },
+        {
+            "code": "28",
+            "category": "Ground Handling",
+            "description": "Ručno rukovanje"
+        },
+        {
+            "code": "29",
+            "category": "Ground Handling",
+            "description": "Ostalo"
+        },
+        {
+            "code": "30",
+            "category": "Passengers",
+            "description": "Putnici – generalno"
+        },
+        {
+            "code": "31",
+            "category": "Passengers",
+            "description": "Putnik kasno došao"
+        },
+        {
+            "code": "32",
+            "category": "Passengers",
+            "description": "Putnik odbijen"
+        },
+        {
+            "code": "33",
+            "category": "Passengers",
+            "description": "Putnik izgubljen"
+        },
+        {
+            "code": "34",
+            "category": "Passengers",
+            "description": "Grupa kasni"
+        },
+        {
+            "code": "35",
+            "category": "Passengers",
+            "description": "Vađenje prtljaga no-show putnika"
+        },
+        {
+            "code": "36",
+            "category": "Passengers",
+            "description": "Check-in problemi"
+        },
+        {
+            "code": "37",
+            "category": "Passengers",
+            "description": "Transfer putnici"
+        },
+        {
+            "code": "38",
+            "category": "Passengers",
+            "description": "Medicinski slučaj"
+        },
+        {
+            "code": "39",
+            "category": "Passengers",
+            "description": "Ostalo"
+        },
+        {
+            "code": "40",
+            "category": "Airport",
+            "description": "Aerodromske operacije"
+        },
+        {
+            "code": "41",
+            "category": "Airport",
+            "description": "Pozicija nedostupna"
+        },
+        {
+            "code": "42",
+            "category": "Airport",
+            "description": "Jet bridge problem"
+        },
+        {
+            "code": "43",
+            "category": "Airport",
+            "description": "Voda/WC/cleaning"
+        },
+        {
+            "code": "44",
+            "category": "Airport",
+            "description": "Catering"
+        },
+        {
+            "code": "45",
+            "category": "Airport",
+            "description": "Gorivo"
+        },
+        {
+            "code": "46",
+            "category": "Airport",
+            "description": "GSE problem"
+        },
+        {
+            "code": "47",
+            "category": "Airport",
+            "description": "De-icing"
+        },
+        {
+            "code": "48",
+            "category": "Airport",
+            "description": "Aerodromske restrikcije"
+        },
+        {
+            "code": "49",
+            "category": "Airport",
+            "description": "Ostalo"
+        },
+        {
+            "code": "50",
+            "category": "Weather",
+            "description": "Vrijeme na polasku"
+        },
+        {
+            "code": "51",
+            "category": "Weather",
+            "description": "Vrijeme na dolasku"
+        },
+        {
+            "code": "52",
+            "category": "Weather",
+            "description": "Vrijeme na alternativnom"
+        },
+        {
+            "code": "53",
+            "category": "Weather",
+            "description": "Magla"
+        },
+        {
+            "code": "54",
+            "category": "Weather",
+            "description": "Snijeg & led"
+        },
+        {
+            "code": "55",
+            "category": "Weather",
+            "description": "Jak vjetar"
+        },
+        {
+            "code": "56",
+            "category": "Weather",
+            "description": "Oluja"
+        },
+        {
+            "code": "57",
+            "category": "Weather",
+            "description": "Kapacitet zbog vremena"
+        },
+        {
+            "code": "58",
+            "category": "Weather",
+            "description": "Mokra pista"
+        },
+        {
+            "code": "59",
+            "category": "Weather",
+            "description": "Ostalo"
+        },
+        {
+            "code": "60",
+            "category": "ATC",
+            "description": "ATC restrikcije"
+        },
+        {
+            "code": "61",
+            "category": "ATC",
+            "description": "ATC slot"
+        },
+        {
+            "code": "62",
+            "category": "ATC",
+            "description": "Kapacitet ATC"
+        },
+        {
+            "code": "63",
+            "category": "ATC",
+            "description": "Rute"
+        },
+        {
+            "code": "64",
+            "category": "ATC",
+            "description": "Vojna ograničenja"
+        },
+        {
+            "code": "65",
+            "category": "ATC",
+            "description": "ATC komunikacije"
+        },
+        {
+            "code": "66",
+            "category": "ATC",
+            "description": "ATC štrajk"
+        },
+        {
+            "code": "67",
+            "category": "ATC",
+            "description": "Flow control"
+        },
+        {
+            "code": "68",
+            "category": "ATC",
+            "description": "Noise abatement"
+        },
+        {
+            "code": "69",
+            "category": "ATC",
+            "description": "Ostalo"
+        },
+        {
+            "code": "70",
+            "category": "Commercial",
+            "description": "Komercijalne odluke"
+        },
+        {
+            "code": "71",
+            "category": "Commercial",
+            "description": "Pregupisanje putnika"
+        },
+        {
+            "code": "72",
+            "category": "Commercial",
+            "description": "Overbooking/ticketing"
+        },
+        {
+            "code": "73",
+            "category": "Commercial",
+            "description": "Charter"
+        },
+        {
+            "code": "74",
+            "category": "Commercial",
+            "description": "Prodaja karata"
+        },
+        {
+            "code": "75",
+            "category": "Commercial",
+            "description": "Zamjena aviona"
+        },
+        {
+            "code": "76-79",
+            "category": "Commercial",
+            "description": "Ostalo"
+        },
+        {
+            "code": "80",
+            "category": "Security",
+            "description": "Security kašnjenja (generalno)"
+        },
+        {
+            "code": "81",
+            "category": "Security",
+            "description": "Security restrictions / ATC (ovisno o verziji)"
+        },
+        {
+            "code": "82",
+            "category": "Security",
+            "description": "Security – prtljag"
+        },
+        {
+            "code": "83",
+            "category": "Security",
+            "description": "Aircraft security search"
+        },
+        {
+            "code": "84",
+            "category": "Security",
+            "description": "Bomb threat"
+        },
+        {
+            "code": "85",
+            "category": "Security",
+            "description": "Evakuacija terminala"
+        },
+        {
+            "code": "86",
+            "category": "Security",
+            "description": "Incident na aerodromu"
+        },
+        {
+            "code": "87",
+            "category": "Security",
+            "description": "Unruly passenger"
+        },
+        {
+            "code": "89",
+            "category": "Security",
+            "description": "Ostalo"
+        },
+        {
+            "code": "90",
+            "category": "Reactionary",
+            "description": "Neidentifikovani uzrok"
+        },
+        {
+            "code": "91",
+            "category": "Reactionary",
+            "description": "Late arrival of inbound crew"
+        },
+        {
+            "code": "92",
+            "category": "Reactionary",
+            "description": "Crew duty time expired"
+        },
+        {
+            "code": "93",
+            "category": "Reactionary",
+            "description": "Late arrival of aircraft"
+        },
+        {
+            "code": "94",
+            "category": "Reactionary",
+            "description": "Dokumenti posade / vize"
+        },
+        {
+            "code": "95",
+            "category": "Reactionary",
+            "description": "Zdravstvena ograničenja posade"
+        },
+        {
+            "code": "96",
+            "category": "Reactionary",
+            "description": "Bird strike"
+        },
+        {
+            "code": "97",
+            "category": "Reactionary",
+            "description": "Diversion / neplanirano slijetanje"
+        },
+        {
+            "code": "98",
+            "category": "Reactionary",
+            "description": "Reorganizacija operacija"
+        },
+        {
+            "code": "99",
+            "category": "Reactionary",
+            "description": "Unknown / uncategorized"
+        }
+    ]
+}

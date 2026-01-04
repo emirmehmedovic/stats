@@ -1,0 +1,23 @@
+// Re-export Prisma types
+export type {
+  Airline,
+  Airport,
+  AircraftType,
+  Flight,
+  DelayCode,
+  FlightDelay,
+  Employee,
+  License,
+  LicenseDocument,
+  LicenseNotification,
+  Report,
+  ReportSchedule,
+  BenchmarkData,
+  ForecastData,
+  User,
+  OperationType,
+  FlightStatus,
+  DelayPhase,
+  ReportType,
+  ReportStatus,
+} from '@prisma/client';

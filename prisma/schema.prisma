@@ -1,0 +1,457 @@
+// ---------------------------------------------------------
+// PRISMA CONFIG
+// ---------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------
+
+// Tipovi operacije letova (umjesto enum-a za fleksibilnost)
+model OperationType {
+  id          String   @id @default(cuid())
+  code        String   @unique // SCHEDULED, CHARTER, MEDEVAC, CARGO, MILITARY, GENERAL_AVIATION
+  name        String   // Redovan, Charter, Medicinska evakuacija, Cargo, Vojni, Generalna avijacija
+  description String?  // Opcionalni opis
+  isActive    Boolean  @default(true)
+  flights     Flight[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum FlightStatus {
+  SCHEDULED
+  OPERATED
+  CANCELLED
+  DIVERTED
+}
+
+enum DelayPhase {
+  ARR
+  DEP
+}
+
+enum ReportType {
+  DAILY
+  MONTHLY
+  YEARLY
+  COMPARATIVE
+  ANALYTICS
+  CUSTOM
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ---------------------------------------------------------
+// MODUL 1 - STATISTIKA SAOBRAĆAJA
+// ---------------------------------------------------------
+
+// Aviokompanije
+model Airline {
+  id         String             @id @default(cuid())
+  name       String
+  icaoCode   String             @unique
+  iataCode   String?
+  country    String?
+  address    String?            // Adresa aviokompanije
+  logoUrl    String?            // URL to airline logo image
+  flights    Flight[]
+  delayCodes AirlineDelayCode[] // Many-to-many veza sa delay kodovima
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Aerodromi
+model Airport {
+  id         String   @id @default(cuid())
+  iataCode   String   @unique
+  icaoCode   String?  @unique
+  name       String
+  city       String?
+  country    String
+  isEU       Boolean?
+  latitude   Float?
+  longitude  Float?
+
+  arrivals   Flight[] @relation("ArrivalAirport")
+  departures Flight[] @relation("DepartureAirport")
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Tipovi aviona
+model AircraftType {
+  id        String   @id @default(cuid())
+  model     String   @unique
+  seats     Int
+  mtow      Int      // Maximum Takeoff Weight (kg)
+  flights   Flight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Letovi
+model Flight {
+  id             String              @id @default(cuid())
+  date           DateTime
+
+  airline        Airline             @relation(fields: [airlineId], references: [id])
+  airlineId      String
+
+  aircraftType   AircraftType        @relation(fields: [aircraftTypeId], references: [id])
+  aircraftTypeId String
+
+  registration   String
+  route          String
+  
+  operationType  OperationType @relation(fields: [operationTypeId], references: [id])
+  operationTypeId String
+
+  // Kapacitet (realni kapacitet po letu)
+  availableSeats Int?
+
+  // Aerodromi
+  arrivalAirport     Airport? @relation("ArrivalAirport", fields: [arrivalAirportId], references: [id])
+  arrivalAirportId   String?
+  departureAirport   Airport? @relation("DepartureAirport", fields: [departureAirportId], references: [id])
+  departureAirportId String?
+
+  // Arrival
+  arrivalFlightNumber     String?
+  arrivalScheduledTime    DateTime?
+  arrivalActualTime       DateTime?
+  arrivalPassengers       Int?
+  arrivalMalePassengers   Int? // Muški putnici
+  arrivalFemalePassengers Int? // Ženski putnici
+  arrivalChildren         Int? // Djeca (spadaju u arrivalPassengers)
+  arrivalInfants          Int? // Bebe (NE spadaju u arrivalPassengers)
+  arrivalBaggage          Int? // kg
+  arrivalCargo            Int? // kg
+  arrivalMail             Int? // kg
+  arrivalStatus           FlightStatus @default(OPERATED)
+  arrivalCancelReason     String?
+  arrivalFerryIn          Boolean @default(false)
+
+  // Departure
+  departureFlightNumber     String?
+  departureScheduledTime    DateTime?
+  departureActualTime       DateTime?
+  departureDoorClosingTime  DateTime? // NOVO: Vrijeme zatvaranja vrata
+  departurePassengers       Int?
+  departureMalePassengers   Int? // Muški putnici
+  departureFemalePassengers Int? // Ženski putnici
+  departureChildren         Int? // Djeca (spadaju u departurePassengers)
+  departureInfants          Int? // Bebe (NE spadaju u departurePassengers)
+  departureBaggage          Int? // kg
+  departureCargo            Int? // kg
+  departureMail             Int? // kg
+  departureStatus           FlightStatus @default(OPERATED)
+  departureCancelReason     String?
+  departureFerryOut         Boolean @default(false)
+
+  // Operativni detalji
+  handlingAgent String?
+  stand         String?
+  gate          String?
+
+  // Meta / kvaliteta podataka
+  dataSource      String  @default("MANUAL") // MANUAL, IMPORT_EXCEL, API...
+  importedFile    String?
+  createdByUserId String?
+  updatedByUserId String?
+  isLocked        Boolean @default(false)
+  isVerified      Boolean @default(false)
+  verifiedAt      DateTime?
+  verifiedByUserId String?
+  verifiedByUser  User?   @relation(fields: [verifiedByUserId], references: [id])
+
+  // Relacija na kašnjenja
+  delays FlightDelay[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([airlineId])
+  @@index([route])
+  @@index([arrivalAirportId])
+  @@index([departureAirportId])
+  @@index([operationTypeId])
+  @@index([aircraftTypeId])
+  @@index([date, airlineId]) // Composite index za česte kombinacije
+  @@index([date, operationTypeId]) // Za dashboard analytics
+}
+
+// Verifikacija dnevnih operacija (po datumu)
+model DailyOperationsVerification {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  verified        Boolean  @default(false)
+  verifiedAt      DateTime?
+  verifiedByUserId String?
+  verifiedByUser   User?    @relation(fields: [verifiedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+// Delay kodovi (IATA ili interni)
+model DelayCode {
+  id          String             @id @default(cuid())
+  code        String             @unique
+  description String
+  category    String             // npr. Carrier, ATC, Weather, Reactionary...
+
+  delays   FlightDelay[]
+  airlines AirlineDelayCode[] // Many-to-many veza sa aviokompanijama
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Kašnjenja po letu (više kodova po ARR/DEP ako treba)
+model FlightDelay {
+  id               String     @id @default(cuid())
+  flight           Flight     @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  flightId         String
+  phase            DelayPhase // ARR ili DEP
+  delayCode        DelayCode  @relation(fields: [delayCodeId], references: [id])
+  delayCodeId      String
+  minutes          Int        // broj minuta za ovaj razlog
+  isPrimary        Boolean    @default(true)
+  comment          String?    // Komentar
+  unofficialReason String?    // NOVO: Neoficijelni razlog kašnjenja (interno, kapetan ne zna)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([flightId])
+  @@index([delayCodeId])
+}
+
+// Many-to-many veza između Airline i DelayCode
+model AirlineDelayCode {
+  id          String    @id @default(cuid())
+  airline     Airline   @relation(fields: [airlineId], references: [id], onDelete: Cascade)
+  airlineId   String
+  delayCode   DelayCode @relation(fields: [delayCodeId], references: [id], onDelete: Cascade)
+  delayCodeId String
+  isActive    Boolean   @default(true) // Da li kompanija trenutno koristi ovaj kod
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([airlineId, delayCodeId])
+  @@index([airlineId])
+  @@index([delayCodeId])
+}
+
+// ---------------------------------------------------------
+// MODUL 2 - RADNICI I LICENCE
+// ---------------------------------------------------------
+
+// Radnici
+model Employee {
+  id             String                @id @default(cuid())
+  employeeNumber String                @unique
+  firstName      String
+  lastName       String
+  email          String                @unique
+  phone          String?
+  nationalId     String?
+  dateOfBirth    DateTime?
+  hireDate       DateTime
+  position       String
+  department     String?
+  photo          String?               // URL to photo
+  status         String                @default("ACTIVE") // ACTIVE, INACTIVE, ON_LEAVE
+  licenses       License[]
+  notifications  LicenseNotification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Licence
+model License {
+  id                  String                @id @default(cuid())
+  employee            Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId          String
+  licenseType         String                // tip licence
+  licenseNumber       String
+  issuedDate          DateTime
+  expiryDate          DateTime
+  issuer              String?               // ko je izdao licencu
+  status              String                @default("ACTIVE") // ACTIVE, EXPIRED, SUSPENDED
+  requiredForPosition String?               // za koju poziciju je ključna
+  documents           LicenseDocument[]
+  notifications       LicenseNotification[]
+  createdByUserId     String?
+  updatedByUserId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([expiryDate])
+}
+
+// Dokumentacija licence
+model LicenseDocument {
+  id         String   @id @default(cuid())
+  license    License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  licenseId  String
+  fileName   String
+  filePath   String
+  fileType   String
+  fileSize   Int
+  uploadedAt DateTime @default(now())
+
+  @@index([licenseId])
+}
+
+// Notifikacije za istek licenci
+model LicenseNotification {
+  id               String    @id @default(cuid())
+  employee         Employee  @relation(fields: [employeeId], references: [id])
+  employeeId       String
+  license          License   @relation(fields: [licenseId], references: [id])
+  licenseId        String
+  notificationDate DateTime
+  sent             Boolean   @default(false)
+  sentAt           DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([employeeId])
+  @@index([licenseId])
+}
+
+// ---------------------------------------------------------
+// ANALYTICS & REPORTING
+// ---------------------------------------------------------
+
+// Izvještaji
+model Report {
+  id          String         @id @default(cuid())
+  name        String
+  type        ReportType
+  parameters  Json           // Store filter parameters
+  generatedAt DateTime       @default(now())
+  generatedBy User           @relation(fields: [userId], references: [id])
+  userId      String
+  language    String         @default("bs") // bs, en, de
+  format      String         // pdf, excel, json
+  filePath    String?
+  status      ReportStatus   @default(PENDING)
+  isScheduled Boolean        @default(false)
+  schedule    ReportSchedule?
+
+  @@index([userId])
+  @@index([generatedAt])
+  @@index([type])
+}
+
+// Zakazivanje izvještaja
+model ReportSchedule {
+  id          String    @id @default(cuid())
+  report      Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId    String    @unique
+  frequency   String    // daily, weekly, monthly
+  dayOfWeek   Int?      // 1-7 for weekly
+  dayOfMonth  Int?      // 1-31 for monthly
+  time        String    // HH:mm
+  recipients  String[]  // email addresses
+  isActive    Boolean   @default(true)
+  lastRun     DateTime?
+  nextRun     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([nextRun])
+}
+
+// Benchmark podaci za komparacije
+model BenchmarkData {
+  id        String   @id @default(cuid())
+  date      DateTime
+  metric    String   // passengers, flights, load_factor, etc.
+  value     Float
+  region    String?  // EU, NON_EU, TOTAL
+  airline   String?
+  route     String?
+  createdAt DateTime @default(now())
+
+  @@index([date, metric])
+  @@index([airline])
+}
+
+// Prognoza i trend podaci
+model ForecastData {
+  id           String   @id @default(cuid())
+  forecastDate DateTime
+  metric       String
+  predicted    Float
+  confidence   Float    // 0-1 confidence interval
+  actual       Float?   // popunjava se kada datum prođe
+  model        String   // model name used for prediction
+  createdAt    DateTime @default(now())
+
+  @@index([forecastDate])
+  @@index([metric])
+}
+
+// ---------------------------------------------------------
+// USER MANAGEMENT
+// ---------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(VIEWER)
+  isActive  Boolean  @default(true)
+  reports   Report[]
+  dailyOperationsVerifications DailyOperationsVerification[]
+  verifiedFlights Flight[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Rate limiting za login pokušaje
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String   // Email koji se pokušava prijaviti
+  ipAddress String?  // IP adresa za dodatnu zaštitu
+  success   Boolean  @default(false) // Da li je pokušaj bio uspješan
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([createdAt]) // Za čišćenje starih zapisa
+}
