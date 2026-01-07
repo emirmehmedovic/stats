@@ -68,9 +68,14 @@ export async function middleware(request: NextRequest) {
     if (isWriteMethod && !isPublicApiRoute && !isCronRoute) {
       const origin = request.headers.get('origin');
       const referer = request.headers.get('referer');
-      const expectedOrigin = request.nextUrl.origin;
-      const hasValidOrigin = origin === expectedOrigin;
-      const hasValidReferer = referer ? referer.startsWith(expectedOrigin) : false;
+      const allowedOrigins = [
+        request.nextUrl.origin,
+        process.env.NEXT_PUBLIC_APP_URL,
+        process.env.ALLOWED_ORIGINS,
+      ].filter(Boolean);
+      
+      const hasValidOrigin = origin && allowedOrigins.some(allowed => allowed && origin === allowed);
+      const hasValidReferer = referer && allowedOrigins.some(allowed => allowed && referer.startsWith(allowed));
 
       if (!hasValidOrigin && !hasValidReferer) {
         return applySecurityHeaders(
