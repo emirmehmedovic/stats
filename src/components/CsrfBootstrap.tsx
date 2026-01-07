@@ -25,8 +25,8 @@ export function CsrfBootstrap() {
       }
 
       const headers = new Headers(init?.headers || {});
-      if (!headers.has('X-CSRF-Token')) {
-        headers.set('X-CSRF-Token', csrfToken);
+      if (!headers.has('x-csrf-token')) {
+        headers.set('x-csrf-token', csrfToken);
       }
 
       return originalFetch(input, { ...init, headers });
