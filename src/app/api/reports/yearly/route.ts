@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { eachMonthOfInterval } from 'date-fns';
-import { dateStringFromParts, endOfDayUtc, formatDateDisplay, startOfDayUtc } from '@/lib/dates';
+import {
+  dateStringFromParts,
+  endOfDayUtc,
+  formatDateDisplay,
+  getDateStringInTimeZone,
+  startOfDayUtc,
+  TIME_ZONE_SARAJEVO,
+} from '@/lib/dates';
 
 const ON_TIME_THRESHOLD_MINUTES = 15;
 const MIN_ROUTE_FLIGHTS = 3;
@@ -76,6 +83,11 @@ type YearlyReport = {
     overallOnTimeRate: number | null;
     overallAvgDelayMinutes: number | null;
     totalDelaySamples: number;
+    delayPercentiles: {
+      p50: number | null;
+      p90: number | null;
+      p95: number | null;
+    };
     byMonth: Array<{
       monthNumber: number;
       month: string;
@@ -118,6 +130,26 @@ type YearlyReport = {
       previous: number;
       growth: number;
     };
+    loadFactor: {
+      current: number | null;
+      previous: number | null;
+      growth: number;
+    };
+    onTimeRate: {
+      current: number | null;
+      previous: number | null;
+      growth: number;
+    };
+    avgDelayMinutes: {
+      current: number | null;
+      previous: number | null;
+      growth: number;
+    };
+    cancelledRate: {
+      current: number | null;
+      previous: number | null;
+      growth: number;
+    };
   };
   byAirline: Array<{
     airline: string;
@@ -131,6 +163,90 @@ type YearlyReport = {
     passengers: number;
     avgFlightsPerMonth: number;
   }>;
+  statusBreakdown: {
+    totalLegs: number;
+    operatedLegs: number;
+    cancelledLegs: number;
+    divertedLegs: number;
+    scheduledLegs: number;
+    operatedRate: number | null;
+    cancelledRate: number | null;
+    divertedRate: number | null;
+  };
+  peakDays: Array<{
+    date: string;
+    passengers: number;
+    flights: number;
+  }>;
+  peakHours: Array<{
+    hour: number;
+    passengers: number;
+    flights: number;
+  }>;
+  delayCodesTop: Array<{
+    code: string;
+    description: string;
+    totalMinutes: number;
+    occurrences: number;
+  }>;
+  operationTypeBreakdown: Array<{
+    code: string;
+    name: string;
+    flights: number;
+    passengers: number;
+  }>;
+  trafficSplit: {
+    domesticPassengers: number;
+    internationalPassengers: number;
+    domesticFlights: number;
+    internationalFlights: number;
+    domesticRate: number | null;
+    internationalRate: number | null;
+  };
+  concentration: {
+    topRoutesShare: number | null;
+    topAirlinesShare: number | null;
+    topRoutes: Array<{
+      route: string;
+      passengers: number;
+    }>;
+    topAirlines: Array<{
+      airline: string;
+      passengers: number;
+    }>;
+  };
+  volatility: {
+    passengersStdDev: number | null;
+    flightsStdDev: number | null;
+  };
+  topMonths: {
+    byLoadFactor: Array<{
+      month: string;
+      monthNumber: number;
+      loadFactor: number | null;
+    }>;
+    byOnTimeRate: Array<{
+      month: string;
+      monthNumber: number;
+      onTimeRate: number | null;
+    }>;
+  };
+  seasonalityTrends: {
+    quarters: Array<{
+      label: string;
+      flights: number;
+      passengers: number;
+      avgFlightsPerMonth: number;
+      avgPassengersPerMonth: number;
+    }>;
+    seasons: Array<{
+      label: string;
+      flights: number;
+      passengers: number;
+      avgFlightsPerMonth: number;
+      avgPassengersPerMonth: number;
+    }>;
+  };
   hasPreviousYearData: boolean;
 };
 
@@ -182,7 +298,114 @@ const getDelayMinutes = (scheduled?: Date | null, actual?: Date | null) => {
   return minutes < 0 ? 0 : minutes;
 };
 
-const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
+const getPercentile = (values: number[], percentile: number): number | null => {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+  const safeIndex = Math.max(0, Math.min(sorted.length - 1, index));
+  return Number(sorted[safeIndex].toFixed(2));
+};
+
+const getStdDev = (values: number[]): number | null => {
+  if (values.length === 0) return null;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance =
+    values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+  return Number(Math.sqrt(variance).toFixed(2));
+};
+
+const getHourInTimeZone = (date: Date): number => {
+  const hourStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIME_ZONE_SARAJEVO,
+    hour: '2-digit',
+    hour12: false,
+  }).format(date);
+  return Number(hourStr);
+};
+
+const computeSummaryMetrics = (flights: any[]) => {
+  let totalSeats = 0;
+  let totalPassengers = 0;
+  let totalDelayMinutes = 0;
+  let totalDelaySamples = 0;
+  let totalOnTimeSamples = 0;
+  let totalLegs = 0;
+  let cancelledLegs = 0;
+  let divertedLegs = 0;
+  let scheduledLegs = 0;
+  let operatedLegs = 0;
+
+  flights.forEach((flight) => {
+    const passengers =
+      getArrivalPassengers(flight) + getDeparturePassengers(flight);
+    totalPassengers += passengers;
+
+    const legCount = getLegCount(flight);
+    const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
+    if (seatsPerLeg > 0 && legCount > 0) {
+      totalSeats += seatsPerLeg * legCount;
+    }
+
+    if (flight.arrivalFlightNumber) {
+      totalLegs += 1;
+      if (flight.arrivalStatus === 'CANCELLED') cancelledLegs += 1;
+      else if (flight.arrivalStatus === 'DIVERTED') divertedLegs += 1;
+      else if (flight.arrivalStatus === 'SCHEDULED') scheduledLegs += 1;
+      else if (flight.arrivalStatus === 'OPERATED') operatedLegs += 1;
+    }
+
+    if (flight.departureFlightNumber) {
+      totalLegs += 1;
+      if (flight.departureStatus === 'CANCELLED') cancelledLegs += 1;
+      else if (flight.departureStatus === 'DIVERTED') divertedLegs += 1;
+      else if (flight.departureStatus === 'SCHEDULED') scheduledLegs += 1;
+      else if (flight.departureStatus === 'OPERATED') operatedLegs += 1;
+    }
+
+    const arrivalDelay = getDelayMinutes(
+      flight.arrivalScheduledTime,
+      flight.arrivalActualTime
+    );
+    if (arrivalDelay !== null && flight.arrivalStatus !== 'CANCELLED') {
+      totalDelayMinutes += arrivalDelay;
+      totalDelaySamples += 1;
+      if (arrivalDelay <= ON_TIME_THRESHOLD_MINUTES) {
+        totalOnTimeSamples += 1;
+      }
+    }
+
+    const departureDelay = getDelayMinutes(
+      flight.departureScheduledTime,
+      flight.departureActualTime
+    );
+    if (departureDelay !== null && flight.departureStatus !== 'CANCELLED') {
+      totalDelayMinutes += departureDelay;
+      totalDelaySamples += 1;
+      if (departureDelay <= ON_TIME_THRESHOLD_MINUTES) {
+        totalOnTimeSamples += 1;
+      }
+    }
+  });
+
+  const loadFactor = totalSeats > 0 ? (totalPassengers / totalSeats) * 100 : null;
+  const avgDelayMinutes =
+    totalDelaySamples > 0 ? totalDelayMinutes / totalDelaySamples : null;
+  const onTimeRate =
+    totalDelaySamples > 0 ? (totalOnTimeSamples / totalDelaySamples) * 100 : null;
+  const cancelledRate = totalLegs > 0 ? (cancelledLegs / totalLegs) * 100 : null;
+
+  return {
+    loadFactor: loadFactor !== null ? Number(loadFactor.toFixed(2)) : null,
+    onTimeRate: onTimeRate !== null ? Number(onTimeRate.toFixed(2)) : null,
+    avgDelayMinutes: avgDelayMinutes !== null ? Number(avgDelayMinutes.toFixed(2)) : null,
+    cancelledRate: cancelledRate !== null ? Number(cancelledRate.toFixed(2)) : null,
+  };
+};
+
+const buildYearlyReport = async (
+  year: number,
+  operationTypeCode?: string | null
+): Promise<YearlyReport> => {
   const yearStart = startOfDayUtc(dateStringFromParts(year, 1, 1));
   const yearEnd = endOfDayUtc(dateStringFromParts(year, 12, 31));
 
@@ -192,12 +415,34 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
         gte: yearStart,
         lte: yearEnd,
       },
+      ...(operationTypeCode ? { operationType: { code: operationTypeCode } } : {}),
     },
     include: {
       airline: {
         select: {
           name: true,
           icaoCode: true,
+        },
+      },
+      aircraftType: {
+        select: {
+          seats: true,
+        },
+      },
+      operationType: {
+        select: {
+          code: true,
+          name: true,
+        },
+      },
+      arrivalAirport: {
+        select: {
+          country: true,
+        },
+      },
+      departureAirport: {
+        select: {
+          country: true,
         },
       },
     },
@@ -232,7 +477,14 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
   totals.totalMail = totals.arrivalMail + totals.departureMail;
 
   const monthsInYear = eachMonthOfInterval({ start: yearStart, end: yearEnd });
-  const monthlyBreakdown = monthsInYear.map((month) => {
+
+  // Filter out months that don't belong to the target year (timezone issues can cause extra months)
+  const monthsFiltered = monthsInYear.filter((month) => {
+    const utcYear = month.getUTCFullYear();
+    return utcYear === year;
+  });
+
+  const monthlyBreakdown = monthsFiltered.map((month) => {
     const monthStart = startOfDayUtc(
       dateStringFromParts(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
     );
@@ -274,6 +526,22 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
   let totalDelayMinutes = 0;
   let totalDelaySamples = 0;
   let totalOnTimeSamples = 0;
+  let totalLegs = 0;
+  let operatedLegs = 0;
+  let cancelledLegs = 0;
+  let divertedLegs = 0;
+  let scheduledLegs = 0;
+  const delaySamples: number[] = [];
+  const peakDaysMap = new Map<string, { date: string; passengers: number; flights: number }>();
+  const peakHoursMap = new Map<number, { hour: number; passengers: number; flights: number }>();
+  const operationTypeMap = new Map<
+    string,
+    { code: string; name: string; flights: number; passengers: number }
+  >();
+  let domesticPassengers = 0;
+  let internationalPassengers = 0;
+  let domesticFlights = 0;
+  let internationalFlights = 0;
 
   flights.forEach((flight) => {
     const routeKey = flight.route || 'N/A';
@@ -288,14 +556,63 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
       onTimeCount: 0,
     };
 
-    const passengers =
-      getArrivalPassengers(flight) + getDeparturePassengers(flight);
+    const arrivalPassengers = getArrivalPassengers(flight);
+    const departurePassengers = getDeparturePassengers(flight);
+    const passengers = arrivalPassengers + departurePassengers;
     current.flights += 1;
     current.passengers += passengers;
 
+    const dayKey = getDateStringInTimeZone(flight.date, TIME_ZONE_SARAJEVO);
+    const dayEntry = peakDaysMap.get(dayKey) || { date: dayKey, passengers: 0, flights: 0 };
+    dayEntry.passengers += passengers;
+    dayEntry.flights += 1;
+    peakDaysMap.set(dayKey, dayEntry);
+
+    if (flight.arrivalScheduledTime) {
+      const hour = getHourInTimeZone(flight.arrivalScheduledTime);
+      const hourEntry = peakHoursMap.get(hour) || { hour, passengers: 0, flights: 0 };
+      hourEntry.passengers += arrivalPassengers;
+      hourEntry.flights += 1;
+      peakHoursMap.set(hour, hourEntry);
+    }
+
+    if (flight.departureScheduledTime) {
+      const hour = getHourInTimeZone(flight.departureScheduledTime);
+      const hourEntry = peakHoursMap.get(hour) || { hour, passengers: 0, flights: 0 };
+      hourEntry.passengers += departurePassengers;
+      hourEntry.flights += 1;
+      peakHoursMap.set(hour, hourEntry);
+    }
+
+    const opTypeKey = flight.operationType?.code || 'UNKNOWN';
+    const opTypeName = flight.operationType?.name || 'Unknown';
+    const opTypeEntry = operationTypeMap.get(opTypeKey) || {
+      code: opTypeKey,
+      name: opTypeName,
+      flights: 0,
+      passengers: 0,
+    };
+    opTypeEntry.flights += 1;
+    opTypeEntry.passengers += passengers;
+    operationTypeMap.set(opTypeKey, opTypeEntry);
+
+    const arrivalCountry = flight.arrivalAirport?.country;
+    const departureCountry = flight.departureAirport?.country;
+    if (arrivalCountry && departureCountry) {
+      if (arrivalCountry === departureCountry) {
+        domesticPassengers += passengers;
+        domesticFlights += 1;
+      } else {
+        internationalPassengers += passengers;
+        internationalFlights += 1;
+      }
+    }
+
     const legCount = getLegCount(flight);
-    if (flight.availableSeats && legCount > 0) {
-      const seats = flight.availableSeats * legCount;
+    // Use availableSeats if available, otherwise fall back to aircraftType.seats
+    const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
+    if (seatsPerLeg > 0 && legCount > 0) {
+      const seats = seatsPerLeg * legCount;
       current.seats += seats;
       current.passengersForLoad += passengers;
       totalSeats += seats;
@@ -304,17 +621,44 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
 
     const monthNumber = new Date(flight.date).getUTCMonth() + 1;
     const monthLoad = monthLoadFactor.get(monthNumber) || { passengers: 0, seats: 0 };
-    if (flight.availableSeats && legCount > 0) {
-      monthLoad.seats += flight.availableSeats * legCount;
+    if (seatsPerLeg > 0 && legCount > 0) {
+      monthLoad.seats += seatsPerLeg * legCount;
       monthLoad.passengers += passengers;
     }
     monthLoadFactor.set(monthNumber, monthLoad);
+
+    if (flight.arrivalFlightNumber) {
+      totalLegs += 1;
+      if (flight.arrivalStatus === 'CANCELLED') {
+        cancelledLegs += 1;
+      } else if (flight.arrivalStatus === 'DIVERTED') {
+        divertedLegs += 1;
+      } else if (flight.arrivalStatus === 'SCHEDULED') {
+        scheduledLegs += 1;
+      } else if (flight.arrivalStatus === 'OPERATED') {
+        operatedLegs += 1;
+      }
+    }
+
+    if (flight.departureFlightNumber) {
+      totalLegs += 1;
+      if (flight.departureStatus === 'CANCELLED') {
+        cancelledLegs += 1;
+      } else if (flight.departureStatus === 'DIVERTED') {
+        divertedLegs += 1;
+      } else if (flight.departureStatus === 'SCHEDULED') {
+        scheduledLegs += 1;
+      } else if (flight.departureStatus === 'OPERATED') {
+        operatedLegs += 1;
+      }
+    }
 
     const arrivalDelay = getDelayMinutes(
       flight.arrivalScheduledTime,
       flight.arrivalActualTime
     );
     if (arrivalDelay !== null && flight.arrivalStatus !== 'CANCELLED') {
+      delaySamples.push(arrivalDelay);
       current.delayCount += 1;
       current.delayTotal += arrivalDelay;
       totalDelayMinutes += arrivalDelay;
@@ -338,6 +682,7 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
       flight.departureActualTime
     );
     if (departureDelay !== null && flight.departureStatus !== 'CANCELLED') {
+      delaySamples.push(departureDelay);
       current.delayCount += 1;
       current.delayTotal += departureDelay;
       totalDelayMinutes += departureDelay;
@@ -405,7 +750,7 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
 
   const routesAll = routesArray;
 
-  const loadFactorByMonth = monthsInYear.map((month) => {
+  const loadFactorByMonth = monthsFiltered.map((month) => {
     const monthNumber = month.getUTCMonth() + 1;
     const monthLoad = monthLoadFactor.get(monthNumber) || { passengers: 0, seats: 0 };
     const loadFactor = monthLoad.seats > 0 ? (monthLoad.passengers / monthLoad.seats) * 100 : null;
@@ -418,7 +763,7 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     };
   });
 
-  const punctualityByMonth = monthsInYear.map((month) => {
+  const punctualityByMonth = monthsFiltered.map((month) => {
     const monthNumber = month.getUTCMonth() + 1;
     const monthDelay = monthPunctuality.get(monthNumber) || {
       delayTotal: 0,
@@ -438,6 +783,34 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     };
   });
 
+  const monthlyPassengers = monthlyBreakdown.map((item) => item.passengers);
+  const monthlyFlights = monthlyBreakdown.map((item) => item.flights);
+  const volatility = {
+    passengersStdDev: getStdDev(monthlyPassengers),
+    flightsStdDev: getStdDev(monthlyFlights),
+  };
+
+  const topMonths = {
+    byLoadFactor: [...loadFactorByMonth]
+      .filter((item) => item.loadFactor !== null)
+      .sort((a, b) => (b.loadFactor || 0) - (a.loadFactor || 0))
+      .slice(0, 5)
+      .map((item) => ({
+        month: item.month,
+        monthNumber: item.monthNumber,
+        loadFactor: item.loadFactor,
+      })),
+    byOnTimeRate: [...punctualityByMonth]
+      .filter((item) => item.onTimeRate !== null)
+      .sort((a, b) => (b.onTimeRate || 0) - (a.onTimeRate || 0))
+      .slice(0, 5)
+      .map((item) => ({
+        month: item.month,
+        monthNumber: item.monthNumber,
+        onTimeRate: item.onTimeRate,
+      })),
+  };
+
   const prevYear = year - 1;
   const prevYearStart = startOfDayUtc(dateStringFromParts(prevYear, 1, 1));
   const prevYearEnd = endOfDayUtc(dateStringFromParts(prevYear, 12, 31));
@@ -447,6 +820,14 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
       date: {
         gte: prevYearStart,
         lte: prevYearEnd,
+      },
+      ...(operationTypeCode ? { operationType: { code: operationTypeCode } } : {}),
+    },
+    include: {
+      aircraftType: {
+        select: {
+          seats: true,
+        },
       },
     },
   });
@@ -462,6 +843,79 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
       0
     ),
   };
+
+  const delayAgg = await prisma.flightDelay.groupBy({
+    by: ['delayCodeId'],
+    where: {
+      flight: {
+        date: {
+          gte: yearStart,
+          lte: yearEnd,
+        },
+        ...(operationTypeCode ? { operationType: { code: operationTypeCode } } : {}),
+      },
+    },
+    _sum: { minutes: true },
+    _count: { _all: true },
+    orderBy: {
+      _sum: {
+        minutes: 'desc',
+      },
+    },
+    take: 5,
+  });
+
+  const delayCodeIds = delayAgg.map((item) => item.delayCodeId);
+  const delayCodes = delayCodeIds.length
+    ? await prisma.delayCode.findMany({
+        where: { id: { in: delayCodeIds } },
+        select: { id: true, code: true, description: true },
+      })
+    : [];
+  const delayCodeMap = new Map(delayCodes.map((code) => [code.id, code]));
+  const delayCodesTop = delayAgg.map((item) => ({
+    code: delayCodeMap.get(item.delayCodeId)?.code || item.delayCodeId,
+    description: delayCodeMap.get(item.delayCodeId)?.description || '',
+    totalMinutes: item._sum.minutes || 0,
+    occurrences: item._count._all,
+  }));
+
+  const overallLoadFactor =
+    totalSeats > 0 ? Number(((totalPassengers / totalSeats) * 100).toFixed(2)) : null;
+
+  const overallAvgDelay =
+    totalDelaySamples > 0 ? Number((totalDelayMinutes / totalDelaySamples).toFixed(2)) : null;
+  const overallOnTimeRate =
+    totalDelaySamples > 0 ? Number(((totalOnTimeSamples / totalDelaySamples) * 100).toFixed(2)) : null;
+  const delayPercentiles = {
+    p50: getPercentile(delaySamples, 50),
+    p90: getPercentile(delaySamples, 90),
+    p95: getPercentile(delaySamples, 95),
+  };
+
+  const trafficSplit = {
+    domesticPassengers,
+    internationalPassengers,
+    domesticFlights,
+    internationalFlights,
+    domesticRate:
+      totals.totalPassengers > 0
+        ? Number(((domesticPassengers / totals.totalPassengers) * 100).toFixed(2))
+        : null,
+    internationalRate:
+      totals.totalPassengers > 0
+        ? Number(((internationalPassengers / totals.totalPassengers) * 100).toFixed(2))
+        : null,
+  };
+
+  const operatedRate =
+    totalLegs > 0 ? Number(((operatedLegs / totalLegs) * 100).toFixed(2)) : null;
+  const cancelledRate =
+    totalLegs > 0 ? Number(((cancelledLegs / totalLegs) * 100).toFixed(2)) : null;
+  const divertedRate =
+    totalLegs > 0 ? Number(((divertedLegs / totalLegs) * 100).toFixed(2)) : null;
+
+  const prevYearSummary = computeSummaryMetrics(prevYearFlights);
 
   const yoyComparison = {
     flights: {
@@ -488,6 +942,38 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
           ? ((totals.totalCargo - prevYearTotals.cargo) / prevYearTotals.cargo) * 100
           : 0,
     },
+    loadFactor: {
+      current: overallLoadFactor,
+      previous: prevYearSummary.loadFactor,
+      growth:
+        prevYearSummary.loadFactor && prevYearSummary.loadFactor > 0
+          ? (((overallLoadFactor || 0) - prevYearSummary.loadFactor) / prevYearSummary.loadFactor) * 100
+          : 0,
+    },
+    onTimeRate: {
+      current: overallOnTimeRate,
+      previous: prevYearSummary.onTimeRate,
+      growth:
+        prevYearSummary.onTimeRate && prevYearSummary.onTimeRate > 0
+          ? (((overallOnTimeRate || 0) - prevYearSummary.onTimeRate) / prevYearSummary.onTimeRate) * 100
+          : 0,
+    },
+    avgDelayMinutes: {
+      current: overallAvgDelay,
+      previous: prevYearSummary.avgDelayMinutes,
+      growth:
+        prevYearSummary.avgDelayMinutes && prevYearSummary.avgDelayMinutes > 0
+          ? (((overallAvgDelay || 0) - prevYearSummary.avgDelayMinutes) / prevYearSummary.avgDelayMinutes) * 100
+          : 0,
+    },
+    cancelledRate: {
+      current: cancelledRate,
+      previous: prevYearSummary.cancelledRate,
+      growth:
+        prevYearSummary.cancelledRate && prevYearSummary.cancelledRate > 0
+          ? (((cancelledRate || 0) - prevYearSummary.cancelledRate) / prevYearSummary.cancelledRate) * 100
+          : 0,
+    },
   };
 
   const byAirline = flights.reduce((acc, flight) => {
@@ -508,6 +994,30 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
   const airlineStats = Object.values(byAirline).sort(
     (a: any, b: any) => b.flights - a.flights
   );
+
+  const topRoutesForShare = [...routesAll]
+    .sort((a, b) => b.passengers - a.passengers)
+    .slice(0, 3)
+    .map((route) => ({ route: route.route, passengers: route.passengers }));
+  const topAirlinesForShare = [...airlineStats]
+    .sort((a: any, b: any) => b.passengers - a.passengers)
+    .slice(0, 3)
+    .map((airline: any) => ({ airline: airline.airline, passengers: airline.passengers }));
+  const topRoutesPassengers = topRoutesForShare.reduce((sum, item) => sum + item.passengers, 0);
+  const topAirlinesPassengers = topAirlinesForShare.reduce(
+    (sum, item) => sum + item.passengers,
+    0
+  );
+  const concentration = {
+    topRoutesShare:
+      totalPassengers > 0 ? Number(((topRoutesPassengers / totalPassengers) * 100).toFixed(2)) : null,
+    topAirlinesShare:
+      totalPassengers > 0
+        ? Number(((topAirlinesPassengers / totalPassengers) * 100).toFixed(2))
+        : null,
+    topRoutes: topRoutesForShare,
+    topAirlines: topAirlinesForShare,
+  };
 
   const airlineAccumulator = new Map<
     string,
@@ -543,8 +1053,10 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     current.passengers += passengers;
 
     const legCount = getLegCount(flight);
-    if (flight.availableSeats && legCount > 0) {
-      const seats = flight.availableSeats * legCount;
+    // Use availableSeats if available, otherwise fall back to aircraftType.seats
+    const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
+    if (seatsPerLeg > 0 && legCount > 0) {
+      const seats = seatsPerLeg * legCount;
       current.seats += seats;
       current.passengersForLoad += passengers;
     }
@@ -597,6 +1109,18 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     };
   });
 
+  const peakDays = [...peakDaysMap.values()]
+    .sort((a, b) => b.passengers - a.passengers)
+    .slice(0, 5);
+
+  const peakHours = [...peakHoursMap.values()]
+    .sort((a, b) => b.passengers - a.passengers)
+    .slice(0, 5);
+
+  const operationTypeBreakdown = [...operationTypeMap.values()].sort(
+    (a, b) => b.passengers - a.passengers
+  );
+
   const quarters = [
     { name: 'Q1 (Jan-Mar)', months: [1, 2, 3] },
     { name: 'Q2 (Apr-Jun)', months: [4, 5, 6] },
@@ -608,24 +1132,59 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     const quarterData = monthlyBreakdown.filter((m) =>
       quarter.months.includes(m.monthNumber)
     );
+    const flights = quarterData.reduce((sum, m) => sum + m.flights, 0);
+    const passengers = quarterData.reduce((sum, m) => sum + m.passengers, 0);
 
     return {
       quarter: quarter.name,
-      flights: quarterData.reduce((sum, m) => sum + m.flights, 0),
-      passengers: quarterData.reduce((sum, m) => sum + m.passengers, 0),
-      avgFlightsPerMonth: Math.round(
-        quarterData.reduce((sum, m) => sum + m.flights, 0) / quarter.months.length
-      ),
+      flights,
+      passengers,
+      avgFlightsPerMonth: Math.round(flights / quarter.months.length),
     };
   });
 
-  const overallLoadFactor =
-    totalSeats > 0 ? Number(((totalPassengers / totalSeats) * 100).toFixed(2)) : null;
+  const quarterTrends = quarters.map((quarter) => {
+    const quarterData = monthlyBreakdown.filter((m) =>
+      quarter.months.includes(m.monthNumber)
+    );
+    const flights = quarterData.reduce((sum, m) => sum + m.flights, 0);
+    const passengers = quarterData.reduce((sum, m) => sum + m.passengers, 0);
+    return {
+      label: quarter.name,
+      flights,
+      passengers,
+      avgFlightsPerMonth: Math.round(flights / quarter.months.length),
+      avgPassengersPerMonth: Math.round(passengers / quarter.months.length),
+    };
+  });
 
-  const overallAvgDelay =
-    totalDelaySamples > 0 ? Number((totalDelayMinutes / totalDelaySamples).toFixed(2)) : null;
-  const overallOnTimeRate =
-    totalDelaySamples > 0 ? Number(((totalOnTimeSamples / totalDelaySamples) * 100).toFixed(2)) : null;
+  const seasons = [
+    { name: 'Zima (Dec-Feb)', months: [12, 1, 2] },
+    { name: 'Proljeće (Mar-May)', months: [3, 4, 5] },
+    { name: 'Ljeto (Jun-Aug)', months: [6, 7, 8] },
+    { name: 'Jesen (Sep-Nov)', months: [9, 10, 11] },
+  ];
+
+  const seasonTrends = seasons.map((season) => {
+    const seasonData = monthlyBreakdown.filter((m) =>
+      season.months.includes(m.monthNumber)
+    );
+    const flights = seasonData.reduce((sum, m) => sum + m.flights, 0);
+    const passengers = seasonData.reduce((sum, m) => sum + m.passengers, 0);
+    return {
+      label: season.name,
+      flights,
+      passengers,
+      avgFlightsPerMonth: Math.round(flights / season.months.length),
+      avgPassengersPerMonth: Math.round(passengers / season.months.length),
+    };
+  });
+
+  const seasonalityTrends = {
+    quarters: quarterTrends,
+    seasons: seasonTrends,
+  };
+
 
   return {
     mode: 'single',
@@ -642,6 +1201,7 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
       overallOnTimeRate,
       overallAvgDelayMinutes: overallAvgDelay,
       totalDelaySamples,
+      delayPercentiles,
       byMonth: punctualityByMonth,
     },
     routes: {
@@ -656,6 +1216,25 @@ const buildYearlyReport = async (year: number): Promise<YearlyReport> => {
     yoyComparison,
     byAirline: airlineStats,
     seasonalAnalysis,
+    statusBreakdown: {
+      totalLegs,
+      operatedLegs,
+      cancelledLegs,
+      divertedLegs,
+      scheduledLegs,
+      operatedRate,
+      cancelledRate,
+      divertedRate,
+    },
+    peakDays,
+    peakHours,
+    delayCodesTop,
+    operationTypeBreakdown,
+    trafficSplit,
+    concentration,
+    volatility,
+    topMonths,
+    seasonalityTrends,
     hasPreviousYearData: prevYearFlights.length > 0,
   };
 };
@@ -694,7 +1273,10 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const yearsData = await Promise.all(years.map((value) => buildYearlyReport(value)));
+      const filterOperationType = searchParams.get('operationType');
+      const yearsData = await Promise.all(
+        years.map((value) => buildYearlyReport(value, filterOperationType))
+      );
 
       const routeSets = yearsData.map(
         (yearData) => new Set(yearData.routesAll.map((route) => route.route))
@@ -782,7 +1364,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const payload = await buildYearlyReport(year);
+    const filterOperationType = searchParams.get('operationType');
+    const payload = await buildYearlyReport(year, filterOperationType);
 
     return NextResponse.json({
       success: true,

@@ -28,12 +28,21 @@ export default function AirlinesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAirline, setEditingAirline] = useState<Airline | null>(null);
 
   useEffect(() => {
-    fetchAirlines();
+    const handle = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 600);
+
+    return () => clearTimeout(handle);
   }, [searchTerm]);
+
+  useEffect(() => {
+    fetchAirlines();
+  }, [debouncedSearchTerm]);
 
   const fetchAirlines = async () => {
     setIsLoading(true);
@@ -41,8 +50,8 @@ export default function AirlinesPage() {
 
     try {
       const params = new URLSearchParams();
-      if (searchTerm) {
-        params.append('search', searchTerm);
+      if (debouncedSearchTerm) {
+        params.append('search', debouncedSearchTerm);
       }
 
       const response = await fetch(`/api/airlines?${params.toString()}`);
@@ -292,4 +301,3 @@ export default function AirlinesPage() {
     </MainLayout>
   );
 }
-

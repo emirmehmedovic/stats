@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env npx tsx
 
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
@@ -25,9 +25,9 @@ const OPERATION_TYPE_MAP: Record<string, string> = {
   'CHARTER': 'CHARTER',
   'CARGO': 'CARGO',
   'MILITARY': 'MILITARY',
-  'N/A': 'SCHEDULED', // Default for N/A
-  '-': 'SCHEDULED', // Default for -
-  'NA': 'SCHEDULED', // Default for NA
+  'N/A': 'SCHEDULED',
+  '-': 'SCHEDULED',
+  'NA': 'SCHEDULED',
 };
 
 interface FlightData {
@@ -84,12 +84,11 @@ async function getOrCreateAirport(iataCode: string): Promise<string> {
   });
 
   if (!airport) {
-    // Create new airport with minimal data
     airport = await prisma.airport.create({
       data: {
         iataCode,
-        name: iataCode, // Placeholder
-        country: 'Unknown', // Placeholder
+        name: iataCode,
+        country: 'Unknown',
       },
     });
     console.log(`   🆕 Created airport: ${iataCode}`);
@@ -159,12 +158,19 @@ function mapOperationType(excelType: string): string {
   return OPERATION_TYPE_MAP[normalized] || 'SCHEDULED';
 }
 
-async function importFlights(dryRun: boolean = false) {
-  console.log('🚀 Starting Flight Import from JSON...');
+async function importFlights(year: string, dryRun: boolean = false) {
+  console.log(`🚀 Starting Flight Import for ${year}...`);
   console.log(`   Mode: ${dryRun ? 'DRY RUN' : 'LIVE IMPORT'}\n`);
 
   // Read JSON file
-  const jsonPath = path.join(process.cwd(), 'output', '2025-flights-data.json');
+  const jsonPath = path.join(process.cwd(), 'output', `${year}-flights-data.json`);
+
+  if (!fs.existsSync(jsonPath)) {
+    console.error(`❌ File not found: ${jsonPath}`);
+    console.log(`\n💡 Run extraction first: python3 scripts/extract-flights.py ${year}`);
+    process.exit(1);
+  }
+
   const rawData = fs.readFileSync(jsonPath, 'utf-8');
   const data: ExtractedData = JSON.parse(rawData);
 
@@ -182,7 +188,6 @@ async function importFlights(dryRun: boolean = false) {
     const flight = data.flights[i];
 
     try {
-      // Get airline
       const airlineId = await getAirlineId(flight.airline);
       if (!airlineId) {
         errors.push(`Flight ${i + 1}: Airline not found: ${flight.airline}`);
@@ -190,7 +195,6 @@ async function importFlights(dryRun: boolean = false) {
         continue;
       }
 
-      // Get aircraft type
       const aircraftTypeId = await getAircraftTypeId(flight.aircraftModel);
       if (!aircraftTypeId) {
         errors.push(`Flight ${i + 1}: Aircraft type not found: ${flight.aircraftModel}`);
@@ -198,7 +202,6 @@ async function importFlights(dryRun: boolean = false) {
         continue;
       }
 
-      // Get operation type
       const operationTypeCode = mapOperationType(flight.operationType);
       const operationTypeId = await getOperationTypeId(operationTypeCode);
       if (!operationTypeId) {
@@ -207,12 +210,10 @@ async function importFlights(dryRun: boolean = false) {
         continue;
       }
 
-      // Get or create airports
       const departureAirportId = await getOrCreateAirport(flight.departureAirport);
       const arrivalAirportId = await getOrCreateAirport(flight.arrivalAirport);
 
       if (!dryRun) {
-        // Create flight record
         await prisma.flight.create({
           data: {
             date: dateOnlyToUtc(flight.date),
@@ -224,14 +225,11 @@ async function importFlights(dryRun: boolean = false) {
             departureAirportId,
             arrivalAirportId,
 
-            // Capacity
             availableSeats: flight.availableSeats || null,
 
-            // Flight numbers
             arrivalFlightNumber: flight.arrivalFlightNumber || null,
             departureFlightNumber: flight.departureFlightNumber || null,
 
-            // Times (with validation)
             arrivalScheduledTime: flight.scheduledArrivalTime && flight.scheduledArrivalTime.trim() !== '-'
               ? (() => {
                   const d = new Date(`${flight.date.split('T')[0]}T${flight.scheduledArrivalTime}`);
@@ -257,13 +255,11 @@ async function importFlights(dryRun: boolean = false) {
                 })()
               : null,
 
-            // Passenger data
             arrivalPassengers: flight.arrivalPassengers || null,
             arrivalInfants: flight.arrivalInfants || null,
             departurePassengers: flight.departurePassengers || null,
             departureInfants: flight.departureInfants || null,
 
-            // Baggage, cargo, mail
             arrivalBaggage: flight.arrivalBaggage || null,
             departureBaggage: flight.departureBaggage || null,
             arrivalCargo: flight.arrivalCargo || null,
@@ -271,8 +267,7 @@ async function importFlights(dryRun: boolean = false) {
             arrivalMail: flight.arrivalMail || null,
             departureMail: flight.departureMail || null,
 
-            // Metadata
-            dataSource: 'EXCEL_IMPORT_2025',
+            dataSource: `EXCEL_IMPORT_${year}`,
             importedFile: flight.sourceFile,
             isVerified: false,
           },
@@ -281,7 +276,6 @@ async function importFlights(dryRun: boolean = false) {
 
       importedCount++;
 
-      // Progress indicator (every 50 flights)
       if (importedCount % 50 === 0) {
         console.log(`   ✓ Processed ${importedCount} flights...`);
       }
@@ -308,24 +302,25 @@ async function importFlights(dryRun: boolean = false) {
       console.log(`   ... and ${errors.length - 10} more errors`);
     }
   }
-
-  console.log('\n💡 Next steps:');
-  if (dryRun) {
-    console.log('   - Review the errors above');
-    console.log('   - Run without --dry-run to actually import');
-  } else {
-    console.log('   - Verify imported data in Prisma Studio');
-    console.log('   - Update airport names and countries');
-    console.log('   - Add passenger data if available');
-  }
 }
 
 async function main() {
   const args = process.argv.slice(2);
+
+  if (args.length === 0 || args[0] === '--help') {
+    console.log('Usage: npx tsx scripts/import-year.ts <year> [--dry-run]');
+    console.log('');
+    console.log('Examples:');
+    console.log('  npx tsx scripts/import-year.ts 2024');
+    console.log('  npx tsx scripts/import-year.ts 2023 --dry-run');
+    process.exit(0);
+  }
+
+  const year = args[0];
   const dryRun = args.includes('--dry-run');
 
   try {
-    await importFlights(dryRun);
+    await importFlights(year, dryRun);
   } catch (error) {
     console.error('❌ Fatal error:', error);
     throw error;

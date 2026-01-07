@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const expected = {
+const expected: Record<number, number> = {
   1: 20748,
   2: 17839,
   3: 22724,
