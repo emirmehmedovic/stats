@@ -65,27 +65,25 @@ export async function middleware(request: NextRequest) {
 
     const method = request.method.toUpperCase();
     const isWriteMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method);
-    if (isWriteMethod) {
+    if (isWriteMethod && !isPublicApiRoute && !isCronRoute) {
       const origin = request.headers.get('origin');
       const referer = request.headers.get('referer');
       const expectedOrigin = request.nextUrl.origin;
       const hasValidOrigin = origin === expectedOrigin;
       const hasValidReferer = referer ? referer.startsWith(expectedOrigin) : false;
 
-      if (!isCronRoute && !hasValidOrigin && !hasValidReferer) {
+      if (!hasValidOrigin && !hasValidReferer) {
         return applySecurityHeaders(
           ensureCsrfCookie(NextResponse.json({ error: 'Neispravan origin' }, { status: 403 }))
         );
       }
 
-      if (!isCronRoute) {
-        const csrfCookie = request.cookies.get('csrf-token')?.value;
-        const csrfHeader = request.headers.get('x-csrf-token');
-        if (!csrfCookie || !csrfHeader || csrfHeader !== csrfCookie) {
-          return applySecurityHeaders(
-            ensureCsrfCookie(NextResponse.json({ error: 'Neispravan CSRF token' }, { status: 403 }))
-          );
-        }
+      const csrfCookie = request.cookies.get('csrf-token')?.value;
+      const csrfHeader = request.headers.get('x-csrf-token');
+      if (!csrfCookie || !csrfHeader || csrfHeader !== csrfCookie) {
+        return applySecurityHeaders(
+          ensureCsrfCookie(NextResponse.json({ error: 'Neispravan CSRF token' }, { status: 403 }))
+        );
       }
     }
 
