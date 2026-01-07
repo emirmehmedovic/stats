@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, generateToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
+import { logAudit } from '@/lib/audit';
 
 const MAX_ATTEMPTS = 5;
 const COOLDOWN_MINUTES = 15;
@@ -103,6 +105,15 @@ async function clearLoginAttempts(email: string): Promise<void> {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateIp = getClientIp(request);
+    const rate = rateLimit(`login:${rateIp}`, { windowMs: 60_000, max: 10 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše pokušaja. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
@@ -164,6 +175,15 @@ export async function POST(request: NextRequest) {
 
     const token = await generateToken(user);
 
+    await logAudit({
+      userId: user.id,
+      action: 'auth.login',
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { email: user.email },
+      request,
+    });
+
     // Set HTTP-only cookie
     const cookieStore = await cookies();
     cookieStore.set('auth-token', token, {
@@ -191,4 +211,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

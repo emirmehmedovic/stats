@@ -8,6 +8,7 @@ import {
   dateOnlyToUtc,
   getDateStringInTimeZone,
   getTodayDateString,
+  parseDateTimeInput,
   TIME_ZONE_SARAJEVO,
 } from '@/lib/dates';
 
@@ -144,7 +145,22 @@ export async function PUT(
     }
 
     const { delays, confirmLowLoadFactor, isVerified, ...flightData } = body;
-    const validatedData = updateFlightSchema.parse(flightData) as UpdateFlightInput & {
+    const normalizedFlightData = { ...flightData };
+    const timeFields = [
+      'arrivalScheduledTime',
+      'arrivalActualTime',
+      'departureScheduledTime',
+      'departureActualTime',
+      'departureDoorClosingTime',
+    ];
+    for (const field of timeFields) {
+      if (field in normalizedFlightData) {
+        normalizedFlightData[field] = parseDateTimeInput(
+          normalizedFlightData[field]
+        );
+      }
+    }
+    const validatedData = updateFlightSchema.parse(normalizedFlightData) as UpdateFlightInput & {
       airlineId?: string;
       aircraftTypeId?: string;
       operationTypeId?: string;

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Settings,
   Settings2,
+  Shield,
   PieChart,
   Activity,
   Route,
@@ -191,6 +192,12 @@ const adminItems: MenuItem[] = [
     icon: Settings2,
     href: '/admin/users',
   },
+  {
+    id: 'audit-logs',
+    label: 'Audit log',
+    icon: Shield,
+    href: '/admin/audit-logs',
+  },
 ];
 
 export default function Sidebar() {
@@ -359,12 +366,14 @@ export default function Sidebar() {
         </div>
 
         {/* MANAGEMENT Section */}
-        <div>
-          <div className="text-xs font-semibold text-slate-400 mb-2 px-2">MANAGEMENT</div>
-          <div className="space-y-1">
-            {managementItems.map(item => renderMenuItem(item))}
+        {userRole !== 'OPERATIONS' && (
+          <div>
+            <div className="text-xs font-semibold text-slate-400 mb-2 px-2">MANAGEMENT</div>
+            <div className="space-y-1">
+              {managementItems.map(item => renderMenuItem(item))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ADMIN Section - Only for ADMIN role */}
         {userRole === 'ADMIN' && (

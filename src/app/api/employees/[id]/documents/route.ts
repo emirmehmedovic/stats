@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { requireNonOperations } from '@/lib/route-guards';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +13,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await params;
 
     const documents = await prisma.employeeDocument.findMany({
@@ -33,6 +40,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`upload:employee-document:${ip}`, { windowMs: 60_000, max: 15 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id: employeeId } = await params;
     const formData = await request.formData();
 

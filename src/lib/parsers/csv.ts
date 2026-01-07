@@ -1,5 +1,5 @@
 import { ParsedFlightRow } from './excel';
-import { dateOnlyToUtc } from '@/lib/dates';
+import { dateOnlyToUtc, getDateStringInTimeZone, makeDateInTimeZone, normalizeDateToTimeZone } from '@/lib/dates';
 
 export interface CSVParseResult {
   success: boolean;
@@ -224,14 +224,18 @@ export async function parseCSVFile(
         const mtowStr = getColumn(rowData, 'mtow(kg)');
         parsedRow.data.mtow = mtowStr ? parseInt(mtowStr, 10) : null;
 
+        const dateForTimes = parsedRow.data.date
+          ? getDateStringInTimeZone(parsedRow.data.date)
+          : dateStr;
+
         // Arrival data
         parsedRow.data.arrivalFlightNumber = getColumn(rowData, 'br leta u dol');
 
         const arrSchTime = getColumn(rowData, 'pl vrijeme dol');
-        parsedRow.data.arrivalScheduledTime = arrSchTime ? new Date(arrSchTime) : null;
+        parsedRow.data.arrivalScheduledTime = parseDateTimeWithDate(dateForTimes, arrSchTime);
 
         const arrActTime = getColumn(rowData, 'st vrijeme dol');
-        parsedRow.data.arrivalActualTime = arrActTime ? new Date(arrActTime) : null;
+        parsedRow.data.arrivalActualTime = parseDateTimeWithDate(dateForTimes, arrActTime);
 
         const arrPax = getColumn(rowData, 'putnici u avionu');
         parsedRow.data.arrivalPassengers = arrPax ? parseInt(arrPax, 10) : null;
@@ -252,10 +256,10 @@ export async function parseCSVFile(
         parsedRow.data.departureFlightNumber = getColumn(rowData, 'br leta u odl');
 
         const depSchTime = getColumn(rowData, 'pl vrijeme odl');
-        parsedRow.data.departureScheduledTime = depSchTime ? new Date(depSchTime) : null;
+        parsedRow.data.departureScheduledTime = parseDateTimeWithDate(dateForTimes, depSchTime);
 
         const depActTime = getColumn(rowData, 'st vrijeme odl');
-        parsedRow.data.departureActualTime = depActTime ? new Date(depActTime) : null;
+        parsedRow.data.departureActualTime = parseDateTimeWithDate(dateForTimes, depActTime);
 
         const depPax = getColumn(rowData, 'putnici u avionu.1');
         parsedRow.data.departurePassengers = depPax ? parseInt(depPax, 10) : null;
@@ -506,14 +510,37 @@ function parseScheduleFormatCSV(
  * Combine date string (YYYY-MM-DD) with time string (HH:MM) to create Date object
  */
 function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
-  try {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return null;
+  const normalizedTime = timeStr.includes(':') ? timeStr : `${timeStr}:00`;
+  const dateTime = makeDateInTimeZone(dateStr, normalizedTime);
+  return dateTime && !isNaN(dateTime.getTime()) ? dateTime : null;
+}
 
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateOnlyToUtc(dateStr) : new Date(dateStr);
-    date.setUTCHours(hours, minutes, 0, 0);
-    return date;
-  } catch {
-    return null;
+function parseDateTimeWithDate(
+  dateStr: string | null | undefined,
+  value: string | null
+): Date | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const dateTimeMatch = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})(?::(\d{2}))?$/
+  );
+  if (dateTimeMatch) {
+    const datePart = dateTimeMatch[1];
+    const timePart = dateTimeMatch[3]
+      ? `${dateTimeMatch[2]}:${dateTimeMatch[3]}`
+      : dateTimeMatch[2];
+    return makeDateInTimeZone(datePart, timePart);
   }
+
+  const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch && dateStr) {
+    return makeDateInTimeZone(dateStr, trimmed);
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return normalizeDateToTimeZone(parsed);
 }

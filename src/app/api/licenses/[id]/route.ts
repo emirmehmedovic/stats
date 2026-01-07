@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { dateOnlyToUtc } from '@/lib/dates';
 import { updateLicenseSchema } from '@/lib/validators/license';
 import { z } from 'zod';
+import { requireNonOperations } from '@/lib/route-guards';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,6 +15,11 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const license = await prisma.license.findUnique({
       where: { id },
@@ -56,6 +62,11 @@ export async function PUT(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -119,6 +130,11 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const license = await prisma.license.findUnique({
       where: { id },

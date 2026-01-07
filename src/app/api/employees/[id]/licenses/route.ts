@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { dateOnlyToUtc } from '@/lib/dates';
 import { createLicenseSchema } from '@/lib/validators/license';
 import { z } from 'zod';
+import { requireNonOperations } from '@/lib/route-guards';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,6 +15,11 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const licenses = await prisma.license.findMany({
       where: { employeeId: id },
@@ -42,6 +48,11 @@ export async function POST(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const body = await request.json();
 

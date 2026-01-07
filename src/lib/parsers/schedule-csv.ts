@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { dateOnlyToUtc } from '@/lib/dates';
+import { dateOnlyToUtc, makeDateInTimeZone } from '@/lib/dates';
 
 export interface ParsedScheduleRow {
   row: number;
@@ -241,13 +241,7 @@ function parseDate(value: any): Date | null {
 function parseTime(dateStr: string, timeStr: string): Date | null {
   if (!dateStr || !timeStr) return null;
 
-  try {
-    // Combine date and time: "2025-11-01" + "11:40" -> "2025-11-01T11:40:00"
-    const dateTimeStr = `${dateStr}T${timeStr}:00`;
-    const dateTime = new Date(dateTimeStr);
-
-    return isNaN(dateTime.getTime()) ? null : dateTime;
-  } catch {
-    return null;
-  }
+  const normalizedTime = timeStr.includes(':') ? timeStr : `${timeStr}:00`;
+  const dateTime = makeDateInTimeZone(dateStr, normalizedTime);
+  return dateTime && !isNaN(dateTime.getTime()) ? dateTime : null;
 }

@@ -3,7 +3,17 @@ import { SignJWT } from 'jose';
 import { prisma } from './prisma';
 import type { AuthUser } from './auth-utils';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET is required in production');
+    }
+    return 'dev-secret-change-me';
+  }
+  return secret;
+}
+
 const JWT_EXPIRES_IN = '7d';
 
 export async function hashPassword(password: string): Promise<string> {
@@ -15,7 +25,8 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export async function generateToken(user: AuthUser): Promise<string> {
-  const secret = new TextEncoder().encode(JWT_SECRET);
+  const secretValue = getJwtSecret();
+  const secret = new TextEncoder().encode(secretValue);
   const token = await new SignJWT({
     id: user.id,
     email: user.email,
@@ -49,7 +60,7 @@ export async function authenticateUser(email: string, password: string): Promise
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role as 'ADMIN' | 'MANAGER' | 'VIEWER',
+    role: user.role as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER',
   };
 }
 
@@ -60,4 +71,3 @@ export function getTokenFromRequest(request: Request): string | null {
   }
   return null;
 }
-

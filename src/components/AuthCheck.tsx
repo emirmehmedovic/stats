@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'VIEWER';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER';
 }
 
 export default function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -19,6 +19,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       const publicRoutes = ['/'];
       const adminRoutes = ['/admin'];
+      const employeeRoutes = ['/employees'];
 
       // Check if route is public
       if (publicRoutes.includes(pathname)) {
@@ -47,6 +48,12 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
             router.push('/dashboard');
             return;
           }
+        }
+
+        // Block OPERATIONS role from employee pages
+        if (data.user.role === 'OPERATIONS' && employeeRoutes.some(route => pathname.startsWith(route))) {
+          router.push('/dashboard');
+          return;
         }
 
         // Store user info in localStorage for client-side access
@@ -80,4 +87,3 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-

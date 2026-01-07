@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,6 +15,15 @@ export async function POST(
   context: RouteContext
 ) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`upload:airline-logo:${ip}`, { windowMs: 60_000, max: 20 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const { id } = await context.params;
 
     // Provjera da li aviokompanija postoji
@@ -119,6 +129,15 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`upload:airline-logo:${ip}`, { windowMs: 60_000, max: 20 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const { id } = await context.params;
 
     const airline = await prisma.airline.findUnique({
@@ -170,4 +189,3 @@ export async function DELETE(
     );
   }
 }
-

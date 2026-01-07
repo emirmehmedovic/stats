@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/dates';
 
 interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'VIEWER';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,7 +27,7 @@ export default function AdminUsersPage() {
     email: '',
     password: '',
     name: '',
-    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'VIEWER',
+    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER',
     isActive: true,
   });
 
@@ -191,6 +191,8 @@ export default function AdminUsersPage() {
         return <Shield className="w-5 h-5 text-red-600" />;
       case 'MANAGER':
         return <UserCheck className="w-5 h-5 text-blue-600" />;
+      case 'OPERATIONS':
+        return <Briefcase className="w-5 h-5 text-emerald-600" />;
       default:
         return <Eye className="w-5 h-5 text-gray-600" />;
     }
@@ -200,6 +202,7 @@ export default function AdminUsersPage() {
     const styles = {
       ADMIN: 'bg-red-100 text-red-700',
       MANAGER: 'bg-blue-100 text-blue-700',
+      OPERATIONS: 'bg-emerald-100 text-emerald-700',
       VIEWER: 'bg-gray-100 text-gray-700',
     };
     return styles[role as keyof typeof styles] || styles.VIEWER;
@@ -408,6 +411,7 @@ export default function AdminUsersPage() {
                     required
                   >
                     <option value="VIEWER">Viewer</option>
+                    <option value="OPERATIONS">Operacije</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Admin</option>
                   </select>

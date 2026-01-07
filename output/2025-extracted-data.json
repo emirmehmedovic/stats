@@ -1,0 +1,465 @@
+{
+  "airlines": [
+    {
+      "name": "WIZZAIR MALTA LTD",
+      "count": 513
+    },
+    {
+      "name": "WIZZAIR HUNGARY LTD",
+      "count": 246
+    },
+    {
+      "name": "PEGASUS AIRLINES",
+      "count": 66
+    },
+    {
+      "name": "AJET",
+      "count": 49
+    },
+    {
+      "name": "FREEBIRD AIRLINES",
+      "count": 21
+    },
+    {
+      "name": "AERO KLUB FENIX",
+      "count": 15
+    },
+    {
+      "name": "CORENDON AIRLINES",
+      "count": 12
+    },
+    {
+      "name": "SANI ECO VITA",
+      "count": 9
+    },
+    {
+      "name": "FREEBIRD",
+      "count": 8
+    },
+    {
+      "name": "AIRRPORT MALI LOŠINJ LTD",
+      "count": 7
+    },
+    {
+      "name": "AIRPORT MALI LOŠINJ",
+      "count": 6
+    },
+    {
+      "name": "AERO KLUB MURSKA SOBOTA",
+      "count": 6
+    },
+    {
+      "name": "SOS AIR",
+      "count": 5
+    },
+    {
+      "name": "AERO KLUB FENIX ŽIVINICE",
+      "count": 5
+    },
+    {
+      "name": "AIRPORT MALI LOŠINJ LTD",
+      "count": 5
+    },
+    {
+      "name": "FLYNAS",
+      "count": 4
+    },
+    {
+      "name": "ZAVOD ZA ZAVARIVANJE",
+      "count": 4
+    },
+    {
+      "name": "RYANAIR",
+      "count": 3
+    },
+    {
+      "name": "EUFOR",
+      "count": 3
+    },
+    {
+      "name": "SLOBODAN STANOJEV",
+      "count": 3
+    },
+    {
+      "name": "SMATSA LTD",
+      "count": 3
+    },
+    {
+      "name": "SWISS AIR AMBULANCE",
+      "count": 3
+    },
+    {
+      "name": "AIRPORT MALI LOŠNJIN",
+      "count": 3
+    },
+    {
+      "name": "JET AVIATION SA",
+      "count": 2
+    },
+    {
+      "name": "AEROKLUB FENIX",
+      "count": 2
+    },
+    {
+      "name": "ANDRES RIJAGER",
+      "count": 2
+    },
+    {
+      "name": "AERO-DIENST",
+      "count": 2
+    },
+    {
+      "name": "PPL",
+      "count": 2
+    },
+    {
+      "name": "MIRZA KRAJNOVIC",
+      "count": 2
+    },
+    {
+      "name": "JETFLY AVIATION",
+      "count": 2
+    },
+    {
+      "name": "MIGAL GMBH",
+      "count": 2
+    },
+    {
+      "name": "SOS HAVACILIK",
+      "count": 2
+    },
+    {
+      "name": "DRAGO ŽIVANOVIC",
+      "count": 2
+    },
+    {
+      "name": "MIGAL.CO GMBH",
+      "count": 2
+    },
+    {
+      "name": "CORENDON",
+      "count": 2
+    },
+    {
+      "name": "MY WORLD AERO LTD",
+      "count": 2
+    },
+    {
+      "name": "ASG BUSINESS AVIATION",
+      "count": 2
+    },
+    {
+      "name": "GERMAN AIR FORCE",
+      "count": 2
+    },
+    {
+      "name": "ABELAG AVIATION",
+      "count": 2
+    },
+    {
+      "name": "CZ AIR FORCE",
+      "count": 2
+    },
+    {
+      "name": "AERO DIENST GMBH",
+      "count": 2
+    },
+    {
+      "name": "SWISS AIR AMBULANCE LTD",
+      "count": 2
+    },
+    {
+      "name": "PENTOL GMBH",
+      "count": 2
+    },
+    {
+      "name": "SWISS AIR AMBULANCE - REGA",
+      "count": 1
+    },
+    {
+      "name": "ELITAVIA MALTA / EAU",
+      "count": 1
+    },
+    {
+      "name": "ICAR AIR",
+      "count": 1
+    },
+    {
+      "name": "RED STAR AVATION",
+      "count": 1
+    },
+    {
+      "name": "WIZZAIR HUNGARY LTD/WIZZAIR MALTA LTD",
+      "count": 1
+    },
+    {
+      "name": "WIZZAIR MALTA LTD/WIZZAIR HUNGARY LTD",
+      "count": 1
+    },
+    {
+      "name": "SPU FLIGHT",
+      "count": 1
+    },
+    {
+      "name": "REDSTAR AVIATION",
+      "count": 1
+    },
+    {
+      "name": "US DEFENSE LOGISTICS AGENCY",
+      "count": 1
+    },
+    {
+      "name": "MUJO MUŠIĆ",
+      "count": 1
+    },
+    {
+      "name": "MYWORLDAERO LTD",
+      "count": 1
+    },
+    {
+      "name": "AERODIESNT GMBH",
+      "count": 1
+    },
+    {
+      "name": "FLY-COOP LTD",
+      "count": 1
+    },
+    {
+      "name": "SMARTLYNX AIRLINES MALTA",
+      "count": 1
+    },
+    {
+      "name": "TELAT KARADENIZ",
+      "count": 1
+    },
+    {
+      "name": "SWISS AIR AMBULANCE REGA",
+      "count": 1
+    },
+    {
+      "name": "ARMIN NESIREN",
+      "count": 1
+    },
+    {
+      "name": "QATAR EXECTUVIE",
+      "count": 1
+    },
+    {
+      "name": "NILE AIR",
+      "count": 1
+    },
+    {
+      "name": "CZECH AIR FORCE",
+      "count": 1
+    },
+    {
+      "name": "GOVERMENT OF CROATIA",
+      "count": 1
+    },
+    {
+      "name": "SOD",
+      "count": 1
+    },
+    {
+      "name": "HERON AVIATION BERLIN GMBH",
+      "count": 1
+    },
+    {
+      "name": "AIR ADRIATIC",
+      "count": 1
+    },
+    {
+      "name": "SWIS AIR AMBULANCE",
+      "count": 1
+    },
+    {
+      "name": "BALKAN HELICOPTERS D.O.O",
+      "count": 1
+    },
+    {
+      "name": "SWISSLION TAKOVO DOO",
+      "count": 1
+    },
+    {
+      "name": "KORC DUŠAN",
+      "count": 1
+    },
+    {
+      "name": "MIRZA KRAJINOVIĆ",
+      "count": 1
+    },
+    {
+      "name": "DELIC AIR",
+      "count": 1
+    },
+    {
+      "name": "GENEL HAVACILIK A.S",
+      "count": 1
+    },
+    {
+      "name": "PAUL KLING",
+      "count": 1
+    },
+    {
+      "name": "PHEONIX GMBH",
+      "count": 1
+    },
+    {
+      "name": "PHOENIX GMBH",
+      "count": 1
+    },
+    {
+      "name": "DRF LUFTRETTUNG GMBH",
+      "count": 1
+    },
+    {
+      "name": "FLYPGS",
+      "count": 1
+    },
+    {
+      "name": "TURKISH",
+      "count": 1
+    },
+    {
+      "name": "CTR ATMOSPHERICA AVIATION",
+      "count": 1
+    }
+  ],
+  "aircraftTypes": [
+    {
+      "model": "A320",
+      "count": 168
+    },
+    {
+      "model": "A321",
+      "count": 23
+    },
+    {
+      "model": "B738",
+      "count": 11
+    },
+    {
+      "model": "B737",
+      "count": 3
+    },
+    {
+      "model": "PC12",
+      "count": 2
+    },
+    {
+      "model": "C172F",
+      "count": 2
+    },
+    {
+      "model": "BE9L",
+      "count": 2
+    },
+    {
+      "model": "LJ45",
+      "count": 2
+    },
+    {
+      "model": "FDCT",
+      "count": 2
+    },
+    {
+      "model": "BE40",
+      "count": 1
+    },
+    {
+      "model": "CL650",
+      "count": 1
+    },
+    {
+      "model": "GLF6",
+      "count": 1
+    },
+    {
+      "model": "SF34",
+      "count": 1
+    },
+    {
+      "model": "DA42",
+      "count": 1
+    }
+  ],
+  "operationTypes": [
+    {
+      "type": "SCHEDULED",
+      "count": 192
+    },
+    {
+      "type": "N/A",
+      "count": 55
+    },
+    {
+      "type": "-",
+      "count": 39
+    },
+    {
+      "type": "DIVERTED",
+      "count": 12
+    },
+    {
+      "type": "NONSCHEDULED",
+      "count": 8
+    },
+    {
+      "type": "NA",
+      "count": 6
+    },
+    {
+      "type": "HELICOPTER",
+      "count": 4
+    },
+    {
+      "type": "MEDEVAC",
+      "count": 2
+    },
+    {
+      "type": "GA",
+      "count": 2
+    },
+    {
+      "type": "NON-SCHEDULED",
+      "count": 2
+    },
+    {
+      "type": "AYT-TZL-AYT",
+      "count": 2
+    },
+    {
+      "type": "FERRY IN",
+      "count": 1
+    },
+    {
+      "type": "INT.NON-SCHED.",
+      "count": 1
+    },
+    {
+      "type": "HELICOPTRE",
+      "count": 1
+    },
+    {
+      "type": "UNSCHEDULED",
+      "count": 1
+    },
+    {
+      "type": "FERRY IN/SCHEDULED",
+      "count": 1
+    },
+    {
+      "type": "SCHEDULED/FERRY OUT",
+      "count": 1
+    },
+    {
+      "type": "DTM-TZL-DTM",
+      "count": 1
+    },
+    {
+      "type": "16 C 135 Y",
+      "count": 1
+    }
+  ],
+  "totalFlights": 1077
+}

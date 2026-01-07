@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
-import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
-
-// Helper function to check if user is admin
-async function requireAdmin(request: NextRequest): Promise<{ user: any } | { error: NextResponse }> {
-  const cookieHeader = request.headers.get('cookie');
-  const token = getTokenFromCookie(cookieHeader);
-
-  if (!token) {
-    return { error: NextResponse.json({ error: 'Niste autentifikovani' }, { status: 401 }) };
-  }
-
-    const decoded = await verifyToken(token);
-  if (!decoded || decoded.role !== 'ADMIN') {
-    return { error: NextResponse.json({ error: 'Nemate dozvolu za pristup' }, { status: 403 }) };
-  }
-
-  return { user: decoded };
-}
+import { requireAdmin } from '@/lib/route-guards';
+import { logAudit } from '@/lib/audit';
 
 // GET - List all users
 export async function GET(request: NextRequest) {
@@ -103,6 +87,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await logAudit({
+      userId: adminCheck.user.id,
+      action: 'user.create',
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.role },
+      request,
+    });
+
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     console.error('Create user error:', error);
@@ -112,4 +105,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

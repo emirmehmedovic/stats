@@ -63,6 +63,16 @@ export default function RouteAnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const summary = data?.summary || {
+    totalRoutes: 0,
+    totalFlights: 0,
+    totalPassengers: 0,
+    avgLoadFactor: 0,
+    avgPassengersPerRoute: 0,
+    topRoute: null,
+    busiestRoute: null,
+  };
+
   // Fetch airlines for filter
   useEffect(() => {
     fetch('/api/airlines')
@@ -268,7 +278,7 @@ export default function RouteAnalyticsPage() {
                 <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-blue-200 rounded-full blur-xl opacity-60"></div>
                 <div className="relative z-10">
                   <div className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-2">Total Routes</div>
-                  <div className="text-4xl font-bold text-primary-600">{data.summary.totalRoutes}</div>
+                  <div className="text-4xl font-bold text-primary-600">{summary.totalRoutes}</div>
                   <div className="text-xs text-dark-500 mt-2">Unique routes served</div>
                 </div>
               </div>
@@ -278,7 +288,7 @@ export default function RouteAnalyticsPage() {
                 <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-indigo-200 rounded-full blur-xl opacity-60"></div>
                 <div className="relative z-10">
                   <div className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-2">Total Flights</div>
-                  <div className="text-4xl font-bold text-indigo-600">{data.summary.totalFlights}</div>
+                  <div className="text-4xl font-bold text-indigo-600">{summary.totalFlights}</div>
                   <div className="text-xs text-dark-500 mt-2">In selected period</div>
                 </div>
               </div>
@@ -288,7 +298,7 @@ export default function RouteAnalyticsPage() {
                 <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-green-200 rounded-full blur-xl opacity-60"></div>
                 <div className="relative z-10">
                   <div className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-2">Total Passengers</div>
-                  <div className="text-4xl font-bold text-green-600">{data.summary.totalPassengers.toLocaleString()}</div>
+                  <div className="text-4xl font-bold text-green-600">{Number(summary.totalPassengers).toLocaleString()}</div>
                   <div className="text-xs text-dark-500 mt-2">Across all routes</div>
                 </div>
               </div>
@@ -298,7 +308,7 @@ export default function RouteAnalyticsPage() {
                 <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-amber-200 rounded-full blur-xl opacity-60"></div>
                 <div className="relative z-10">
                   <div className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-2">Avg Load Factor</div>
-                  <div className="text-4xl font-bold text-amber-600">{data.summary.avgLoadFactor}%</div>
+                  <div className="text-4xl font-bold text-amber-600">{summary.avgLoadFactor}%</div>
                   <div className="text-xs text-dark-500 mt-2">Average across routes</div>
                 </div>
               </div>
@@ -319,7 +329,7 @@ export default function RouteAnalyticsPage() {
                 </div>
 
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={data.routes.slice(0, 10)}>
+                <BarChart data={(data.routes || []).slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis 
                     dataKey="route" 
@@ -399,7 +409,7 @@ export default function RouteAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.routes.map((route, idx) => (
+                    {(data.routes || []).map((route, idx) => (
                       <tr
                         key={idx}
                         className="border-b border-dark-100 hover:bg-dark-50 transition-colors"
@@ -440,7 +450,7 @@ export default function RouteAnalyticsPage() {
                 </table>
               </div>
 
-              {data.routes.length === 0 && (
+              {(data.routes || []).length === 0 && (
                 <div className="text-center py-12 text-dark-500">
                   No route data available for the selected period.
                 </div>
@@ -449,7 +459,7 @@ export default function RouteAnalyticsPage() {
             </div>
 
             {/* Best/Worst Routes - Dashboard stil */}
-            {data.summary.topRoute && data.summary.busiestRoute && (
+            {summary.topRoute && summary.busiestRoute && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-3xl shadow-soft p-6 relative overflow-hidden group border-[6px] border-white">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-white/70 to-blue-100/50 opacity-70 group-hover:opacity-90 transition-all"></div>

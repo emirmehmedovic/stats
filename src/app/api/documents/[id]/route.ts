@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { requireNonOperations } from '@/lib/route-guards';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,6 +15,11 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const document = await prisma.licenseDocument.findUnique({
       where: { id },
@@ -61,6 +67,11 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const document = await prisma.licenseDocument.findUnique({
       where: { id },

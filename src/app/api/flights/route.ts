@@ -7,6 +7,7 @@ import {
   dateOnlyToUtc,
   getDateStringInTimeZone,
   getTodayDateString,
+  parseDateTimeInput,
   TIME_ZONE_SARAJEVO,
 } from '@/lib/dates';
 
@@ -149,7 +150,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validatedData = createFlightSchema.parse(body);
+    const normalizedBody = { ...body };
+    const timeFields = [
+      'arrivalScheduledTime',
+      'arrivalActualTime',
+      'departureScheduledTime',
+      'departureActualTime',
+      'departureDoorClosingTime',
+    ];
+    for (const field of timeFields) {
+      if (field in normalizedBody) {
+        normalizedBody[field] = parseDateTimeInput(normalizedBody[field]);
+      }
+    }
+
+    const validatedData = createFlightSchema.parse(normalizedBody);
 
     const todayStr = getTodayDateString();
     const flightDateStr = getDateStringInTimeZone(validatedData.date, TIME_ZONE_SARAJEVO);

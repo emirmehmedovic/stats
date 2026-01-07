@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Always return role from database, not from token (in case role was updated)
-    console.log('Session API - User role from DB:', user.role, 'Token role:', decoded.role);
 
     return NextResponse.json({
       authenticated: true,
@@ -61,4 +60,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
         airlineId: true,
         operationTypeId: true,
         arrivalPassengers: true,
+        arrivalInfants: true,
         departurePassengers: true,
+        departureInfants: true,
         arrivalFerryIn: true,
         departureFerryOut: true,
         availableSeats: true,
@@ -116,9 +118,9 @@ export async function GET(request: NextRequest) {
     // Calculate today's stats
     const todaysFlightsCount = todaysFlights.length;
     const getArrivalPassengers = (flight: typeof last30DaysFlights[number]) =>
-      flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
+      flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
     const getDeparturePassengers = (flight: typeof last30DaysFlights[number]) =>
-      flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
+      flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
     const seatCapacityPerLeg = (flight: typeof last30DaysFlights[number]) =>
       flight.availableSeats || flight.aircraftType?.seats || 0;
     const flightSeatCount = (flight: typeof last30DaysFlights[number]) =>

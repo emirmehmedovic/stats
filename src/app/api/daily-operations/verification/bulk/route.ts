@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
 import { dateOnlyToUtc, getTodayDateString } from '@/lib/dates';
-
-const requireAdmin = async (request: NextRequest) => {
-  const cookieHeader = request.headers.get('cookie');
-  const token = getTokenFromCookie(cookieHeader);
-  if (!token) {
-    return { error: NextResponse.json({ success: false, error: 'Niste autentifikovani' }, { status: 401 }) };
-  }
-
-  const decoded = await verifyToken(token);
-  if (!decoded || decoded.role !== 'ADMIN') {
-    return { error: NextResponse.json({ success: false, error: 'Nemate dozvolu za pristup' }, { status: 403 }) };
-  }
-
-  return { user: decoded };
-};
+import { requireAdminOrManager } from '@/lib/route-guards';
+import { logAudit } from '@/lib/audit';
 
 // POST /api/daily-operations/verification/bulk
 export async function POST(request: NextRequest) {
   try {
-    const authCheck = await requireAdmin(request);
+    const authCheck = await requireAdminOrManager(request);
     if ('error' in authCheck) return authCheck.error;
 
     const todayStr = getTodayDateString();
@@ -63,6 +49,14 @@ export async function POST(request: NextRequest) {
         SET "verifiedByUserId" = ${authCheck.user.id}
         WHERE "id" IN (${Prisma.join(flightIds)})`
     );
+
+    await logAudit({
+      userId: authCheck.user.id,
+      action: 'flight.bulk_verify',
+      entityType: 'Flight',
+      metadata: { totalFlights: flightsToVerify.length, verifiedFlights: updateResult.count },
+      request,
+    });
 
     return NextResponse.json({
       success: true,

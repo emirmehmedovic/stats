@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireNonOperations } from '@/lib/route-guards';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -11,6 +12,11 @@ export async function PUT(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const notification = await prisma.licenseNotification.findUnique({
       where: { id },
@@ -50,6 +56,11 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     await prisma.licenseNotification.delete({
       where: { id },

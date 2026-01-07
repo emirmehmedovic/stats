@@ -13,8 +13,6 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { ValidationWarningModal } from '@/components/daily-operations/ValidationWarningModal';
 import { PassengerBreakdownInput, type PassengerBreakdown } from '@/components/daily-operations/PassengerBreakdownInput';
 import { MultipleDelaysInput, type DelayInput } from '@/components/daily-operations/MultipleDelaysInput';
-import { DoorClosingTimeInput } from '@/components/daily-operations/DoorClosingTimeInput';
-import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { formatDateString, formatDateTimeDisplay, formatDateTimeLocalValue, getDateStringInTimeZone, getTodayDateString, TIME_ZONE_SARAJEVO } from '@/lib/dates';
 
 type Flight = {
@@ -617,36 +615,51 @@ export default function FlightDataEntryPage() {
   return (
     <MainLayout>
       <div className="p-8 space-y-6">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-8">
+      {/* Hero Header - Izdvojen i vizuelno naglašen */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-8 border-4 border-dark-700">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
         <div className="relative z-10">
           <Button
             variant="outline"
             onClick={() => router.push('/daily-operations')}
-            className="flex items-center gap-2 mb-4 bg-white/10 border-white/20 text-white hover:bg-white/20"
+            className="flex items-center gap-2 mb-6 bg-white/10 border-white/20 text-white hover:bg-white/20"
           >
             <ArrowLeft className="w-4 h-4" />
             Nazad na pregled
           </Button>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-2">Unos operativnih podataka</p>
-              <h1 className="text-3xl font-bold mb-2">Dnevne operacije - Let</h1>
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                <span className="px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur border border-white/20">
-                  {String(routeDisplay || '')}
-                </span>
-                <span className="text-slate-200">
-                  {flight.airline?.name || ''} ({flight.airline?.icaoCode || ''})
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur border border-white/20">
-                  {flightDateDisplay}
-                </span>
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+            <div className="flex-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3 font-semibold">📋 OPŠTE INFORMACIJE O LETU</p>
+              <h1 className="text-4xl font-bold mb-4">Dnevne operacije</h1>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-base">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Ruta:</span>
+                  <span className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur border border-white/30 font-bold text-lg">
+                    {String(routeDisplay || '')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Aviokompanija:</span>
+                  <span className="font-semibold">
+                    {flight.airline?.name || ''} ({flight.airline?.icaoCode || ''})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Datum:</span>
+                  <span className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur border border-white/30 font-bold">
+                    {flightDateDisplay}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Tip aviona:</span>
+                  <span className="font-semibold">
+                    {flight.aircraftType?.model || '-'}
+                  </span>
+                </div>
               </div>
             </div>
             {flight.isLocked && (
-              <div className="px-4 py-2 rounded-2xl bg-red-500/20 border border-red-400/30 text-red-200">
+              <div className="px-6 py-3 rounded-2xl bg-red-500/20 border-2 border-red-400/40 text-red-200 font-bold">
                 🔒 Let zaključan
               </div>
             )}
@@ -681,14 +694,14 @@ export default function FlightDataEntryPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <fieldset disabled={isReadOnly} className="space-y-6">
         {/* Basic Information Section */}
-        <div className="bg-white rounded-2xl shadow-sm border-l-4 border-slate-400 p-6">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center">
-              <Settings className="w-5 h-5 text-slate-600" />
+        <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl shadow-lg border-4 border-slate-300 p-8">
+          <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-200">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-md">
+              <Settings className="w-7 h-7 text-slate-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Osnovne informacije</h2>
-              <p className="text-xs text-slate-500">Opšti podaci o letu</p>
+              <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">⚙️ Osnovne informacije</h2>
+              <p className="text-sm text-slate-600 font-medium">Opšti podaci o letu</p>
             </div>
           </div>
 
@@ -830,15 +843,15 @@ export default function FlightDataEntryPage() {
             </div>
         </div>
 
-        {/* Arrival Section */}
-        <div className="bg-white rounded-2xl shadow-sm border-l-4 border-blue-500 p-6">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Plane className="w-5 h-5 text-blue-600" />
+        {/* Arrival Section - Vizuelno izdvojena */}
+        <div className="bg-gradient-to-br from-blue-50 to-white rounded-3xl shadow-lg border-4 border-blue-400 p-8">
+          <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-blue-200">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-300 flex items-center justify-center shadow-md">
+              <Plane className="w-7 h-7 text-blue-700 transform -rotate-45" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Dolazak (Arrival)</h2>
-              <p className="text-xs text-slate-500">Podaci o dolasku leta</p>
+              <h2 className="text-2xl font-bold text-blue-900 uppercase tracking-wide">🛬 Dolazak (Arrival)</h2>
+              <p className="text-sm text-blue-700 font-medium">Podaci o dolasku leta</p>
             </div>
           </div>
 
@@ -854,27 +867,31 @@ export default function FlightDataEntryPage() {
             </div>
 
             <div>
-              <Label htmlFor="arrivalScheduledTime">
+              <Label htmlFor="arrivalScheduledTime" className="text-base font-semibold">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Planirano vrijeme
               </Label>
-              <DateTimePicker
+              <Input
+                id="arrivalScheduledTime"
+                type="datetime-local"
                 value={formData.arrivalScheduledTime}
-                onChange={(value) => handleChange('arrivalScheduledTime', value)}
-                placeholder="Izaberite planirano vrijeme"
+                onChange={(e) => handleChange('arrivalScheduledTime', e.target.value)}
+                className="text-base font-medium"
                 disabled={flight.isLocked}
               />
             </div>
 
             <div>
-              <Label htmlFor="arrivalActualTime">
+              <Label htmlFor="arrivalActualTime" className="text-base font-semibold">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Stvarno vrijeme
               </Label>
-              <DateTimePicker
+              <Input
+                id="arrivalActualTime"
+                type="datetime-local"
                 value={formData.arrivalActualTime}
-                onChange={(value) => handleChange('arrivalActualTime', value)}
-                placeholder="Izaberite stvarno vrijeme"
+                onChange={(e) => handleChange('arrivalActualTime', e.target.value)}
+                className="text-base font-medium"
                 disabled={flight.isLocked}
               />
             </div>
@@ -1026,15 +1043,15 @@ export default function FlightDataEntryPage() {
             </div>
         </div>
 
-        {/* Departure Section */}
-        <div className="bg-white rounded-2xl shadow-sm border-l-4 border-green-500 p-6">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <Plane className="w-5 h-5 text-green-600 transform rotate-45" />
+        {/* Departure Section - Vizuelno izdvojena */}
+        <div className="bg-gradient-to-br from-slate-100 to-white rounded-3xl shadow-lg border-4 border-slate-400 p-8">
+          <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-300">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-400 flex items-center justify-center shadow-md">
+              <Plane className="w-7 h-7 text-slate-700 transform rotate-45" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Odlazak (Departure)</h2>
-              <p className="text-xs text-slate-500">Podaci o odlasku leta</p>
+              <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">🛫 Odlazak (Departure)</h2>
+              <p className="text-sm text-slate-700 font-medium">Podaci o odlasku leta</p>
             </div>
           </div>
 
@@ -1050,27 +1067,31 @@ export default function FlightDataEntryPage() {
             </div>
 
             <div>
-              <Label htmlFor="departureScheduledTime">
+              <Label htmlFor="departureScheduledTime" className="text-base font-semibold">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Planirano vrijeme
               </Label>
-              <DateTimePicker
+              <Input
+                id="departureScheduledTime"
+                type="datetime-local"
                 value={formData.departureScheduledTime}
-                onChange={(value) => handleChange('departureScheduledTime', value)}
-                placeholder="Izaberite planirano vrijeme"
+                onChange={(e) => handleChange('departureScheduledTime', e.target.value)}
+                className="text-base font-medium"
                 disabled={flight.isLocked}
               />
             </div>
 
             <div>
-              <Label htmlFor="departureActualTime">
+              <Label htmlFor="departureActualTime" className="text-base font-semibold">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Stvarno vrijeme
               </Label>
-              <DateTimePicker
+              <Input
+                id="departureActualTime"
+                type="datetime-local"
                 value={formData.departureActualTime}
-                onChange={(value) => handleChange('departureActualTime', value)}
-                placeholder="Izaberite stvarno vrijeme"
+                onChange={(e) => handleChange('departureActualTime', e.target.value)}
+                className="text-base font-medium"
                 disabled={flight.isLocked}
               />
             </div>
@@ -1078,20 +1099,18 @@ export default function FlightDataEntryPage() {
 
             {/* Door Closing Time - CRITICAL PARAMETER */}
             <div className="mt-4 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-amber-900">⚠️ Vrijeme zatvaranja vrata</h3>
-                  <p className="text-xs text-amber-700">Kritičan parametar tačnosti - ako su vrata zatvorena na vrijeme, niste odgovorni za dalja kašnjenja</p>
-                </div>
-              </div>
-              <DoorClosingTimeInput
-                scheduledTime={formData.departureScheduledTime}
-                actualTime={formData.departureActualTime}
-                doorClosingTime={formData.departureDoorClosingTime}
-                onChange={(time) => handleChange('departureDoorClosingTime', time)}
+              <Label htmlFor="departureDoorClosingTime" className="text-base font-semibold flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4" />
+                ⚠️ Vrijeme zatvaranja vrata
+              </Label>
+              <p className="text-xs text-amber-700 mb-3">Kritičan parametar tačnosti - ako su vrata zatvorena na vrijeme, niste odgovorni za dalja kašnjenja</p>
+              <Input
+                id="departureDoorClosingTime"
+                type="datetime-local"
+                value={formData.departureDoorClosingTime}
+                onChange={(e) => handleChange('departureDoorClosingTime', e.target.value)}
+                className="text-base font-medium"
+                disabled={flight.isLocked}
               />
             </div>
 

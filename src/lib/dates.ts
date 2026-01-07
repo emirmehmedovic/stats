@@ -1,5 +1,106 @@
 export const TIME_ZONE_SARAJEVO = 'Europe/Sarajevo';
 
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+const getTimeZoneParts = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value || '00';
+  return {
+    year: Number(part('year')),
+    month: Number(part('month')),
+    day: Number(part('day')),
+    hour: Number(part('hour')),
+    minute: Number(part('minute')),
+    second: Number(part('second')),
+  };
+};
+
+export const makeDateInTimeZone = (
+  dateStr: string,
+  timeStr: string,
+  timeZone: string = TIME_ZONE_SARAJEVO
+) => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return null;
+
+  const timeParts = timeStr.split(':').map((part) => Number(part));
+  const hour = timeParts[0];
+  const minute = timeParts[1];
+  const second = timeParts[2] ?? 0;
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    Number.isNaN(second)
+  ) {
+    return null;
+  }
+
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second, 0));
+  const actual = getTimeZoneParts(utcDate, timeZone);
+  const actualLocal = Date.UTC(
+    actual.year,
+    actual.month - 1,
+    actual.day,
+    actual.hour,
+    actual.minute,
+    actual.second
+  );
+  const desiredLocal = Date.UTC(year, month - 1, day, hour, minute, second);
+  const diffMs = actualLocal - desiredLocal;
+  return new Date(utcDate.getTime() - diffMs);
+};
+
+export const normalizeDateToTimeZone = (
+  date: Date,
+  timeZone: string = TIME_ZONE_SARAJEVO
+) => {
+  if (Number.isNaN(date.getTime())) return date;
+  const dateStr = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate()
+  )}`;
+  const timeStr = `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(
+    date.getSeconds()
+  )}`;
+  return makeDateInTimeZone(dateStr, timeStr, timeZone) || date;
+};
+
+export const parseDateTimeInput = (
+  value: unknown,
+  timeZone: string = TIME_ZONE_SARAJEVO
+): Date | null => {
+  if (value === null || value === undefined || value === '') return null;
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const localMatch = trimmed.match(
+      /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})(?::(\d{2}))?$/
+    );
+    if (localMatch) {
+      const datePart = localMatch[1];
+      const timePart = localMatch[3]
+        ? `${localMatch[2]}:${localMatch[3]}`
+        : localMatch[2];
+      return makeDateInTimeZone(datePart, timePart, timeZone);
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }
+  return null;
+};
+
 export const getDateStringInTimeZone = (
   date: Date,
   timeZone: string = TIME_ZONE_SARAJEVO

@@ -483,6 +483,7 @@ model ForecastData {
 enum UserRole {
   ADMIN
   MANAGER
+  OPERATIONS
   VIEWER
 }
 
@@ -496,8 +497,27 @@ model User {
   reports   Report[]
   dailyOperationsVerifications DailyOperationsVerification[]
   verifiedFlights Flight[]
+  auditLogs AuditLog[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 // Rate limiting za login pokušaje

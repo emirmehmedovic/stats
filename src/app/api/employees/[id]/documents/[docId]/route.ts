@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { requireNonOperations } from '@/lib/route-guards';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; docId: string }> }
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { docId } = await params;
 
     // Get document to find file path

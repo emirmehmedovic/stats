@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireNonOperations } from '@/lib/route-guards';
 
 // GET /api/notifications - Lista notifikacija
 export async function GET(request: NextRequest) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -65,4 +71,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

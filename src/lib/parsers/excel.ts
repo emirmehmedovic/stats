@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { dateOnlyToUtc } from '@/lib/dates';
+import { dateOnlyToUtc, normalizeDateToTimeZone } from '@/lib/dates';
 
 export interface ParsedFlightRow {
   row: number;
@@ -423,7 +423,7 @@ function parseDate(value: any): Date | null {
 
   // If already a Date object
   if (value instanceof Date) {
-    return isNaN(value.getTime()) ? null : value;
+    return isNaN(value.getTime()) ? null : normalizeDateToTimeZone(value);
   }
 
   // If it's an Excel serial date number (days since 1900-01-01)
@@ -432,7 +432,7 @@ function parseDate(value: any): Date | null {
     // So we need to adjust by 1 day for dates after 1900-02-28
     const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
     const date = new Date(excelEpoch.getTime() + (value - 1) * 24 * 60 * 60 * 1000);
-    return isNaN(date.getTime()) ? null : date;
+    return isNaN(date.getTime()) ? null : normalizeDateToTimeZone(date);
   }
 
   // Try to parse as string or date
@@ -494,12 +494,12 @@ function parseDateTime(value: any): Date | null {
       // Create date for today with this time (will be combined with flight date later)
       const date = new Date();
       date.setHours(hours, minutes, seconds, 0);
-      return date;
+      return normalizeDateToTimeZone(date);
     }
     // Try standard Date parsing
     const date = new Date(timeStr);
     if (!isNaN(date.getTime())) {
-      return date;
+      return normalizeDateToTimeZone(date);
     }
   }
 

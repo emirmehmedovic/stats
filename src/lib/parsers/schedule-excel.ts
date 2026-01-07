@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { dateOnlyToUtc } from '@/lib/dates';
+import { dateOnlyToUtc, normalizeDateToTimeZone } from '@/lib/dates';
 
 export interface ParsedScheduleRow {
   row: number;
@@ -232,9 +232,9 @@ function parseDateTime(value: any): Date | null {
   if (!value) return null;
 
   // If already a Date object
-  if (value instanceof Date) return value;
+  if (value instanceof Date) return normalizeDateToTimeZone(value);
 
   // Try to parse as string
   const date = new Date(value);
-  return isNaN(date.getTime()) ? null : date;
+  return isNaN(date.getTime()) ? null : normalizeDateToTimeZone(date);
 }

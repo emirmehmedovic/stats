@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 /**
  * GET /api/reports/bhdca/download?fileName=BHDCA_September_2025.xlsx
@@ -8,6 +9,15 @@ import path from 'path';
  */
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`download:reports:${ip}`, { windowMs: 60_000, max: 30 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const fileName = searchParams.get('fileName');
 

@@ -1,27 +1,33 @@
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET is required in production');
+    }
+    return 'dev-secret-change-me';
+  }
+  return secret;
+}
 
 export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'VIEWER';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER';
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {
+  const secretValue = getJwtSecret();
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
+    const secret = new TextEncoder().encode(secretValue);
     const { payload } = await jwtVerify(token, secret);
     return payload as unknown as AuthUser;
   } catch (error: any) {
-    console.error('Token verification failed:', {
-      error: error.message,
-      tokenLength: token.length,
-      tokenPreview: token.substring(0, 20) + '...',
-      hasSecret: !!JWT_SECRET,
-      secretLength: JWT_SECRET?.length
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Token verification failed:', error.message);
+    }
     return null;
   }
 }

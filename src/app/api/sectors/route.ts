@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireNonOperations } from '@/lib/route-guards';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const sectors = await prisma.sector.findMany({
       include: {
         _count: {
@@ -28,6 +34,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const body = await request.json();
     const { name, code, description, color, isActive } = body;
 

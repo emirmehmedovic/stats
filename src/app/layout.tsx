@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from 'next/font/google';
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { CsrfBootstrap } from "@/components/CsrfBootstrap";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <CsrfBootstrap />
           {children}
         </ThemeProvider>
       </body>

@@ -41,7 +41,9 @@ async function getPeriodStatsOptimized(start: Date, end: Date) {
       airlineId: true,
       aircraftTypeId: true,
       arrivalPassengers: true,
+      arrivalInfants: true,
       departurePassengers: true,
+      departureInfants: true,
       arrivalFerryIn: true,
       departureFerryOut: true,
       availableSeats: true,
@@ -81,8 +83,8 @@ async function getPeriodStatsOptimized(start: Date, end: Date) {
   // Calculate stats in memory
   const totalFlights = flights.length;
   const totalPassengers = flights.reduce((sum, f) => {
-    const arrivalPassengers = f.arrivalFerryIn ? 0 : (f.arrivalPassengers || 0);
-    const departurePassengers = f.departureFerryOut ? 0 : (f.departurePassengers || 0);
+    const arrivalPassengers = f.arrivalFerryIn ? 0 : ((f.arrivalPassengers || 0) + (f.arrivalInfants || 0));
+    const departurePassengers = f.departureFerryOut ? 0 : ((f.departurePassengers || 0) + (f.departureInfants || 0));
     return sum + arrivalPassengers + departurePassengers;
   }, 0);
 

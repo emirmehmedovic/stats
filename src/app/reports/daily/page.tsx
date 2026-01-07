@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Plane, Users, Building2, TrendingUp, Download, Calendar, PackageCheck, 
 import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
 
 interface DailyReportData {
+  mode: 'single';
+  period: string;
   date: string;
   flights: any[];
   totals: {
@@ -37,20 +39,102 @@ interface DailyReportData {
     flights: number;
     passengers: number;
   }>;
+  loadFactor: {
+    overall: number | null;
+    totalPassengers: number;
+    totalSeats: number;
+  };
+  punctuality: {
+    overallOnTimeRate: number | null;
+    overallAvgDelayMinutes: number | null;
+    totalDelaySamples: number;
+  };
+  routesAll: Array<{
+    route: string;
+    flights: number;
+    passengers: number;
+    avgPassengers: number | null;
+    loadFactor: number | null;
+    avgDelayMinutes: number | null;
+    onTimeRate: number | null;
+  }>;
+  airlinesAll: Array<{
+    airline: string;
+    icaoCode: string;
+    flights: number;
+    passengers: number;
+    avgPassengers: number | null;
+    loadFactor: number | null;
+    avgDelayMinutes: number | null;
+    onTimeRate: number | null;
+  }>;
 }
+
+interface MultiDailyReportData {
+  mode: 'multi';
+  periods: string[];
+  periodsData: DailyReportData[];
+  comparisons: {
+    commonRoutes: Array<{
+      route: string;
+      totalPassengers: number;
+      perPeriod: Array<{
+        period: string;
+        flights: number;
+        passengers: number;
+        loadFactor: number | null;
+        avgDelayMinutes: number | null;
+        onTimeRate: number | null;
+      }>;
+    }>;
+    commonAirlines: Array<{
+      airline: string;
+      icaoCode: string;
+      totalPassengers: number;
+      perPeriod: Array<{
+        period: string;
+        flights: number;
+        passengers: number;
+        loadFactor: number | null;
+        avgDelayMinutes: number | null;
+        onTimeRate: number | null;
+      }>;
+    }>;
+  };
+}
+
+type DailyReportPayload = DailyReportData | MultiDailyReportData;
 
 export default function DailyReportPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+  const [comparisonStart, setComparisonStart] = useState(getTodayDateString());
+  const [comparisonEnd, setComparisonEnd] = useState('');
+  const [comparisonPeriods, setComparisonPeriods] = useState<string[]>([]);
+  const [isComparisonMode, setIsComparisonMode] = useState(false);
+  const [comparisonType, setComparisonType] = useState<'days' | 'ranges'>('days');
   const [reportData, setReportData] = useState<DailyReportData | null>(null);
+  const [multiReportData, setMultiReportData] = useState<MultiDailyReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (comparisonType === 'days') {
+      setComparisonEnd('');
+    }
+  }, [comparisonType]);
 
   const fetchReport = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/reports/daily?date=${selectedDate}`);
+      if (isComparisonMode && comparisonPeriods.length < 2) {
+        throw new Error('Odaberite najmanje dva perioda za komparaciju');
+      }
+      const query = isComparisonMode
+        ? `/api/reports/daily?periods=${encodeURIComponent(comparisonPeriods.join(','))}`
+        : `/api/reports/daily?date=${selectedDate}`;
+      const response = await fetch(query);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -58,7 +142,14 @@ export default function DailyReportPage() {
       }
 
       const result = await response.json();
-      setReportData(result.data);
+      const payload = result.data as DailyReportPayload;
+      if (payload.mode === 'multi') {
+        setMultiReportData(payload);
+        setReportData(null);
+      } else {
+        setReportData(payload);
+        setMultiReportData(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nepoznata greška');
     } finally {
@@ -67,7 +158,7 @@ export default function DailyReportPage() {
   };
 
   const handleExportToExcel = () => {
-    if (!reportData) return;
+    if (!reportData || reportData.mode !== 'single') return;
 
     // Create workbook
     const wb = XLSX.utils.book_new();
@@ -145,6 +236,32 @@ export default function DailyReportPage() {
     XLSX.writeFile(wb, `Dnevni_izvjestaj_${formatDateDisplay(reportData.date)}.xlsx`);
   };
 
+  const addComparisonPeriod = () => {
+    if (!comparisonStart) return;
+    if (comparisonType === 'ranges' && !comparisonEnd) {
+      setError('Za raspon odaberite datum "do"');
+      return;
+    }
+    const period =
+      comparisonType === 'ranges' && comparisonEnd
+        ? `${comparisonStart}..${comparisonEnd}`
+        : comparisonStart;
+    setComparisonPeriods((prev) => (prev.includes(period) ? prev : [...prev, period]));
+  };
+
+  const removeComparisonPeriod = (period: string) => {
+    setComparisonPeriods((prev) => prev.filter((item) => item !== period));
+  };
+
+  const resetFilters = () => {
+    setSelectedDate(getTodayDateString());
+    setComparisonStart(getTodayDateString());
+    setComparisonEnd('');
+    setComparisonPeriods([]);
+    setIsComparisonMode(false);
+    setComparisonType('days');
+  };
+
   const reportDateLabel = reportData ? formatDateDisplay(reportData.date) : '';
 
   return (
@@ -175,30 +292,140 @@ export default function DailyReportPage() {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="bg-white/10 border-white/20 text-white placeholder:text-dark-300"
+                  disabled={isComparisonMode}
                 />
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button
-                onClick={fetchReport}
-                disabled={isLoading}
-                className="bg-white text-dark-900 hover:bg-white/90 font-semibold shadow-soft"
-              >
-                {isLoading ? 'Učitavam...' : 'Prikaži izvještaj'}
-              </Button>
-              {reportData && (
+            <div className="flex flex-col items-start gap-3">
+              <div className="flex items-center gap-2 text-sm text-dark-200">
+                <input
+                  id="comparisonMode"
+                  type="checkbox"
+                  checked={isComparisonMode}
+                  onChange={(e) => setIsComparisonMode(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/30"
+                />
+                <Label htmlFor="comparisonMode" className="text-dark-200 text-sm">
+                  Uporedi periode
+                </Label>
+              </div>
+              <div className="flex gap-3">
                 <Button
-                  onClick={handleExportToExcel}
-                  className="bg-primary-600 hover:bg-primary-500 text-white font-semibold"
+                  onClick={fetchReport}
+                  disabled={isLoading}
+                  className="bg-white text-dark-900 hover:bg-white/90 font-semibold shadow-soft"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportuj
+                  {isLoading ? 'Učitavam...' : 'Prikaži izvještaj'}
                 </Button>
-              )}
+                {reportData && (
+                  <Button
+                    onClick={handleExportToExcel}
+                    className="bg-primary-600 hover:bg-primary-500 text-white font-semibold"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportuj
+                  </Button>
+                )}
+                <Button
+                  onClick={resetFilters}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold"
+                >
+                  Reset
+                </Button>
+              </div>
             </div>
           </div>
         </div>
+
+        {isComparisonMode && (
+          <div className="bg-white rounded-3xl p-6 shadow-soft">
+            <h3 className="text-lg font-semibold text-dark-900 mb-4">Komparacija dana/perioda</h3>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <input
+                  id="compareDays"
+                  type="radio"
+                  name="comparisonType"
+                  checked={comparisonType === 'days'}
+                  onChange={() => setComparisonType('days')}
+                  className="h-4 w-4 rounded border-borderSoft"
+                />
+                <Label htmlFor="compareDays" className="text-sm">
+                  Pojedinačni dani
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="compareRanges"
+                  type="radio"
+                  name="comparisonType"
+                  checked={comparisonType === 'ranges'}
+                  onChange={() => setComparisonType('ranges')}
+                  className="h-4 w-4 rounded border-borderSoft"
+                />
+                <Label htmlFor="compareRanges" className="text-sm">
+                  Periodi (od-do)
+                </Label>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <Label htmlFor="comparisonStart">Datum od</Label>
+                <Input
+                  id="comparisonStart"
+                  type="date"
+                  value={comparisonStart}
+                  onChange={(e) => setComparisonStart(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="comparisonEnd">
+                  Datum do {comparisonType === 'ranges' ? '(obavezno)' : '(opciono)'}
+                </Label>
+                <Input
+                  id="comparisonEnd"
+                  type="date"
+                  value={comparisonEnd}
+                  onChange={(e) => setComparisonEnd(e.target.value)}
+                  className="mt-1"
+                  disabled={comparisonType === 'days'}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addComparisonPeriod}
+                >
+                  Dodaj period
+                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {comparisonPeriods.length === 0 && (
+                    <span className="text-xs text-dark-500">Nema odabranih perioda</span>
+                  )}
+                  {comparisonPeriods.map((period) => (
+                    <span
+                      key={`period-${period}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-dark-50 px-3 py-1 text-xs text-dark-700"
+                    >
+                      {period}
+                      <button
+                        type="button"
+                        onClick={() => removeComparisonPeriod(period)}
+                        className="text-dark-400 hover:text-dark-700"
+                        aria-label={`Ukloni ${period}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -271,6 +498,47 @@ export default function DailyReportPage() {
                     <h4 className="text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-dark-500">{item.title}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  title: 'Load faktor',
+                  value: reportData.loadFactor.overall !== null ? `${reportData.loadFactor.overall}%` : '-',
+                  icon: TrendingUp,
+                  color: 'text-sky-600',
+                },
+                {
+                  title: 'Tačnost',
+                  value: reportData.punctuality.overallOnTimeRate !== null ? `${reportData.punctuality.overallOnTimeRate}%` : '-',
+                  icon: TrendingUp,
+                  color: 'text-green-600',
+                },
+                {
+                  title: 'Prosj. kašnjenje',
+                  value: reportData.punctuality.overallAvgDelayMinutes !== null ? `${reportData.punctuality.overallAvgDelayMinutes} min` : '-',
+                  icon: TrendingUp,
+                  color: 'text-orange-600',
+                },
+                {
+                  title: 'Uzorci kašnjenja',
+                  value: reportData.punctuality.totalDelaySamples,
+                  icon: TrendingUp,
+                  color: 'text-red-600',
+                },
+              ].map((item, index) => (
+                <div key={index} className="bg-white rounded-3xl p-6 shadow-soft hover:shadow-soft-lg transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center ${item.color}`}>
+                      <item.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-dark-500">{item.title}</p>
+                      <p className="text-2xl font-bold text-dark-900">{item.value}</p>
                     </div>
                   </div>
                 </div>
@@ -473,6 +741,150 @@ export default function DailyReportPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {multiReportData && (
+          <>
+            <div className="bg-white rounded-3xl p-6 shadow-soft">
+              <h3 className="text-lg font-semibold text-dark-900 mb-4">Sažetak po periodima</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-dark-100 bg-dark-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-dark-500 uppercase">
+                        Period
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Letovi
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Putnici
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Load faktor
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Tačnost
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Prosj. kašnjenje
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Prtljag
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Cargo
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-dark-500 uppercase">
+                        Pošta
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {multiReportData.periodsData.map((periodData, index) => (
+                      <tr key={`period-summary-${periodData.period}-${index}`} className="border-b border-dark-100 hover:bg-dark-50">
+                        <td className="px-4 py-3 text-sm font-medium">{periodData.period}</td>
+                        <td className="px-4 py-3 text-sm text-right">{periodData.totals.flights}</td>
+                        <td className="px-4 py-3 text-sm text-right">{periodData.totals.totalPassengers}</td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {periodData.loadFactor.overall !== null ? `${periodData.loadFactor.overall}%` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {periodData.punctuality.overallOnTimeRate !== null ? `${periodData.punctuality.overallOnTimeRate}%` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {periodData.punctuality.overallAvgDelayMinutes !== null ? `${periodData.punctuality.overallAvgDelayMinutes} min` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">{periodData.totals.totalBaggage}</td>
+                        <td className="px-4 py-3 text-sm text-right">{periodData.totals.totalCargo}</td>
+                        <td className="px-4 py-3 text-sm text-right">{periodData.totals.totalMail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 shadow-soft">
+              <h3 className="text-lg font-semibold text-dark-900 mb-4">Zajedničke rute kroz periode</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-dark-100 bg-dark-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-dark-500 uppercase">
+                        Ruta
+                      </th>
+                      {multiReportData.periodsData.map((periodData) => (
+                        <th
+                          key={`route-header-${periodData.period}`}
+                          className="px-4 py-2 text-left text-xs font-semibold text-dark-500 uppercase"
+                        >
+                          {periodData.period}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {multiReportData.comparisons.commonRoutes.map((route, index) => (
+                      <tr key={`route-compare-${route.route}-${index}`} className="border-b border-dark-100 hover:bg-dark-50">
+                        <td className="px-4 py-3 text-sm font-medium">{route.route}</td>
+                        {route.perPeriod.map((stats) => (
+                          <td key={`route-${route.route}-${stats.period}`} className="px-4 py-3 text-xs text-dark-700">
+                            <div>Letovi: {stats.flights}</div>
+                            <div>Putnici: {stats.passengers}</div>
+                            <div>LF: {stats.loadFactor !== null ? `${stats.loadFactor}%` : '-'}</div>
+                            <div>Tačnost: {stats.onTimeRate !== null ? `${stats.onTimeRate}%` : '-'}</div>
+                            <div>Kašnjenje: {stats.avgDelayMinutes !== null ? `${stats.avgDelayMinutes} min` : '-'}</div>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 shadow-soft">
+              <h3 className="text-lg font-semibold text-dark-900 mb-4">Zajedničke aviokompanije kroz periode</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-dark-100 bg-dark-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-dark-500 uppercase">
+                        Aviokompanija
+                      </th>
+                      {multiReportData.periodsData.map((periodData) => (
+                        <th
+                          key={`airline-header-${periodData.period}`}
+                          className="px-4 py-2 text-left text-xs font-semibold text-dark-500 uppercase"
+                        >
+                          {periodData.period}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {multiReportData.comparisons.commonAirlines.map((airline, index) => (
+                      <tr key={`airline-compare-${airline.icaoCode}-${index}`} className="border-b border-dark-100 hover:bg-dark-50">
+                        <td className="px-4 py-3 text-sm font-medium">
+                          {airline.airline} ({airline.icaoCode})
+                        </td>
+                        {airline.perPeriod.map((stats) => (
+                          <td key={`airline-${airline.icaoCode}-${stats.period}`} className="px-4 py-3 text-xs text-dark-700">
+                            <div>Letovi: {stats.flights}</div>
+                            <div>Putnici: {stats.passengers}</div>
+                            <div>LF: {stats.loadFactor !== null ? `${stats.loadFactor}%` : '-'}</div>
+                            <div>Tačnost: {stats.onTimeRate !== null ? `${stats.onTimeRate}%` : '-'}</div>
+                            <div>Kašnjenje: {stats.avgDelayMinutes !== null ? `${stats.avgDelayMinutes} min` : '-'}</div>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>

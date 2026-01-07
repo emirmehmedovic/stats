@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseScheduleExcelFile } from '@/lib/parsers/schedule-excel';
 import { parseScheduleCSVFile } from '@/lib/parsers/schedule-csv';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 export const config = {
   api: {
@@ -38,6 +39,15 @@ interface ImportResult {
  */
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`import:schedule:${ip}`, { windowMs: 60_000, max: 5 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { success: false, error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const dryRun = formData.get('dryRun') === 'true';

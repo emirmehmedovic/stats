@@ -4,6 +4,7 @@ import { parseExcelFile } from '@/lib/parsers/excel';
 import { parseCSVFile } from '@/lib/parsers/csv';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 export const config = {
   api: {
@@ -26,6 +27,15 @@ interface ImportResult {
 // POST /api/flights/import - Import flights from Excel or CSV
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`import:flights:${ip}`, { windowMs: 60_000, max: 5 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { success: false, error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const dryRun = formData.get('dryRun') === 'true';

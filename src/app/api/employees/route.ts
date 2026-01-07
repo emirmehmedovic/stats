@@ -3,10 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { dateOnlyToUtc } from '@/lib/dates';
 import { createEmployeeSchema } from '@/lib/validators/employee';
 import { z } from 'zod';
+import { requireNonOperations } from '@/lib/route-guards';
 
 // GET /api/employees - Lista radnika sa filterima
 export async function GET(request: NextRequest) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -86,6 +92,11 @@ export async function GET(request: NextRequest) {
 // POST /api/employees - Kreiranje novog radnika
 export async function POST(request: NextRequest) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const body = await request.json();
 
     // Validacija

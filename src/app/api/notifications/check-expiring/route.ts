@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { endOfDayUtc, getDateStringInTimeZone, getTodayDateString, startOfDayUtc, TIME_ZONE_SARAJEVO } from '@/lib/dates';
+import { requireNonOperations } from '@/lib/route-guards';
 
 // POST /api/notifications/check-expiring - Check for expiring licenses and create notifications
 // Ovo bi trebalo biti cron job, ali za sada je API endpoint
 export async function POST(request: NextRequest) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const todayStr = getTodayDateString();
     const today = startOfDayUtc(todayStr);
     const daysAhead = 30; // Provjeravamo licence koje ističu u sljedećih 30 dana

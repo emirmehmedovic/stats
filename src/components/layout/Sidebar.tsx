@@ -128,6 +128,7 @@ const adminSection: NavSection = {
   title: 'ADMIN',
   items: [
     { label: 'Admin Panel', href: '/admin/users', icon: Settings2 },
+    { label: 'Audit log', href: '/admin/audit-logs', icon: Shield },
   ],
 };
 
@@ -328,6 +329,13 @@ export function Sidebar() {
     );
   };
 
+  const visibleSections = navSections.filter((section) => {
+    if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-dark-100 flex flex-col shadow-soft z-50 overflow-hidden">
       {/* Logo Section */}
@@ -357,7 +365,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-4 overflow-y-auto">
         <div className="space-y-6 pb-4">
-          {navSections.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.title}>
               <p className="px-4 mb-2 text-[10px] font-bold text-dark-400 uppercase tracking-widest">
                 {section.title}

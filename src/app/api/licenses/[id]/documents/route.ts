@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { requireNonOperations } from '@/lib/route-guards';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,6 +16,20 @@ export async function POST(
   context: RouteContext
 ) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`upload:license-document:${ip}`, { windowMs: 60_000, max: 15 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     // Provjera da li licenca postoji
     const license = await prisma.license.findUnique({
@@ -105,6 +121,11 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const { id } = await context.params;
     const documents = await prisma.licenseDocument.findMany({
       where: { licenseId: id },

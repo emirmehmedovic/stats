@@ -2,9 +2,25 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { requireNonOperations } from '@/lib/route-guards';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const rate = rateLimit(`upload:employee-photo:${ip}`, { windowMs: 60_000, max: 20 });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'Previše zahtjeva. Pokušajte ponovo kasnije.' },
+        { status: 429 }
+      );
+    }
+
+    const authCheck = await requireNonOperations(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const employeeId = formData.get('employeeId') as string;
