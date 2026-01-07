@@ -100,11 +100,16 @@ def detect_format(header_row):
         format_info['type'] = 1
         format_info['airline_col'] = 1
         format_info['aircraft_col'] = 3
+        format_info['available_seats_col'] = None  # No available seats column in Format 1
         format_info['registration_col'] = 4
         format_info['operation_type_col'] = 5
         format_info['mtow_col'] = 6
         format_info['arrival_flight_number_col'] = 7
         format_info['departure_flight_number_col'] = 8
+        format_info['scheduled_arrival_time_col'] = 9   # pl vrijeme dol
+        format_info['actual_arrival_time_col'] = 10     # st vrijeme dol
+        format_info['scheduled_departure_time_col'] = 11  # pl vrijeme odl
+        format_info['actual_departure_time_col'] = 12   # st vrijeme odl
         format_info['arrival_pax_col'] = 13
         format_info['departure_pax_col'] = 14
         format_info['arrival_inf_col'] = None  # Combined in pax col
@@ -123,11 +128,16 @@ def detect_format(header_row):
         format_info['type'] = 4
         format_info['airline_col'] = 3  # Use the second "Kompanija" column
         format_info['aircraft_col'] = 6
+        format_info['available_seats_col'] = 7  # Rasp. mjesta
         format_info['registration_col'] = 8
         format_info['operation_type_col'] = 9
         format_info['mtow_col'] = 10
         format_info['arrival_flight_number_col'] = 11
         format_info['departure_flight_number_col'] = 19
+        format_info['scheduled_arrival_time_col'] = 12   # pl vrijeme dol
+        format_info['actual_arrival_time_col'] = 13     # st vrijeme dol
+        format_info['scheduled_departure_time_col'] = 20  # pl vrijeme odl
+        format_info['actual_departure_time_col'] = 21   # st vrijeme odl
         format_info['arrival_pax_col'] = 14  # Adults only
         format_info['departure_pax_col'] = 22  # Adults only
         format_info['arrival_inf_col'] = 15  # Infants
@@ -146,11 +156,16 @@ def detect_format(header_row):
         format_info['type'] = 2
         format_info['airline_col'] = 1
         format_info['aircraft_col'] = 4
+        format_info['available_seats_col'] = 5  # Rasp. mjesta
         format_info['registration_col'] = 6
         format_info['operation_type_col'] = 7
         format_info['mtow_col'] = 8
         format_info['arrival_flight_number_col'] = 9
         format_info['departure_flight_number_col'] = 10
+        format_info['scheduled_arrival_time_col'] = 11   # pl vrijeme dol
+        format_info['actual_arrival_time_col'] = 12     # st vrijeme dol
+        format_info['scheduled_departure_time_col'] = 13  # pl vrijeme odl
+        format_info['actual_departure_time_col'] = 14   # st vrijeme odl
         format_info['arrival_pax_col'] = 15
         format_info['departure_pax_col'] = 16
         format_info['arrival_inf_col'] = None  # Combined in pax col
@@ -170,11 +185,16 @@ def detect_format(header_row):
     format_info['type'] = 3
     format_info['airline_col'] = 1
     format_info['aircraft_col'] = 4
+    format_info['available_seats_col'] = 5  # Rasp. mjesta
     format_info['registration_col'] = 6
     format_info['operation_type_col'] = 7
     format_info['mtow_col'] = 8
     format_info['arrival_flight_number_col'] = 9
     format_info['departure_flight_number_col'] = 17
+    format_info['scheduled_arrival_time_col'] = 10   # pl vrijeme dol
+    format_info['actual_arrival_time_col'] = 11     # st vrijeme dol
+    format_info['scheduled_departure_time_col'] = 18  # pl vrijeme odl
+    format_info['actual_departure_time_col'] = 19   # st vrijeme odl
     format_info['arrival_pax_col'] = 12  # Adults only
     format_info['departure_pax_col'] = 20  # Adults only
     format_info['arrival_inf_col'] = 13  # Infants
@@ -204,7 +224,7 @@ def extract_month(month_folder):
     # Find Excel file
     files = [
         f for f in os.listdir(month_path)
-        if 'Dnevni izvještaj o saobraćaju' in f and f.endswith('.xlsx')
+        if 'Dnevni izvje' in f and f.endswith('.xlsx')
     ]
 
     if not files:
@@ -257,11 +277,18 @@ def extract_month(month_folder):
                     airline_name = safe_get(row, fmt['airline_col'])
                     route_str = safe_get(row, fmt['route_col'])
                     aircraft_model = safe_get(row, fmt['aircraft_col'])
+                    available_seats = safe_get(row, fmt.get('available_seats_col'))
                     registration = safe_get(row, fmt['registration_col'])
                     operation_type_str = safe_get(row, fmt['operation_type_col'])
                     mtow = safe_get(row, fmt['mtow_col'])
                     arrival_flight_number = safe_get(row, fmt['arrival_flight_number_col'])
                     departure_flight_number = safe_get(row, fmt['departure_flight_number_col'])
+
+                    # Times
+                    scheduled_arrival_time = safe_get(row, fmt.get('scheduled_arrival_time_col'))
+                    actual_arrival_time = safe_get(row, fmt.get('actual_arrival_time_col'))
+                    scheduled_departure_time = safe_get(row, fmt.get('scheduled_departure_time_col'))
+                    actual_departure_time = safe_get(row, fmt.get('actual_departure_time_col'))
 
                     # Passenger data
                     arrival_pax_val = safe_get(row, fmt['arrival_pax_col'])
@@ -316,9 +343,16 @@ def extract_month(month_folder):
                         'operationType': str(operation_type_str).strip().upper() if operation_type_str else 'N/A',
 
                         # Additional data
+                        'availableSeats': int(available_seats) if available_seats and str(available_seats).strip() not in ['-', 'N/A', ''] else None,
                         'mtow': int(mtow) if mtow and str(mtow).strip() and str(mtow).strip() != '-' else None,
                         'arrivalFlightNumber': str(arrival_flight_number) if arrival_flight_number else None,
                         'departureFlightNumber': str(departure_flight_number) if departure_flight_number else None,
+
+                        # Times
+                        'scheduledArrivalTime': str(scheduled_arrival_time) if scheduled_arrival_time and str(scheduled_arrival_time).strip() not in ['-', 'N/A', ''] else None,
+                        'actualArrivalTime': str(actual_arrival_time) if actual_arrival_time and str(actual_arrival_time).strip() not in ['-', 'N/A', ''] else None,
+                        'scheduledDepartureTime': str(scheduled_departure_time) if scheduled_departure_time and str(scheduled_departure_time).strip() not in ['-', 'N/A', ''] else None,
+                        'actualDepartureTime': str(actual_departure_time) if actual_departure_time and str(actual_departure_time).strip() not in ['-', 'N/A', ''] else None,
 
                         # Passengers
                         'arrivalPassengers': arrival_adults,

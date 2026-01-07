@@ -331,12 +331,48 @@ export async function PUT(
           }
         : {};
 
+    // Calculate load factors
+    let arrivalLoadFactor: number | null = null;
+    let departureLoadFactor: number | null = null;
+
+    // Get capacity (prioritize availableSeats, fallback to aircraftType.seats)
+    let capacity: number | null = null;
+    if (flightUpdate.availableSeats) {
+      capacity = flightUpdate.availableSeats;
+    } else if (aircraftTypeId) {
+      // Fetch aircraft type seats if new type selected
+      const aircraftType = await prisma.aircraftType.findUnique({
+        where: { id: aircraftTypeId },
+        select: { seats: true },
+      });
+      capacity = aircraftType?.seats || null;
+    } else {
+      // Use existing aircraft type
+      const currentFlight = await prisma.flight.findUnique({
+        where: { id },
+        include: { aircraftType: true },
+      });
+      capacity = currentFlight?.aircraftType?.seats || null;
+    }
+
+    // Calculate arrival load factor
+    if (capacity && capacity > 0 && flightUpdate.arrivalPassengers && flightUpdate.arrivalPassengers > 0 && !flightUpdate.arrivalFerryIn) {
+      arrivalLoadFactor = Math.round((flightUpdate.arrivalPassengers / capacity) * 10000) / 100;
+    }
+
+    // Calculate departure load factor
+    if (capacity && capacity > 0 && flightUpdate.departurePassengers && flightUpdate.departurePassengers > 0 && !flightUpdate.departureFerryOut) {
+      departureLoadFactor = Math.round((flightUpdate.departurePassengers / capacity) * 10000) / 100;
+    }
+
     const flight = await prisma.flight.update({
       where: { id },
       data: {
         ...flightUpdate,
         ...relationUpdates,
         ...verificationUpdate,
+        arrivalLoadFactor,
+        departureLoadFactor,
       },
       include: {
         airline: true,

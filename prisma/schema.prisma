@@ -142,6 +142,7 @@ model Flight {
   arrivalFemalePassengers Int? // Ženski putnici
   arrivalChildren         Int? // Djeca (spadaju u arrivalPassengers)
   arrivalInfants          Int? // Bebe (NE spadaju u arrivalPassengers)
+  arrivalLoadFactor       Float? // Load factor u % (putnici / kapacitet * 100)
   arrivalBaggage          Int? // kg
   arrivalCargo            Int? // kg
   arrivalMail             Int? // kg
@@ -159,6 +160,7 @@ model Flight {
   departureFemalePassengers Int? // Ženski putnici
   departureChildren         Int? // Djeca (spadaju u departurePassengers)
   departureInfants          Int? // Bebe (NE spadaju u departurePassengers)
+  departureLoadFactor       Float? // Load factor u % (putnici / kapacitet * 100)
   departureBaggage          Int? // kg
   departureCargo            Int? // kg
   departureMail             Int? // kg

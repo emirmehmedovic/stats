@@ -41,6 +41,7 @@ type Flight = {
   arrivalScheduledTime: string | null;
   arrivalActualTime: string | null;
   arrivalPassengers: number | null;
+  arrivalLoadFactor: number | null;
   arrivalFerryIn: boolean;
   arrivalInfants: number | null;
   arrivalBaggage: number | null;
@@ -50,6 +51,7 @@ type Flight = {
   departureScheduledTime: string | null;
   departureActualTime: string | null;
   departurePassengers: number | null;
+  departureLoadFactor: number | null;
   departureFerryOut: boolean;
   departureInfants: number | null;
   departureBaggage: number | null;
@@ -1347,6 +1349,120 @@ export default function FlightDataEntryPage() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Load Factor Display */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <Users className="w-5 h-5 text-slate-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Load Factor</h2>
+              <p className="text-sm text-slate-500">Popunjenost aviona</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Arrival Load Factor */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Plane className="w-4 h-4 text-slate-500 transform -rotate-45" />
+                <h3 className="text-sm font-semibold text-slate-700">Dolazak</h3>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Kapacitet</span>
+                  <span className="font-medium text-slate-900">
+                    {formData.availableSeats ||
+                     (formData.aircraftTypeId && aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats) ||
+                     '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Putnici</span>
+                  <span className="font-medium text-slate-900">{formData.arrivalPassengers || 0}</span>
+                </div>
+                <div className="h-px bg-slate-200 my-3"></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Load Factor</span>
+                  {(() => {
+                    const capacity = parseInt(formData.availableSeats) ||
+                                   (formData.aircraftTypeId && aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats) ||
+                                   0;
+                    const passengers = parseInt(formData.arrivalPassengers) || 0;
+                    if (capacity > 0 && passengers > 0 && !formData.arrivalFerryIn) {
+                      const loadFactor = (passengers / capacity) * 100;
+                      return (
+                        <div className="text-right">
+                          <span className="text-xl font-bold text-slate-900">
+                            {loadFactor.toFixed(2)}%
+                          </span>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {passengers} / {capacity}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return <span className="text-sm text-slate-400">N/A</span>;
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Departure Load Factor */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Plane className="w-4 h-4 text-slate-500 transform rotate-45" />
+                <h3 className="text-sm font-semibold text-slate-700">Odlazak</h3>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Kapacitet</span>
+                  <span className="font-medium text-slate-900">
+                    {formData.availableSeats ||
+                     (formData.aircraftTypeId && aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats) ||
+                     '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Putnici</span>
+                  <span className="font-medium text-slate-900">{formData.departurePassengers || 0}</span>
+                </div>
+                <div className="h-px bg-slate-200 my-3"></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Load Factor</span>
+                  {(() => {
+                    const capacity = parseInt(formData.availableSeats) ||
+                                   (formData.aircraftTypeId && aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats) ||
+                                   0;
+                    const passengers = parseInt(formData.departurePassengers) || 0;
+                    if (capacity > 0 && passengers > 0 && !formData.departureFerryOut) {
+                      const loadFactor = (passengers / capacity) * 100;
+                      return (
+                        <div className="text-right">
+                          <span className="text-xl font-bold text-slate-900">
+                            {loadFactor.toFixed(2)}%
+                          </span>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {passengers} / {capacity}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return <span className="text-sm text-slate-400">N/A</span>;
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs text-slate-600">
+              <strong>Napomena:</strong> Load factor se automatski izračunava i čuva kada sačuvate podatke.
+              Koristi se raspoloživa mjesta ako je uneseno, inače standardni kapacitet tipa aviona.
+            </p>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getClientIp } from '@/lib/rate-limit';
+import { Prisma } from '@prisma/client';
 
 type AuditInput = {
   userId?: string | null;
@@ -28,7 +29,7 @@ export async function logAudit({
         action,
         entityType,
         entityId: entityId || null,
-        metadata: metadata || null,
+        metadata: (metadata as Prisma.JsonValue) || undefined,
         ipAddress,
         userAgent,
       },

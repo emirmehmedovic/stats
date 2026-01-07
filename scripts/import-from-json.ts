@@ -33,9 +33,14 @@ interface FlightData {
   aircraftModel: string;
   registration: string;
   operationType: string;
+  availableSeats?: number | null;
   mtow?: number | null;
   arrivalFlightNumber?: string | null;
   departureFlightNumber?: string | null;
+  scheduledArrivalTime?: string | null;
+  actualArrivalTime?: string | null;
+  scheduledDepartureTime?: string | null;
+  actualDepartureTime?: string | null;
   arrivalPassengers?: number | null;
   arrivalInfants?: number | null;
   departurePassengers?: number | null;
@@ -213,9 +218,38 @@ async function importFlights(dryRun: boolean = false) {
             departureAirportId,
             arrivalAirportId,
 
+            // Capacity
+            availableSeats: flight.availableSeats || null,
+
             // Flight numbers
             arrivalFlightNumber: flight.arrivalFlightNumber || null,
             departureFlightNumber: flight.departureFlightNumber || null,
+
+            // Times (with validation)
+            arrivalScheduledTime: flight.scheduledArrivalTime && flight.scheduledArrivalTime.trim() !== '-'
+              ? (() => {
+                  const d = new Date(`${flight.date.split('T')[0]}T${flight.scheduledArrivalTime}`);
+                  return isNaN(d.getTime()) ? null : d;
+                })()
+              : null,
+            arrivalActualTime: flight.actualArrivalTime && flight.actualArrivalTime.trim() !== '-'
+              ? (() => {
+                  const d = new Date(`${flight.date.split('T')[0]}T${flight.actualArrivalTime}`);
+                  return isNaN(d.getTime()) ? null : d;
+                })()
+              : null,
+            departureScheduledTime: flight.scheduledDepartureTime && flight.scheduledDepartureTime.trim() !== '-'
+              ? (() => {
+                  const d = new Date(`${flight.date.split('T')[0]}T${flight.scheduledDepartureTime}`);
+                  return isNaN(d.getTime()) ? null : d;
+                })()
+              : null,
+            departureActualTime: flight.actualDepartureTime && flight.actualDepartureTime.trim() !== '-'
+              ? (() => {
+                  const d = new Date(`${flight.date.split('T')[0]}T${flight.actualDepartureTime}`);
+                  return isNaN(d.getTime()) ? null : d;
+                })()
+              : null,
 
             // Passenger data
             arrivalPassengers: flight.arrivalPassengers || null,

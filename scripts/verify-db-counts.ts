@@ -16,6 +16,7 @@ const expected = {
   9: 34390,
   10: 32977,
   11: 21934,
+  12: 0,  // December - no expected value provided yet
 };
 
 async function main() {
@@ -46,7 +47,7 @@ async function main() {
     'Dec',
   ];
 
-  for (let month = 1; month <= 11; month++) {
+  for (let month = 1; month <= 12; month++) {
     const startDate = new Date(`2025-${String(month).padStart(2, '0')}-01`);
     const endDate = new Date(
       month === 12
@@ -71,7 +72,7 @@ async function main() {
     `;
 
     const actual = Number(result[0].total || 0);
-    const exp = expected[month] || 0;
+    const exp = expected[month as keyof typeof expected] || 0;
     const diff = actual - exp;
     const status = Math.abs(diff) < 100 ? '✅' : '❌';
 

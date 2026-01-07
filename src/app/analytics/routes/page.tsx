@@ -466,18 +466,24 @@ export default function RouteAnalyticsPage() {
                   <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-blue-200 rounded-full blur-xl opacity-60"></div>
                   <div className="relative z-10">
                     <h3 className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-3">Most Frequent Route</h3>
-                    <div className="text-3xl font-bold text-primary-600 mb-2">
-                      {data.summary.topRoute.route}
-                    </div>
-                    <div className="text-sm text-dark-600">
-                      {data.summary.topRoute.frequency} flights
-                    </div>
-                    <div className="text-sm text-dark-600 mt-1">
-                      {data.summary.topRoute.totalPassengers.toLocaleString()} passengers
-                    </div>
-                    <div className="text-sm text-dark-600 mt-1">
-                      Load Factor: {data.summary.topRoute.loadFactor}%
-                    </div>
+                    {data.summary.topRoute ? (
+                      <>
+                        <div className="text-3xl font-bold text-primary-600 mb-2">
+                          {data.summary.topRoute.route}
+                        </div>
+                        <div className="text-sm text-dark-600">
+                          {data.summary.topRoute.frequency} flights
+                        </div>
+                        <div className="text-sm text-dark-600 mt-1">
+                          {data.summary.topRoute.totalPassengers.toLocaleString()} passengers
+                        </div>
+                        <div className="text-sm text-dark-600 mt-1">
+                          Load Factor: {data.summary.topRoute.loadFactor}%
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-dark-400">No route data available</div>
+                    )}
                   </div>
                 </div>
 
@@ -486,18 +492,24 @@ export default function RouteAnalyticsPage() {
                   <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-green-200 rounded-full blur-xl opacity-60"></div>
                   <div className="relative z-10">
                     <h3 className="text-xs text-dark-600 font-semibold uppercase tracking-wide mb-3">Busiest Route (by Passengers)</h3>
-                    <div className="text-3xl font-bold text-green-600 mb-2">
-                      {data.summary.busiestRoute.route}
-                    </div>
-                    <div className="text-sm text-dark-600">
-                      {data.summary.busiestRoute.totalPassengers.toLocaleString()} passengers
-                    </div>
-                    <div className="text-sm text-dark-600 mt-1">
-                      {data.summary.busiestRoute.frequency} flights
-                    </div>
-                    <div className="text-sm text-dark-600 mt-1">
-                      Load Factor: {data.summary.busiestRoute.loadFactor}%
-                    </div>
+                    {data.summary.busiestRoute ? (
+                      <>
+                        <div className="text-3xl font-bold text-green-600 mb-2">
+                          {data.summary.busiestRoute.route}
+                        </div>
+                        <div className="text-sm text-dark-600">
+                          {data.summary.busiestRoute.totalPassengers.toLocaleString()} passengers
+                        </div>
+                        <div className="text-sm text-dark-600 mt-1">
+                          {data.summary.busiestRoute.frequency} flights
+                        </div>
+                        <div className="text-sm text-dark-600 mt-1">
+                          Load Factor: {data.summary.busiestRoute.loadFactor}%
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-dark-400">No route data available</div>
+                    )}
                   </div>
                 </div>
               </div>
