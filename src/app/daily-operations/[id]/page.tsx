@@ -100,6 +100,7 @@ export default function FlightDataEntryPage() {
   const [pendingVerificationDate, setPendingVerificationDate] = useState<string | null>(null);
   const [isDepartureExpanded, setIsDepartureExpanded] = useState(false);
   const [isArrivalExpanded, setIsArrivalExpanded] = useState(false);
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | null>(null);
 
   const [formData, setFormData] = useState({
     // Basic info (editable)
@@ -153,8 +154,12 @@ export default function FlightDataEntryPage() {
   const [pendingSubmit, setPendingSubmit] = useState(false);
 
   useEffect(() => {
-    fetchFlight();
     fetchFormData();
+    fetchFlight();
+
+    // Get user role from localStorage (set by AuthCheck)
+    const role = localStorage.getItem('userRole') as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | null;
+    setUserRole(role);
   }, [flightId]);
 
   useEffect(() => {
@@ -619,7 +624,8 @@ export default function FlightDataEntryPage() {
   const flightDateDisplay = formatDateString(
     getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO)
   );
-  const isReadOnly = isVerificationLocked || flight.isLocked || flight.isVerified;
+  // ADMIN can edit verified flights, other roles cannot
+  const isReadOnly = isVerificationLocked || flight.isLocked || (flight.isVerified && userRole !== 'ADMIN');
   const displayValue = (value?: string | number | null) => {
     if (value === null || value === undefined || value === '') return '-';
     return String(value);
