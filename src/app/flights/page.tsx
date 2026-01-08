@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FlightsTable } from '@/components/flights/FlightsTable';
 import { FlightsFilters } from '@/components/flights/FlightsFilters';
+import { BulkDeleteModal } from '@/components/flights/BulkDeleteModal';
 import { FlightsResponse, FlightFilters } from '@/types/flight';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
-import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3 } from 'lucide-react';
+import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2 } from 'lucide-react';
+import { showToast } from '@/components/ui/toast';
 
 export default function FlightsPage() {
   const router = useRouter();
@@ -25,6 +27,30 @@ export default function FlightsPage() {
     dateFrom: monthStart,
     dateTo: monthEnd,
   });
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+
+  const handleBulkDelete = async (dateFrom: string, dateTo: string) => {
+    try {
+      const response = await fetch('/api/flights/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dateFrom, dateTo }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Greška pri brisanju letova');
+      }
+
+      showToast(`Uspješno obrisano ${result.data.deletedCount} letova`, 'success');
+      fetchFlights(); // Refresh the list
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Greška pri brisanju letova';
+      showToast(message, 'error');
+      throw error;
+    }
+  };
 
   const fetchFlights = async () => {
     setIsLoading(true);
@@ -91,6 +117,14 @@ export default function FlightsPage() {
             </div>
 
             <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsBulkDeleteModalOpen(true)}
+                className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-200 border-red-400/30"
+              >
+                <Trash2 className="w-4 h-4" />
+                Masovno brisanje
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => router.push('/flights/import-schedule')}
@@ -214,6 +248,13 @@ export default function FlightsPage() {
             )}
           </div>
         </div>
+
+        {/* Bulk Delete Modal */}
+        <BulkDeleteModal
+          isOpen={isBulkDeleteModalOpen}
+          onClose={() => setIsBulkDeleteModalOpen(false)}
+          onConfirm={handleBulkDelete}
+        />
       </div>
     </MainLayout>
   );

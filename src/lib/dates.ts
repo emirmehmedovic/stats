@@ -162,14 +162,20 @@ export const formatDateTimeDisplay = (value: Date | string | null | undefined) =
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('bs-BA', {
+  
+  // Format as DD.MM.YYYY HH:mm
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIME_ZONE_SARAJEVO,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date);
+    hour12: false,
+  }).formatToParts(date);
+  
+  const part = (type: string) => parts.find((p) => p.type === type)?.value || '';
+  return `${part('day')}.${part('month')}.${part('year')} ${part('hour')}:${part('minute')}`;
 };
 
 export const formatDateTimeLocalValue = (value: Date | string | null | undefined) => {
