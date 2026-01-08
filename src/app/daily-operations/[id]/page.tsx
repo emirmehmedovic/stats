@@ -443,7 +443,10 @@ export default function FlightDataEntryPage() {
         departureFlightNumber: formData.departureFlightNumber || null,
         departureScheduledTime: formData.departureScheduledTime ? new Date(formData.departureScheduledTime).toISOString() : null,
         departureActualTime: formData.departureActualTime ? new Date(formData.departureActualTime).toISOString() : null,
-        departureDoorClosingTime: formData.departureDoorClosingTime ? new Date(formData.departureDoorClosingTime).toISOString() : null,
+        departureDoorClosingTime: formData.departureDoorClosingTime ? (() => {
+          const date = new Date(formData.departureDoorClosingTime);
+          return !isNaN(date.getTime()) ? date.toISOString() : null;
+        })() : null,
         departureStatus: formData.departureStatus || 'SCHEDULED',
         departureCancelReason: formData.departureStatus === 'CANCELLED' ? formData.departureCancelReason || null : null,
         departurePassengers: formData.departureFerryOut
