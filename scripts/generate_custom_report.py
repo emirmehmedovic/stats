@@ -133,6 +133,28 @@ def format_date(dt):
     return dt.strftime("%d.%m.%Y")
 
 
+def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
+    """
+    Helper function to properly create merged cells with consistent formatting.
+    Applies formatting to ALL cells in the range before merging to avoid Excel corruption.
+    """
+    for col in range(start_col, end_col + 1):
+        cell = ws.cell(row=row, column=col)
+        if col == start_col and value is not None:
+            cell.value = value
+        if font:
+            cell.font = font
+        if fill:
+            cell.fill = fill
+        if alignment:
+            cell.alignment = alignment
+        if border:
+            cell.border = border
+    
+    if start_col != end_col:
+        ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
+
+
 def create_excel_report(flights, passenger_type, date_from, date_to):
     """
     Kreira Excel izvještaj sa filteriranim podacima
@@ -194,7 +216,10 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     # Write data rows
     row_idx = 2
     total_passengers = 0
+    total_departure_passengers = 0
+    total_arrival_passengers = 0
     total_infants = 0
+    total_operations = 0
 
     for flight in flights:
         base_data = [
@@ -217,7 +242,11 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
                 flight['departureChildren'] or 0,
                 flight['departureInfants'] or 0
             ]
-            total_passengers += flight['departurePassengers'] or 0
+            dep_pax = flight['departurePassengers'] or 0
+            total_passengers += dep_pax
+            total_departure_passengers += dep_pax
+            if flight['departureFlightNumber']:
+                total_operations += 1
         elif passenger_type == "arrival":
             passenger_data = [
                 flight['arrivalFlightNumber'] or "-",
@@ -229,7 +258,11 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
                 flight['arrivalChildren'] or 0,
                 flight['arrivalInfants'] or 0
             ]
-            total_passengers += flight['arrivalPassengers'] or 0
+            arr_pax = flight['arrivalPassengers'] or 0
+            total_passengers += arr_pax
+            total_arrival_passengers += arr_pax
+            if flight['arrivalFlightNumber']:
+                total_operations += 1
         elif passenger_type == "infants":
             arr_infants = flight['arrivalInfants'] or 0
             dep_infants = flight['departureInfants'] or 0
@@ -252,6 +285,12 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
                 arr_pax + dep_pax
             ]
             total_passengers += arr_pax + dep_pax
+            total_arrival_passengers += arr_pax
+            total_departure_passengers += dep_pax
+            if flight['arrivalFlightNumber']:
+                total_operations += 1
+            if flight['departureFlightNumber']:
+                total_operations += 1
 
         row_data = base_data + passenger_data
 
@@ -268,16 +307,14 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     
     # Summary header
     summary_header_fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
-    summary_title_row = row_idx
-    for col in range(1, len(headers) + 1):
-        cell = ws.cell(row=summary_title_row, column=col)
-        if col == 1:
-            cell.value = "SAŽETAK IZVJEŠTAJA"
-        cell.font = Font(bold=True, size=14, color="FFFFFF")
-        cell.fill = summary_header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = thin_border
-    ws.merge_cells(start_row=summary_title_row, start_column=1, end_row=summary_title_row, end_column=len(headers))
+    create_merged_cell(
+        ws, row_idx, 1, len(headers),
+        "SAŽETAK IZVJEŠTAJA",
+        font=Font(bold=True, size=14, color="FFFFFF"),
+        fill=summary_header_fill,
+        alignment=Alignment(horizontal="center", vertical="center"),
+        border=thin_border
+    )
     row_idx += 1
     
     # Period info
@@ -285,12 +322,11 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     period_cell.font = Font(bold=True)
     period_cell.border = thin_border
     
-    for col in range(2, 5):
-        cell = ws.cell(row=row_idx, column=col)
-        if col == 2:
-            cell.value = f"{date_from} do {date_to}"
-        cell.border = thin_border
-    ws.merge_cells(start_row=row_idx, start_column=2, end_row=row_idx, end_column=4)
+    create_merged_cell(
+        ws, row_idx, 2, 4,
+        f"{date_from} do {date_to}",
+        border=thin_border
+    )
     row_idx += 1
     
     # Basic statistics
@@ -300,10 +336,24 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     flights_label = ws.cell(row=row_idx, column=1, value="Ukupno letova:")
     flights_label.font = Font(bold=True)
     flights_label.fill = stats_fill
+    flights_label.border = thin_border
     flights_value = ws.cell(row=row_idx, column=2, value=len(flights))
     flights_value.font = Font(bold=True, size=12)
     flights_value.fill = stats_fill
     flights_value.alignment = Alignment(horizontal="center")
+    flights_value.border = thin_border
+    row_idx += 1
+    
+    # Total operations
+    ops_label = ws.cell(row=row_idx, column=1, value="Ukupno operacija:")
+    ops_label.font = Font(bold=True)
+    ops_label.fill = stats_fill
+    ops_label.border = thin_border
+    ops_value = ws.cell(row=row_idx, column=2, value=total_operations)
+    ops_value.font = Font(bold=True, size=12)
+    ops_value.fill = stats_fill
+    ops_value.alignment = Alignment(horizontal="center")
+    ops_value.border = thin_border
     row_idx += 1
     
     # Total passengers/infants
@@ -311,29 +361,74 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
         pax_label = ws.cell(row=row_idx, column=1, value="Ukupno beba:")
         pax_label.font = Font(bold=True)
         pax_label.fill = stats_fill
+        pax_label.border = thin_border
         pax_value = ws.cell(row=row_idx, column=2, value=total_infants)
         pax_value.font = Font(bold=True, size=12, color="D97706")
         pax_value.fill = stats_fill
         pax_value.alignment = Alignment(horizontal="center")
+        pax_value.border = thin_border
     else:
         pax_label = ws.cell(row=row_idx, column=1, value="Ukupno putnika:")
         pax_label.font = Font(bold=True)
         pax_label.fill = stats_fill
+        pax_label.border = thin_border
         pax_value = ws.cell(row=row_idx, column=2, value=total_passengers)
         pax_value.font = Font(bold=True, size=12, color="D97706")
         pax_value.fill = stats_fill
         pax_value.alignment = Alignment(horizontal="center")
+        pax_value.border = thin_border
     row_idx += 1
+    
+    # Departure passengers (only if not infants type)
+    if passenger_type != "infants" and total_departure_passengers > 0:
+        dep_pax_label = ws.cell(row=row_idx, column=1, value="  - Odlazeći putnici:")
+        dep_pax_label.font = Font(bold=False, italic=True)
+        dep_pax_label.fill = stats_fill
+        dep_pax_label.border = thin_border
+        dep_pax_value = ws.cell(row=row_idx, column=2, value=total_departure_passengers)
+        dep_pax_value.font = Font(bold=True)
+        dep_pax_value.fill = stats_fill
+        dep_pax_value.alignment = Alignment(horizontal="center")
+        dep_pax_value.border = thin_border
+        row_idx += 1
+    
+    # Arrival passengers (only if not infants type)
+    if passenger_type != "infants" and total_arrival_passengers > 0:
+        arr_pax_label = ws.cell(row=row_idx, column=1, value="  - Dolazeći putnici:")
+        arr_pax_label.font = Font(bold=False, italic=True)
+        arr_pax_label.fill = stats_fill
+        arr_pax_label.border = thin_border
+        arr_pax_value = ws.cell(row=row_idx, column=2, value=total_arrival_passengers)
+        arr_pax_value.font = Font(bold=True)
+        arr_pax_value.fill = stats_fill
+        arr_pax_value.alignment = Alignment(horizontal="center")
+        arr_pax_value.border = thin_border
+        row_idx += 1
     
     # Average passengers per flight
     if passenger_type != "infants" and len(flights) > 0:
         avg_label = ws.cell(row=row_idx, column=1, value="Prosječno putnika po letu:")
         avg_label.font = Font(bold=True)
         avg_label.fill = stats_fill
+        avg_label.border = thin_border
         avg_value = ws.cell(row=row_idx, column=2, value=round(total_passengers / len(flights), 1))
         avg_value.font = Font(bold=True)
         avg_value.fill = stats_fill
         avg_value.alignment = Alignment(horizontal="center")
+        avg_value.border = thin_border
+        row_idx += 1
+    
+    # Average passengers per operation
+    if passenger_type != "infants" and total_operations > 0:
+        avg_op_label = ws.cell(row=row_idx, column=1, value="Prosječno putnika po operaciji:")
+        avg_op_label.font = Font(bold=True)
+        avg_op_label.fill = stats_fill
+        avg_op_label.border = thin_border
+        avg_op_value = ws.cell(row=row_idx, column=2, value=round(total_passengers / total_operations, 1))
+        avg_op_value.font = Font(bold=True)
+        avg_op_value.fill = stats_fill
+        avg_op_value.alignment = Alignment(horizontal="center")
+        avg_op_value.border = thin_border
         row_idx += 1
     
     row_idx += 1
@@ -341,93 +436,161 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     # Breakdown by airline
     airline_counts = {}
     airline_passengers = {}
+    airline_departure_passengers = {}
+    airline_arrival_passengers = {}
+    airline_operations = {}
     for flight in flights:
         airline = flight['airline_name'] or "Nepoznato"
         airline_counts[airline] = airline_counts.get(airline, 0) + 1
         
+        # Count operations
+        ops = 0
+        if flight['arrivalFlightNumber']:
+            ops += 1
+        if flight['departureFlightNumber']:
+            ops += 1
+        airline_operations[airline] = airline_operations.get(airline, 0) + ops
+        
+        # Track departure and arrival passengers separately
+        dep_pax = flight['departurePassengers'] or 0
+        arr_pax = flight['arrivalPassengers'] or 0
+        airline_departure_passengers[airline] = airline_departure_passengers.get(airline, 0) + dep_pax
+        airline_arrival_passengers[airline] = airline_arrival_passengers.get(airline, 0) + arr_pax
+        
         if passenger_type == "departure":
-            airline_passengers[airline] = airline_passengers.get(airline, 0) + (flight['departurePassengers'] or 0)
+            airline_passengers[airline] = airline_passengers.get(airline, 0) + dep_pax
         elif passenger_type == "arrival":
-            airline_passengers[airline] = airline_passengers.get(airline, 0) + (flight['arrivalPassengers'] or 0)
+            airline_passengers[airline] = airline_passengers.get(airline, 0) + arr_pax
         elif passenger_type == "all":
-            airline_passengers[airline] = airline_passengers.get(airline, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
+            airline_passengers[airline] = airline_passengers.get(airline, 0) + arr_pax + dep_pax
     
     if airline_counts:
         breakdown_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        for col in range(1, 5):
-            cell = ws.cell(row=row_idx, column=col)
-            if col == 1:
-                cell.value = "PREGLED PO AVIOKOMPANIJAMA"
-            cell.font = Font(bold=True, size=11, color="FFFFFF")
-            cell.fill = breakdown_fill
-            cell.alignment = Alignment(horizontal="center")
-            cell.border = thin_border
-        ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
+        # Determine header span based on passenger type
+        header_end_col = 7 if passenger_type == "all" else 5
+        create_merged_cell(
+            ws, row_idx, 1, header_end_col,
+            "PREGLED PO AVIOKOMPANIJAMA",
+            font=Font(bold=True, size=11, color="FFFFFF"),
+            fill=breakdown_fill,
+            alignment=Alignment(horizontal="center"),
+            border=thin_border
+        )
         row_idx += 1
         
         # Headers
         ws.cell(row=row_idx, column=1, value="Aviokompanija").font = Font(bold=True)
-        ws.cell(row=row_idx, column=2, value="Broj letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=2, value="Letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=3, value="Operacija").font = Font(bold=True)
         if passenger_type != "infants":
-            ws.cell(row=row_idx, column=3, value="Putnici").font = Font(bold=True)
-            ws.cell(row=row_idx, column=4, value="Prosječno").font = Font(bold=True)
+            if passenger_type == "all":
+                ws.cell(row=row_idx, column=4, value="Odlazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Dolazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=6, value="Ukupno").font = Font(bold=True)
+                ws.cell(row=row_idx, column=7, value="Prosječno").font = Font(bold=True)
+            else:
+                ws.cell(row=row_idx, column=4, value="Putnici").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Prosječno").font = Font(bold=True)
         row_idx += 1
         
-        for airline in sorted(airline_counts.keys()):
+        # Sort airlines by passenger count (highest first)
+        sorted_airlines = sorted(airline_counts.keys(), key=lambda x: airline_passengers.get(x, 0), reverse=True)
+        for airline in sorted_airlines:
             ws.cell(row=row_idx, column=1, value=airline)
             ws.cell(row=row_idx, column=2, value=airline_counts[airline]).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=3, value=airline_operations.get(airline, 0)).alignment = Alignment(horizontal="center")
             if passenger_type != "infants":
-                ws.cell(row=row_idx, column=3, value=airline_passengers.get(airline, 0)).alignment = Alignment(horizontal="center")
-                avg = round(airline_passengers.get(airline, 0) / airline_counts[airline], 1) if airline_counts[airline] > 0 else 0
-                ws.cell(row=row_idx, column=4, value=avg).alignment = Alignment(horizontal="center")
+                if passenger_type == "all":
+                    ws.cell(row=row_idx, column=4, value=airline_departure_passengers.get(airline, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=5, value=airline_arrival_passengers.get(airline, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=6, value=airline_passengers.get(airline, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(airline_passengers.get(airline, 0) / airline_operations.get(airline, 1), 1) if airline_operations.get(airline, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=7, value=avg).alignment = Alignment(horizontal="center")
+                else:
+                    ws.cell(row=row_idx, column=4, value=airline_passengers.get(airline, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(airline_passengers.get(airline, 0) / airline_operations.get(airline, 1), 1) if airline_operations.get(airline, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=5, value=avg).alignment = Alignment(horizontal="center")
             row_idx += 1
         
         row_idx += 1
     
-    # Breakdown by route (top 10)
+    # Breakdown by route (ALL routes)
     route_counts = {}
     route_passengers = {}
+    route_departure_passengers = {}
+    route_arrival_passengers = {}
+    route_operations = {}
     for flight in flights:
         route = flight['route'] or "Nepoznato"
         route_counts[route] = route_counts.get(route, 0) + 1
         
+        # Count operations
+        ops = 0
+        if flight['arrivalFlightNumber']:
+            ops += 1
+        if flight['departureFlightNumber']:
+            ops += 1
+        route_operations[route] = route_operations.get(route, 0) + ops
+        
+        # Track departure and arrival passengers separately
+        dep_pax = flight['departurePassengers'] or 0
+        arr_pax = flight['arrivalPassengers'] or 0
+        route_departure_passengers[route] = route_departure_passengers.get(route, 0) + dep_pax
+        route_arrival_passengers[route] = route_arrival_passengers.get(route, 0) + arr_pax
+        
         if passenger_type == "departure":
-            route_passengers[route] = route_passengers.get(route, 0) + (flight['departurePassengers'] or 0)
+            route_passengers[route] = route_passengers.get(route, 0) + dep_pax
         elif passenger_type == "arrival":
-            route_passengers[route] = route_passengers.get(route, 0) + (flight['arrivalPassengers'] or 0)
+            route_passengers[route] = route_passengers.get(route, 0) + arr_pax
         elif passenger_type == "all":
-            route_passengers[route] = route_passengers.get(route, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
+            route_passengers[route] = route_passengers.get(route, 0) + arr_pax + dep_pax
     
     if route_counts:
         route_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        for col in range(1, 5):
-            cell = ws.cell(row=row_idx, column=col)
-            if col == 1:
-                cell.value = "TOP 10 RUTA"
-            cell.font = Font(bold=True, size=11, color="FFFFFF")
-            cell.fill = route_fill
-            cell.alignment = Alignment(horizontal="center")
-            cell.border = thin_border
-        ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
+        # Determine header span based on passenger type
+        header_end_col = 7 if passenger_type == "all" else 5
+        create_merged_cell(
+            ws, row_idx, 1, header_end_col,
+            "PREGLED PO RUTAMA",
+            font=Font(bold=True, size=11, color="FFFFFF"),
+            fill=route_fill,
+            alignment=Alignment(horizontal="center"),
+            border=thin_border
+        )
         row_idx += 1
         
         # Headers
         ws.cell(row=row_idx, column=1, value="Ruta").font = Font(bold=True)
-        ws.cell(row=row_idx, column=2, value="Broj letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=2, value="Letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=3, value="Operacija").font = Font(bold=True)
         if passenger_type != "infants":
-            ws.cell(row=row_idx, column=3, value="Putnici").font = Font(bold=True)
-            ws.cell(row=row_idx, column=4, value="Prosječno").font = Font(bold=True)
+            if passenger_type == "all":
+                ws.cell(row=row_idx, column=4, value="Odlazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Dolazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=6, value="Ukupno").font = Font(bold=True)
+                ws.cell(row=row_idx, column=7, value="Prosječno").font = Font(bold=True)
+            else:
+                ws.cell(row=row_idx, column=4, value="Putnici").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Prosječno").font = Font(bold=True)
         row_idx += 1
         
-        # Sort by flight count and take top 10
-        top_routes = sorted(route_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-        for route, count in top_routes:
+        # Sort by flight count and show ALL routes
+        all_routes = sorted(route_counts.items(), key=lambda x: x[1], reverse=True)
+        for route, count in all_routes:
             ws.cell(row=row_idx, column=1, value=route)
             ws.cell(row=row_idx, column=2, value=count).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=3, value=route_operations.get(route, 0)).alignment = Alignment(horizontal="center")
             if passenger_type != "infants":
-                ws.cell(row=row_idx, column=3, value=route_passengers.get(route, 0)).alignment = Alignment(horizontal="center")
-                avg = round(route_passengers.get(route, 0) / count, 1) if count > 0 else 0
-                ws.cell(row=row_idx, column=4, value=avg).alignment = Alignment(horizontal="center")
+                if passenger_type == "all":
+                    ws.cell(row=row_idx, column=4, value=route_departure_passengers.get(route, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=5, value=route_arrival_passengers.get(route, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=6, value=route_passengers.get(route, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(route_passengers.get(route, 0) / route_operations.get(route, 1), 1) if route_operations.get(route, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=7, value=avg).alignment = Alignment(horizontal="center")
+                else:
+                    ws.cell(row=row_idx, column=4, value=route_passengers.get(route, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(route_passengers.get(route, 0) / route_operations.get(route, 1), 1) if route_operations.get(route, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=5, value=avg).alignment = Alignment(horizontal="center")
             row_idx += 1
         
         row_idx += 1
@@ -435,45 +598,78 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     # Breakdown by operation type
     optype_counts = {}
     optype_passengers = {}
+    optype_departure_passengers = {}
+    optype_arrival_passengers = {}
+    optype_operations = {}
     for flight in flights:
         optype = flight['operation_type_name'] or "Nepoznato"
         optype_counts[optype] = optype_counts.get(optype, 0) + 1
         
+        # Count operations
+        ops = 0
+        if flight['arrivalFlightNumber']:
+            ops += 1
+        if flight['departureFlightNumber']:
+            ops += 1
+        optype_operations[optype] = optype_operations.get(optype, 0) + ops
+        
+        # Track departure and arrival passengers separately
+        dep_pax = flight['departurePassengers'] or 0
+        arr_pax = flight['arrivalPassengers'] or 0
+        optype_departure_passengers[optype] = optype_departure_passengers.get(optype, 0) + dep_pax
+        optype_arrival_passengers[optype] = optype_arrival_passengers.get(optype, 0) + arr_pax
+        
         if passenger_type == "departure":
-            optype_passengers[optype] = optype_passengers.get(optype, 0) + (flight['departurePassengers'] or 0)
+            optype_passengers[optype] = optype_passengers.get(optype, 0) + dep_pax
         elif passenger_type == "arrival":
-            optype_passengers[optype] = optype_passengers.get(optype, 0) + (flight['arrivalPassengers'] or 0)
+            optype_passengers[optype] = optype_passengers.get(optype, 0) + arr_pax
         elif passenger_type == "all":
-            optype_passengers[optype] = optype_passengers.get(optype, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
+            optype_passengers[optype] = optype_passengers.get(optype, 0) + arr_pax + dep_pax
     
     if optype_counts:
         optype_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        for col in range(1, 5):
-            cell = ws.cell(row=row_idx, column=col)
-            if col == 1:
-                cell.value = "PREGLED PO TIPU SAOBRAĆAJA"
-            cell.font = Font(bold=True, size=11, color="FFFFFF")
-            cell.fill = optype_fill
-            cell.alignment = Alignment(horizontal="center")
-            cell.border = thin_border
-        ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
+        # Determine header span based on passenger type
+        header_end_col = 7 if passenger_type == "all" else 5
+        create_merged_cell(
+            ws, row_idx, 1, header_end_col,
+            "PREGLED PO TIPU SAOBRAĆAJA",
+            font=Font(bold=True, size=11, color="FFFFFF"),
+            fill=optype_fill,
+            alignment=Alignment(horizontal="center"),
+            border=thin_border
+        )
         row_idx += 1
         
         # Headers
         ws.cell(row=row_idx, column=1, value="Tip saobraćaja").font = Font(bold=True)
-        ws.cell(row=row_idx, column=2, value="Broj letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=2, value="Letova").font = Font(bold=True)
+        ws.cell(row=row_idx, column=3, value="Operacija").font = Font(bold=True)
         if passenger_type != "infants":
-            ws.cell(row=row_idx, column=3, value="Putnici").font = Font(bold=True)
-            ws.cell(row=row_idx, column=4, value="Prosječno").font = Font(bold=True)
+            if passenger_type == "all":
+                ws.cell(row=row_idx, column=4, value="Odlazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Dolazeći").font = Font(bold=True)
+                ws.cell(row=row_idx, column=6, value="Ukupno").font = Font(bold=True)
+                ws.cell(row=row_idx, column=7, value="Prosječno").font = Font(bold=True)
+            else:
+                ws.cell(row=row_idx, column=4, value="Putnici").font = Font(bold=True)
+                ws.cell(row=row_idx, column=5, value="Prosječno").font = Font(bold=True)
         row_idx += 1
         
         for optype in sorted(optype_counts.keys()):
             ws.cell(row=row_idx, column=1, value=optype)
             ws.cell(row=row_idx, column=2, value=optype_counts[optype]).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=3, value=optype_operations.get(optype, 0)).alignment = Alignment(horizontal="center")
             if passenger_type != "infants":
-                ws.cell(row=row_idx, column=3, value=optype_passengers.get(optype, 0)).alignment = Alignment(horizontal="center")
-                avg = round(optype_passengers.get(optype, 0) / optype_counts[optype], 1) if optype_counts[optype] > 0 else 0
-                ws.cell(row=row_idx, column=4, value=avg).alignment = Alignment(horizontal="center")
+                if passenger_type == "all":
+                    ws.cell(row=row_idx, column=4, value=optype_departure_passengers.get(optype, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=5, value=optype_arrival_passengers.get(optype, 0)).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row_idx, column=6, value=optype_passengers.get(optype, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(optype_passengers.get(optype, 0) / optype_operations.get(optype, 1), 1) if optype_operations.get(optype, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=7, value=avg).alignment = Alignment(horizontal="center")
+                else:
+                    ws.cell(row=row_idx, column=4, value=optype_passengers.get(optype, 0)).alignment = Alignment(horizontal="center")
+                    avg = round(optype_passengers.get(optype, 0) / optype_operations.get(optype, 1), 1) if optype_operations.get(optype, 0) > 0 else 0
+                    ws.cell(row=row_idx, column=5, value=avg).alignment = Alignment(horizontal="center")
             row_idx += 1
 
     # Set row height for header

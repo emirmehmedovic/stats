@@ -31,11 +31,39 @@ MONTH_NAMES = {
 
 def get_db_connection():
     """Konekcija na PostgreSQL bazu"""
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable not set")
 
-    return psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+
+def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
+    """
+    Helper function to properly create merged cells with consistent formatting.
+    Applies formatting to ALL cells in the range before merging to avoid Excel corruption.
+    """
+    # Convert column letters to numbers if needed
+    if isinstance(start_col, str):
+        start_col = openpyxl.utils.column_index_from_string(start_col)
+    if isinstance(end_col, str):
+        end_col = openpyxl.utils.column_index_from_string(end_col)
+    
+    for col in range(start_col, end_col + 1):
+        cell = ws.cell(row=row, column=col)
+        if col == start_col and value is not None:
+            cell.value = value
+        if font:
+            cell.font = font
+        if fill:
+            cell.fill = fill
+        if alignment:
+            cell.alignment = alignment
+        if border:
+            cell.border = border
+    
+    if start_col != end_col:
+        ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
 
 
 def get_flight_data(year: int, month: int):
@@ -193,16 +221,20 @@ def add_customs_block(ws, row, title, data, styles):
                 )
                 cell.border = border
 
-    ws.merge_cells(f'A{row}:E{row}')
-    ws[f'A{row}'] = title
-    ws[f'A{row}'].font = title_font
-    ws[f'A{row}'].alignment = center_align
+    create_merged_cell(
+        ws, row, 'A', 'E',
+        title,
+        font=title_font,
+        alignment=center_align
+    )
     row += 2
 
-    ws.merge_cells(f'B{row}:E{row}')
-    ws[f'B{row}'] = "PUTNICI"
-    ws[f'B{row}'].font = section_font
-    ws[f'B{row}'].alignment = center_align
+    create_merged_cell(
+        ws, row, 'B', 'E',
+        "PUTNICI",
+        font=section_font,
+        alignment=center_align
+    )
     row += 1
 
     ws[f'B{row}'] = "Broj letova"
@@ -283,10 +315,12 @@ def add_customs_block(ws, row, title, data, styles):
     passengers_end_row = row
     row += 3
 
-    ws.merge_cells(f'B{row}:D{row}')
-    ws[f'B{row}'] = "TERET"
-    ws[f'B{row}'].font = section_font
-    ws[f'B{row}'].alignment = center_align
+    create_merged_cell(
+        ws, row, 'B', 'D',
+        "TERET",
+        font=section_font,
+        alignment=center_align
+    )
     row += 1
 
     ws[f'B{row}'] = "Utovareno"

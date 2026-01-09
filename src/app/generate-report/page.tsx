@@ -79,6 +79,7 @@ export default function GenerateReportPage() {
   const [isCustomGenerating, setIsCustomGenerating] = useState(false);
   const [customMessage, setCustomMessage] = useState('');
   const [customFileName, setCustomFileName] = useState('');
+  const [useMultiSheet, setUseMultiSheet] = useState(false);
   
   // Data za filtere
   const [availableOperationTypes, setAvailableOperationTypes] = useState<Array<{ id: string; name: string; code: string }>>([]);
@@ -385,6 +386,20 @@ export default function GenerateReportPage() {
     fetchFilterData();
   }, []);
 
+  // Auto-enable multi-sheet for long periods
+  useEffect(() => {
+    if (customDateFrom && customDateTo) {
+      const from = new Date(customDateFrom);
+      const to = new Date(customDateTo);
+      const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Auto-enable multi-sheet for periods longer than 30 days
+      if (daysDiff > 30 && !useMultiSheet) {
+        setUseMultiSheet(true);
+      }
+    }
+  }, [customDateFrom, customDateTo]);
+
   // Funkcija za generisanje custom izvještaja
   const handleGenerateCustom = async () => {
     setIsCustomGenerating(true);
@@ -392,7 +407,12 @@ export default function GenerateReportPage() {
     setCustomFileName('');
 
     try {
-      const response = await fetch('/api/reports/custom-advanced/generate', {
+      // Determine which endpoint to use
+      const endpoint = useMultiSheet 
+        ? '/api/reports/custom-multi-sheet/generate'
+        : '/api/reports/custom-advanced/generate';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -413,8 +433,13 @@ export default function GenerateReportPage() {
         throw new Error(data.error || 'Greška pri generisanju izvještaja');
       }
 
-      setCustomMessage('Izvještaj uspješno generisan!');
-      setCustomFileName(data.fileName);
+      // Support both fileName (old API) and filename (new API)
+      const fileName = data.fileName || data.filename;
+      console.log('API Response:', data);
+      console.log('Extracted fileName:', fileName);
+      
+      setCustomMessage(data.message || 'Izvještaj uspješno generisan!');
+      setCustomFileName(fileName);
     } catch (error: any) {
       setCustomMessage(`Greška: ${error.message}`);
     } finally {
@@ -1413,6 +1438,45 @@ export default function GenerateReportPage() {
                         />
                       </div>
                     </div>
+                    
+                    {/* Multi-Sheet Toggle */}
+                    {customDateFrom && customDateTo && (() => {
+                      const from = new Date(customDateFrom);
+                      const to = new Date(customDateTo);
+                      const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+                      const isLongPeriod = daysDiff > 30;
+                      
+                      return (
+                        <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              id="multiSheetToggle"
+                              checked={useMultiSheet}
+                              onChange={(e) => setUseMultiSheet(e.target.checked)}
+                              className="mt-1 w-5 h-5 rounded border-2 border-blue-400 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                            />
+                            <div className="flex-1">
+                              <label htmlFor="multiSheetToggle" className="flex items-center gap-2 cursor-pointer">
+                                <span className="text-sm font-bold text-blue-900">Multi-sheet izvještaj</span>
+                                {isLongPeriod && (
+                                  <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-bold">
+                                    Preporučeno
+                                  </span>
+                                )}
+                              </label>
+                              <p className="text-xs text-blue-700 mt-1 leading-relaxed">
+                                {isLongPeriod ? (
+                                  <>Period duži od mjesec dana ({daysDiff} dana) - preporučujemo multi-sheet format sa detaljnim summary-em i mjesečnim breakdown-om</>
+                                ) : (
+                                  <>Generiši izvještaj sa više sheet-ova: Summary + mjesečni breakdown sa dnevnim pregledom</>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Operation Types Multi-Select Card */}

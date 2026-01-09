@@ -1,0 +1,227 @@
+Datum,Tip leta,IATA,Destinacija,Vrijeme,Avio kompanija,IATA kod aviokompanije
+2025-07-01,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-01,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-01,Arrival,AYT,Antalya,10:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-01,Departure,AYT,Antalya,11:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-01,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-01,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-02,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-02,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-02,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-02,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-02,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-02,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-02,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-02,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-03,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-03,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-03,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-03,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-04,Arrival,SAW,Istanbul,08:50,Pegasus Airlines,PC
+2025-07-04,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-04,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-04,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-04,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-04,Departure,SAW,Istanbul,10:10,Pegasus Airlines,PC
+2025-07-04,Arrival,DTM,Dortmund,11:55,Wizz Air,W6
+2025-07-04,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-04,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-07-04,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-04,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-04,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-05,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-05,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-05,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-05,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-06,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-06,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-06,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-06,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-06,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-06,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-07,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-07,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-07,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-07,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-07,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-07,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-07,Arrival,SAW,Istanbul,13:35,A Jet Airlines,VF
+2025-07-07,Departure,SAW,Istanbul,14:35,A Jet Airlines,VF
+2025-07-07,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-07,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-08,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-08,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-08,Arrival,AYT,Antalya,10:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-08,Departure,AYT,Antalya,11:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-08,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-08,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-09,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-09,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-09,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-09,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-09,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-09,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-09,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-09,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-10,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-10,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-10,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-10,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-11,Arrival,SAW,Istanbul,08:50,Pegasus Airlines,PC
+2025-07-11,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-11,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-11,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-11,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-11,Departure,SAW,Istanbul,10:10,Pegasus Airlines,PC
+2025-07-11,Arrival,DTM,Dortmund,11:55,Wizz Air,W6
+2025-07-11,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-11,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-07-11,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-11,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-11,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-12,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-12,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-12,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-12,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-13,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-13,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-13,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-13,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-13,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-13,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-14,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-14,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-14,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-14,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-14,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-14,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-14,Arrival,SAW,Istanbul,13:35,A Jet Airlines,VF
+2025-07-14,Departure,SAW,Istanbul,14:35,A Jet Airlines,VF
+2025-07-14,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-14,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-15,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-15,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-15,Arrival,AYT,Antalya,10:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-15,Departure,AYT,Antalya,11:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-15,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-15,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-16,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-16,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-16,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-16,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-16,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-16,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-16,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-16,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-17,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-17,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-17,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-17,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-18,Arrival,SAW,Istanbul,08:50,Pegasus Airlines,PC
+2025-07-18,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-18,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-18,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-18,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-18,Departure,SAW,Istanbul,10:10,Pegasus Airlines,PC
+2025-07-18,Arrival,DTM,Dortmund,11:55,Wizz Air,W6
+2025-07-18,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-18,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-07-18,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-18,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-18,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-19,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-19,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-19,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-19,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-20,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-20,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-20,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-20,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-20,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-20,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-21,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-21,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-21,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-21,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-21,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-21,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-21,Arrival,SAW,Istanbul,13:35,A Jet Airlines,VF
+2025-07-21,Departure,SAW,Istanbul,14:35,A Jet Airlines,VF
+2025-07-21,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-21,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-22,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-22,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-22,Arrival,AYT,Antalya,10:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-22,Departure,AYT,Antalya,11:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-22,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-22,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-23,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-23,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-23,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-23,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-23,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-23,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-23,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-23,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-24,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-24,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-24,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-24,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-25,Arrival,SAW,Istanbul,08:50,Pegasus Airlines,PC
+2025-07-25,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-25,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-25,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-25,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-25,Departure,SAW,Istanbul,10:10,Pegasus Airlines,PC
+2025-07-25,Arrival,DTM,Dortmund,11:55,Wizz Air,W6
+2025-07-25,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-25,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-07-25,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-25,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-25,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-26,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-26,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-26,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-26,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-27,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-27,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-27,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-27,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-27,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-27,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-28,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-28,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-28,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-28,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-28,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-28,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-28,Arrival,SAW,Istanbul,13:35,A Jet Airlines,VF
+2025-07-28,Departure,SAW,Istanbul,14:35,A Jet Airlines,VF
+2025-07-28,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-28,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-29,Arrival,AYT,Antalya,09:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-29,Departure,AYT,Antalya,10:00,"Freebird Freebird Airlines, THY Opet Havacilik Yakitlari A.S.",FH
+2025-07-29,Arrival,AYT,Antalya,10:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-29,Departure,AYT,Antalya,11:25,"Corendon Airlines, THY Opet Havacilik Yakitlari A.S.",XC
+2025-07-29,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-29,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-30,Arrival,FMM,Memmingen,09:25,Wizz Air,W6
+2025-07-30,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-07-30,Arrival,DTM,Dortmund,11:10,Wizz Air,W6
+2025-07-30,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-07-30,Arrival,MLH,Basel,12:00,Wizz Air,W6
+2025-07-30,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-07-30,Arrival,VIE,Vienna,15:05,Wizz Air,W6
+2025-07-30,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-07-31,Arrival,FMM,Memmingen,09:40,Wizz Air,W6
+2025-07-31,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-07-31,Arrival,DTM,Dortmund,11:45,Wizz Air,W6
+2025-07-31,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-07-19,Arrival,MLH,Basel,10:25,Wizz Air,W6
+2025-07-19,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-07-22,Arrival,MLH,Basel,10:25,Wizz Air,W6
+2025-07-22,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-07-26,Arrival,MLH,Basel,10:25,Wizz Air,W6
+2025-07-26,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-07-29,Arrival,MLH,Basel,10:25,Wizz Air,W6
+2025-07-29,Departure,MLH,Basel,11:00,Wizz Air,W6

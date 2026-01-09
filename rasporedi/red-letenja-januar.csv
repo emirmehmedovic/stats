@@ -1,0 +1,207 @@
+Datum,Tip leta,IATA,Destinacija,Vrijeme,Avio kompanija,IATA kod aviokompanije
+2026-01-01,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-01,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-01,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-01,Departure,FMM,Memmingen,11:50,Wizz Air,W6
+2026-01-01,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-01,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-01,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-01,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-02,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-02,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-02,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-02,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-02,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-02,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-03,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-03,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-03,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-03,Departure,FMM,Memmingen,11:50,Wizz Air,W6
+2026-01-03,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-03,Arrival,SAW,Istanbul,13:35,Pegasus Airlines,PC
+2026-01-03,Departure,SAW,Istanbul,14:20,Pegasus Airlines,PC
+2026-01-03,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-03,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-03,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-04,Departure,DTM,Dortmund,06:15,Wizz Air,W6
+2026-01-04,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-04,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-04,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-04,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-04,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-04,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-04,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-05,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-05,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-05,Departure,FMM,Memmingen,11:45,Wizz Air,W6
+2026-01-05,Arrival,FMM,Memmingen,15:30,Wizz Air,W6
+2026-01-05,Arrival,SAW,Istanbul,14:20,A Jet Airlines,VF
+2026-01-05,Departure,SAW,Istanbul,15:20,A Jet Airlines,VF
+2026-01-05,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-05,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-06,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-06,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-06,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-06,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-06,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-06,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-06,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-06,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-07,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-07,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-07,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-07,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-07,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-07,Arrival,FMM,Memmingen,15:25,Wizz Air,W6
+2026-01-07,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-07,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-08,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-08,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-08,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-08,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-08,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-08,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-08,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-08,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-09,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-09,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-09,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-09,Arrival,FMM,Memmingen,15:25,Wizz Air,W6
+2026-01-09,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-09,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-10,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-10,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-10,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-10,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-10,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-10,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-10,Arrival,SAW,Istanbul,13:35,Pegasus Airlines,PC
+2026-01-10,Departure,SAW,Istanbul,14:20,Pegasus Airlines,PC
+2026-01-10,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-10,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-11,Departure,DTM,Dortmund,06:15,Wizz Air,W6
+2026-01-11,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-11,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-11,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-11,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-11,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-11,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-11,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-12,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-12,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-12,Departure,FMM,Memmingen,11:45,Wizz Air,W6
+2026-01-12,Arrival,FMM,Memmingen,15:30,Wizz Air,W6
+2026-01-12,Arrival,SAW,Istanbul,14:20,A Jet Airlines,VF
+2026-01-12,Departure,SAW,Istanbul,15:20,A Jet Airlines,VF
+2026-01-12,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-12,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-13,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-13,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-13,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-13,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-13,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-13,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-15,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-15,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-15,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-15,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-16,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-16,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-16,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-16,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-16,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-16,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-17,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-17,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-17,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-17,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-17,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-17,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-17,Arrival,SAW,Istanbul,13:35,Pegasus Airlines,PC
+2026-01-17,Departure,SAW,Istanbul,14:20,Pegasus Airlines,PC
+2026-01-17,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-17,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-18,Departure,DTM,Dortmund,06:15,Wizz Air,W6
+2026-01-18,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-18,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-18,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-18,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-18,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-18,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-18,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-19,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-19,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-19,Departure,FMM,Memmingen,11:45,Wizz Air,W6
+2026-01-19,Arrival,FMM,Memmingen,15:30,Wizz Air,W6
+2026-01-19,Arrival,SAW,Istanbul,14:20,A Jet Airlines,VF
+2026-01-19,Departure,SAW,Istanbul,15:20,A Jet Airlines,VF
+2026-01-19,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-19,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-20,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-20,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-20,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-20,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-20,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-20,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-22,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-22,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-22,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-22,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-23,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-23,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-23,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-23,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-23,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-23,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-24,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-24,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-24,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-24,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-24,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-24,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-24,Arrival,SAW,Istanbul,13:35,Pegasus Airlines,PC
+2026-01-24,Departure,SAW,Istanbul,14:20,Pegasus Airlines,PC
+2026-01-24,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-24,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-25,Departure,DTM,Dortmund,06:15,Wizz Air,W6
+2026-01-25,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-25,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-25,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-25,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-25,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-25,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-25,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-26,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-26,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-26,Departure,FMM,Memmingen,11:45,Wizz Air,W6
+2026-01-26,Arrival,FMM,Memmingen,15:30,Wizz Air,W6
+2026-01-26,Arrival,SAW,Istanbul,14:20,A Jet Airlines,VF
+2026-01-26,Departure,SAW,Istanbul,15:20,A Jet Airlines,VF
+2026-01-26,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-26,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-27,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-27,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-27,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-27,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-27,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-27,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6
+2026-01-29,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-29,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-29,Departure,HAM,Hamburg,16:25,Wizz Air,W6
+2026-01-29,Arrival,HAM,Hamburg,21:15,Wizz Air,W6
+2026-01-30,Departure,CGN,Köln Bonn,06:15,Wizz Air,W6
+2026-01-30,Arrival,CGN,Köln Bonn,11:00,Wizz Air,W6
+2026-01-30,Departure,FMM,Memmingen,11:35,Wizz Air,W6
+2026-01-30,Arrival,FMM,Memmingen,15:20,Wizz Air,W6
+2026-01-30,Departure,MST,Maastricht,16:40,Wizz Air,W6
+2026-01-30,Arrival,MST,Maastricht,21:30,Wizz Air,W6
+2026-01-31,Departure,DTM,Dortmund,06:00,Wizz Air,W6
+2026-01-31,Arrival,DTM,Dortmund,11:00,Wizz Air,W6
+2026-01-31,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2026-01-31,Departure,MLH,Basel,12:15,Wizz Air,W6
+2026-01-31,Departure,FMM,Memmingen,12:05,Wizz Air,W6
+2026-01-31,Arrival,FMM,Memmingen,15:50,Wizz Air,W6
+2026-01-31,Arrival,SAW,Istanbul,13:35,Pegasus Airlines,PC
+2026-01-31,Departure,SAW,Istanbul,14:20,Pegasus Airlines,PC
+2026-01-31,Departure,MMX,Malmö-Sturup,16:25,Wizz Air,W6
+2026-01-31,Arrival,MMX,Malmö-Sturup,21:30,Wizz Air,W6

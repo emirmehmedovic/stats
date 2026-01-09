@@ -45,6 +45,34 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
+def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
+    """
+    Helper function to properly create merged cells with consistent formatting.
+    Applies formatting to ALL cells in the range before merging to avoid Excel corruption.
+    """
+    # Convert column letters to numbers if needed
+    if isinstance(start_col, str):
+        start_col = openpyxl.utils.column_index_from_string(start_col)
+    if isinstance(end_col, str):
+        end_col = openpyxl.utils.column_index_from_string(end_col)
+    
+    for col in range(start_col, end_col + 1):
+        cell = ws.cell(row=row, column=col)
+        if col == start_col and value is not None:
+            cell.value = value
+        if font:
+            cell.font = font
+        if fill:
+            cell.fill = fill
+        if alignment:
+            cell.alignment = alignment
+        if border:
+            cell.border = border
+    
+    if start_col != end_col:
+        ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
+
+
 def get_operation_type_code(operation_type_code):
     """
     Mapira operation type code u Trip fare oznaku
@@ -203,10 +231,12 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
     left_align = Alignment(horizontal='left', vertical='center')
 
     # 4. Header - Row 1
-    ws.merge_cells('A1:N1')
-    ws['A1'] = f"AERODROM TUZLA                    RIJD {MONTH_NAMES_UPPER[month]} {year}"
-    ws['A1'].font = title_font
-    ws['A1'].alignment = center_align
+    create_merged_cell(
+        ws, 1, 'A', 'N',
+        f"AERODROM TUZLA                    RIJD {MONTH_NAMES_UPPER[month]} {year}",
+        font=title_font,
+        alignment=center_align
+    )
 
     # 5. Column Headers - Row 2
     headers = ['Nr.', 'DATE', 'COMPANY', 'A/C', 'REG.', 'MTOW/T', 'FLT.NMB',

@@ -108,6 +108,12 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    title: 'PROJEKCIJE',
+    items: [
+      { label: 'Projekcije prometa', href: '/projections', icon: TrendingUp },
+    ],
+  },
+  {
     title: 'MANAGEMENT',
     items: [
       {

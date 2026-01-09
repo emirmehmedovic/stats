@@ -1,0 +1,104 @@
+Datum,Tip leta,IATA,Destinacija,Vrijeme,Avio kompanija,IATA kod aviokompanije
+2025-10-01,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-01,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-01,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-10-01,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-02,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-03,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-03,Departure,SAW,Istanbul Sabiha Gökçen,10:10,Pegasus Airlines,PC
+2025-10-03,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-03,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-04,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-04,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-04,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-04,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-05,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-05,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-06,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-06,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-06,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-06,Departure,SAW,Istanbul Sabiha Gökçen,14:35,A Jet Airlines,VF
+2025-10-07,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-07,Departure,FMM,Memmingen,12:00,Wizz Air,W6
+2025-10-07,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-08,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-08,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-08,Departure,MLH,Basel,12:30,Wizz Air,W6
+2025-10-08,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-09,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-10,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-10,Departure,SAW,Istanbul Sabiha Gökçen,10:10,Pegasus Airlines,PC
+2025-10-10,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-10,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-11,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-11,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-11,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-11,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-12,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-12,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-13,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-13,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-13,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-13,Departure,SAW,Istanbul Sabiha Gökçen,14:35,A Jet Airlines,VF
+2025-10-14,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-14,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-14,Departure,FMM,Memmingen,12:35,Wizz Air,W6
+2025-10-15,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-15,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-15,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-15,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-16,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-17,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-17,Departure,SAW,Istanbul Sabiha Gökçen,10:10,Pegasus Airlines,PC
+2025-10-17,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-17,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-18,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-18,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-18,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-18,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-19,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-19,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-20,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-20,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-20,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-20,Departure,SAW,Istanbul Sabiha Gökçen,14:35,A Jet Airlines,VF
+2025-10-21,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-21,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-21,Departure,FMM,Memmingen,12:45,Wizz Air,W6
+2025-10-22,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-22,Departure,DTM,Dortmund,11:40,Wizz Air,W6
+2025-10-22,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-22,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-23,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-24,Departure,FMM,Memmingen,09:55,Wizz Air,W6
+2025-10-24,Departure,SAW,Istanbul Sabiha Gökçen,10:10,Pegasus Airlines,PC
+2025-10-24,Departure,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-24,Departure,MLH,Basel,12:40,Wizz Air,W6
+2025-10-25,Departure,FMM,Memmingen,10:10,Wizz Air,W6
+2025-10-25,Departure,MLH,Basel,11:00,Wizz Air,W6
+2025-10-25,Departure,DTM,Dortmund,12:20,Wizz Air,W6
+2025-10-25,Departure,VIE,Vienna,15:40,Wizz Air,W6
+2025-10-26,Arrival,FMM,Memmingen,09:30,Wizz Air,W6
+2025-10-26,Departure,FMM,Memmingen,10:00,Wizz Air,W6
+2025-10-26,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2025-10-26,Departure,MLH,Basel,12:15,Wizz Air,W6
+2025-10-26,Arrival,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-26,Departure,DTM,Dortmund,13:00,Wizz Air,W6
+2025-10-27,Arrival,FMM,Memmingen,10:30,Wizz Air,W6
+2025-10-27,Departure,FMM,Memmingen,11:05,Wizz Air,W6
+2025-10-27,Arrival,SAW,Istanbul,14:20,A Jet Airlines,VF
+2025-10-27,Departure,SAW,Istanbul,15:20,A Jet Airlines,VF
+2025-10-28,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2025-10-28,Departure,MLH,Basel,12:15,Wizz Air,W6
+2025-10-28,Arrival,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-28,Departure,DTM,Dortmund,13:00,Wizz Air,W6
+2025-10-29,Arrival,FMM,Memmingen,10:30,Wizz Air,W6
+2025-10-29,Departure,FMM,Memmingen,11:05,Wizz Air,W6
+2025-10-30,Arrival,FMM,Memmingen,09:30,Wizz Air,W6
+2025-10-30,Departure,FMM,Memmingen,10:00,Wizz Air,W6
+2025-10-30,Arrival,MLH,Basel,11:40,Wizz Air,W6
+2025-10-30,Departure,MLH,Basel,12:15,Wizz Air,W6
+2025-10-30,Arrival,DTM,Dortmund,12:25,Wizz Air,W6
+2025-10-30,Departure,DTM,Dortmund,13:00,Wizz Air,W6
+2025-10-31,Arrival,FMM,Memmingen,10:30,Wizz Air,W6
+2025-10-31,Departure,FMM,Memmingen,11:05,Wizz Air,W6
