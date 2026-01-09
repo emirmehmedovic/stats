@@ -42,8 +42,9 @@ const navSections: NavSection[] = [
     title: 'HOME',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Pregled', href: '/summary', icon: BarChart3 },
       { label: 'Dnevne operacije', href: '/daily-operations', icon: Calendar },
+      { label: 'Generisanje izvještaja', href: '/generate-report', icon: Sparkles },
+      { label: 'Pregled', href: '/summary', icon: BarChart3 },
       {
         label: 'Letovi',
         href: '/flights',
@@ -77,7 +78,6 @@ const navSections: NavSection[] = [
   {
     title: 'IZVJEŠTAJI',
     items: [
-      { label: 'Generisanje izvještaja', href: '/generate-report', icon: Sparkles },
       {
         label: 'Izvještaji',
         href: '/reports',
