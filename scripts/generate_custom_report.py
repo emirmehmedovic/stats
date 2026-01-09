@@ -268,17 +268,28 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
     
     # Summary header
     summary_header_fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
-    summary_title_cell = ws.cell(row=row_idx, column=1, value="SAŽETAK IZVJEŠTAJA")
-    summary_title_cell.font = Font(bold=True, size=14, color="FFFFFF")
-    summary_title_cell.fill = summary_header_fill
-    summary_title_cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers))
+    summary_title_row = row_idx
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=summary_title_row, column=col)
+        if col == 1:
+            cell.value = "SAŽETAK IZVJEŠTAJA"
+        cell.font = Font(bold=True, size=14, color="FFFFFF")
+        cell.fill = summary_header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+    ws.merge_cells(start_row=summary_title_row, start_column=1, end_row=summary_title_row, end_column=len(headers))
     row_idx += 1
     
     # Period info
     period_cell = ws.cell(row=row_idx, column=1, value="Period:")
     period_cell.font = Font(bold=True)
-    period_value = ws.cell(row=row_idx, column=2, value=f"{date_from} do {date_to}")
+    period_cell.border = thin_border
+    
+    for col in range(2, 5):
+        cell = ws.cell(row=row_idx, column=col)
+        if col == 2:
+            cell.value = f"{date_from} do {date_to}"
+        cell.border = thin_border
     ws.merge_cells(start_row=row_idx, start_column=2, end_row=row_idx, end_column=4)
     row_idx += 1
     
@@ -342,10 +353,15 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
             airline_passengers[airline] = airline_passengers.get(airline, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
     
     if airline_counts:
-        breakdown_header = ws.cell(row=row_idx, column=1, value="PREGLED PO AVIOKOMPANIJAMA")
-        breakdown_header.font = Font(bold=True, size=11, color="FFFFFF")
-        breakdown_header.fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        breakdown_header.alignment = Alignment(horizontal="center")
+        breakdown_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
+        for col in range(1, 5):
+            cell = ws.cell(row=row_idx, column=col)
+            if col == 1:
+                cell.value = "PREGLED PO AVIOKOMPANIJAMA"
+            cell.font = Font(bold=True, size=11, color="FFFFFF")
+            cell.fill = breakdown_fill
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = thin_border
         ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
         row_idx += 1
         
@@ -383,10 +399,15 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
             route_passengers[route] = route_passengers.get(route, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
     
     if route_counts:
-        route_header = ws.cell(row=row_idx, column=1, value="TOP 10 RUTA")
-        route_header.font = Font(bold=True, size=11, color="FFFFFF")
-        route_header.fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        route_header.alignment = Alignment(horizontal="center")
+        route_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
+        for col in range(1, 5):
+            cell = ws.cell(row=row_idx, column=col)
+            if col == 1:
+                cell.value = "TOP 10 RUTA"
+            cell.font = Font(bold=True, size=11, color="FFFFFF")
+            cell.fill = route_fill
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = thin_border
         ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
         row_idx += 1
         
@@ -426,10 +447,15 @@ def create_excel_report(flights, passenger_type, date_from, date_to):
             optype_passengers[optype] = optype_passengers.get(optype, 0) + (flight['arrivalPassengers'] or 0) + (flight['departurePassengers'] or 0)
     
     if optype_counts:
-        optype_header = ws.cell(row=row_idx, column=1, value="PREGLED PO TIPU SAOBRAĆAJA")
-        optype_header.font = Font(bold=True, size=11, color="FFFFFF")
-        optype_header.fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
-        optype_header.alignment = Alignment(horizontal="center")
+        optype_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
+        for col in range(1, 5):
+            cell = ws.cell(row=row_idx, column=col)
+            if col == 1:
+                cell.value = "PREGLED PO TIPU SAOBRAĆAJA"
+            cell.font = Font(bold=True, size=11, color="FFFFFF")
+            cell.fill = optype_fill
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = thin_border
         ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
         row_idx += 1
         
