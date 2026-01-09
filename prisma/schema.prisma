@@ -71,9 +71,27 @@ model Airline {
   logoUrl    String?            // URL to airline logo image
   flights    Flight[]
   delayCodes AirlineDelayCode[] // Many-to-many veza sa delay kodovima
+  routes     AirlineRoute[]     // Rute koje aviokompanija leti
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Rute aviokompanija (za redovni saobraćaj)
+model AirlineRoute {
+  id          String   @id @default(cuid())
+  airlineId   String
+  airline     Airline  @relation(fields: [airlineId], references: [id], onDelete: Cascade)
+  route       String   // Npr. "TZL-BSL", "TZL-MMX"
+  destination String   // Naziv destinacije, npr. "Basel", "Malmö"
+  country     String   // Zemlja destinacije, npr. "Switzerland", "Sweden"
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([airlineId, route])
+  @@index([airlineId])
 }
 
 // Aerodromi

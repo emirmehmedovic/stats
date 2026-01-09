@@ -6,6 +6,7 @@ import { createFlightSchema, CreateFlightInput } from '@/lib/validators/flight';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { FlightStatus } from '@prisma/client';
 import { useEffect, useState } from 'react';
 
@@ -45,6 +46,9 @@ export function FlightForm({
   const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isDiverted, setIsDiverted] = useState(false);
+  const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
+  const [airlineSearch, setAirlineSearch] = useState('');
+  const [aircraftTypeSearch, setAircraftTypeSearch] = useState('');
 
   const {
     register,
@@ -67,29 +71,78 @@ export function FlightForm({
 
   const arrivalFerryIn = watch('arrivalFerryIn');
   const departureFerryOut = watch('departureFerryOut');
+  const airlineId = watch('airlineId');
 
   useEffect(() => {
     fetchFormData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (airlineId) {
+      fetchAirlineRoutes(airlineId);
+    } else {
+      setAirlineRoutes([]);
+    }
+  }, [airlineId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAirlines(airlineSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [airlineSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAircraftTypes(aircraftTypeSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [aircraftTypeSearch]);
+
+  const fetchAirlines = async (search?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (search) {
+        params.set('search', search);
+      }
+      params.set('limit', '100');
+
+      const res = await fetch(`/api/airlines?${params.toString()}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setAirlines(data.data || []);
+    } catch (error) {
+      console.error('Error fetching airlines:', error);
+    }
+  };
+
+  const fetchAircraftTypes = async (search?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (search) {
+        params.set('search', search);
+      }
+
+      const res = await fetch(`/api/aircraft-types?${params.toString()}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setAircraftTypes(data.data || []);
+    } catch (error) {
+      console.error('Error fetching aircraft types:', error);
+    }
+  };
+
   const fetchFormData = async () => {
     try {
-      const [airlinesRes, aircraftRes, operationTypesRes] = await Promise.all([
-        fetch('/api/airlines'),
-        fetch('/api/aircraft-types'),
+      const [operationTypesRes] = await Promise.all([
         fetch('/api/operation-types?activeOnly=true'),
       ]);
 
-      if (airlinesRes.ok) {
-        const airlinesData = await airlinesRes.json();
-        setAirlines(airlinesData.data || []);
-      }
-
-      if (aircraftRes.ok) {
-        const aircraftData = await aircraftRes.json();
-        setAircraftTypes(aircraftData.data || []);
-      }
+      await fetchAirlines();
+      await fetchAircraftTypes();
 
       if (operationTypesRes.ok) {
         const operationTypesData = await operationTypesRes.json();
@@ -115,6 +168,19 @@ export function FlightForm({
       console.error('Error fetching form data:', error);
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  const fetchAirlineRoutes = async (airlineId: string) => {
+    try {
+      const response = await fetch(`/api/airlines/${airlineId}/routes`);
+      const result = await response.json();
+      if (result.success) {
+        setAirlineRoutes(result.data);
+      }
+    } catch (err) {
+      console.error('Error fetching airline routes:', err);
+      setAirlineRoutes([]);
     }
   };
 
@@ -158,20 +224,18 @@ export function FlightForm({
           {/* Airline */}
           <div>
             <Label htmlFor="airlineId">Aviokompanija *</Label>
-            <select
-              id="airlineId"
-              {...register('airlineId')}
-              className={`h-10 w-full rounded-xl border ${
-                errors.airlineId ? 'border-red-500' : 'border-borderSoft'
-              } bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary`}
-            >
-              <option value="">Izaberite aviokompaniju</option>
-              {airlines.map((airline) => (
-                <option key={airline.id} value={airline.id}>
-                  {airline.name} ({airline.icaoCode})
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={airlines.map(airline => ({
+                value: airline.id,
+                label: airline.name,
+                subtitle: airline.icaoCode,
+              }))}
+              value={watch('airlineId') || ''}
+              onChange={(value) => setValue('airlineId', value)}
+              onSearchChange={setAirlineSearch}
+              placeholder="Izaberite aviokompaniju"
+              searchPlaceholder="Pretraži aviokompanije..."
+            />
             {errors.airlineId && (
               <p className="text-xs text-red-600 mt-1">{errors.airlineId.message}</p>
             )}
@@ -180,20 +244,18 @@ export function FlightForm({
           {/* Aircraft Type */}
           <div>
             <Label htmlFor="aircraftTypeId">Tip aviona *</Label>
-            <select
-              id="aircraftTypeId"
-              {...register('aircraftTypeId')}
-              className={`h-10 w-full rounded-xl border ${
-                errors.aircraftTypeId ? 'border-red-500' : 'border-borderSoft'
-              } bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary`}
-            >
-              <option value="">Izaberite tip aviona</option>
-              {aircraftTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.model} ({type.seats} sjedišta)
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={aircraftTypes.map(type => ({
+                value: type.id,
+                label: type.model,
+                subtitle: `${type.seats} sjedišta`,
+              }))}
+              value={watch('aircraftTypeId') || ''}
+              onChange={(value) => setValue('aircraftTypeId', value)}
+              onSearchChange={setAircraftTypeSearch}
+              placeholder="Izaberite tip aviona"
+              searchPlaceholder="Pretraži tipove aviona..."
+            />
             {errors.aircraftTypeId && (
               <p className="text-xs text-red-600 mt-1">{errors.aircraftTypeId.message}</p>
             )}
@@ -202,14 +264,36 @@ export function FlightForm({
           {/* Route */}
           <div>
             <Label htmlFor="route">Ruta *</Label>
-            <Input
-              id="route"
-              placeholder="npr. TZL-IST"
-              {...register('route')}
-              className={errors.route ? 'border-red-500' : ''}
-            />
+            {airlineRoutes.length > 0 ? (
+              <select
+                id="route"
+                {...register('route')}
+                className={`h-10 w-full rounded-xl border ${
+                  errors.route ? 'border-red-500' : 'border-borderSoft'
+                } bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary`}
+              >
+                <option value="">Odaberi rutu</option>
+                {airlineRoutes.map((route) => (
+                  <option key={route.route} value={route.route}>
+                    {route.route} - {route.destination}, {route.country}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="route"
+                placeholder="npr. TZL-IST"
+                {...register('route')}
+                className={errors.route ? 'border-red-500' : ''}
+              />
+            )}
             {errors.route && (
               <p className="text-xs text-red-600 mt-1">{errors.route.message}</p>
+            )}
+            {airlineId && airlineRoutes.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Nema definisanih ruta za ovu aviokompaniju. Dodajte rute na stranici Aviokompanije.
+              </p>
             )}
           </div>
 

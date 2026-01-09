@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Edit, Trash2, Search, Plane } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Search, Plane, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading';
 import { ErrorDisplay } from '@/components/ui/error';
 import { showToast } from '@/components/ui/toast';
 import { AirlineModal } from '@/components/airlines/AirlineModal';
+import { AirlineRoutesModal } from '@/components/airlines/AirlineRoutesModal';
 import { MainLayout } from '@/components/layout/MainLayout';
 
 type Airline = {
@@ -31,6 +32,8 @@ export default function AirlinesPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAirline, setEditingAirline] = useState<Airline | null>(null);
+  const [isRoutesModalOpen, setIsRoutesModalOpen] = useState(false);
+  const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -112,6 +115,11 @@ export default function AirlinesPage() {
   const handleModalSuccess = () => {
     fetchAirlines();
     handleModalClose();
+  };
+
+  const handleManageRoutes = (airline: Airline) => {
+    setSelectedAirline(airline);
+    setIsRoutesModalOpen(true);
   };
 
   if (isLoading) {
@@ -266,6 +274,14 @@ export default function AirlinesPage() {
 
                   <div className="flex items-center gap-2">
                     <Button
+                      onClick={() => handleManageRoutes(airline)}
+                      className="bg-white border-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 shadow-soft"
+                      size="sm"
+                    >
+                      <MapPin className="w-4 h-4 mr-1" />
+                      Rute
+                    </Button>
+                    <Button
                       onClick={() => handleEdit(airline)}
                       className="bg-white border-2 border-dark-200 text-dark-900 hover:bg-dark-50 hover:border-dark-300 shadow-soft"
                       size="sm"
@@ -297,6 +313,16 @@ export default function AirlinesPage() {
         onClose={handleModalClose}
         onSuccess={handleModalSuccess}
       />
+
+      {/* Routes Modal */}
+      {selectedAirline && (
+        <AirlineRoutesModal
+          isOpen={isRoutesModalOpen}
+          onClose={() => setIsRoutesModalOpen(false)}
+          airlineId={selectedAirline.id}
+          airlineName={selectedAirline.name}
+        />
+      )}
     </div>
     </MainLayout>
   );

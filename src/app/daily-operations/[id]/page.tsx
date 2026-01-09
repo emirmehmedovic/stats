@@ -101,6 +101,7 @@ export default function FlightDataEntryPage() {
   const [isDepartureExpanded, setIsDepartureExpanded] = useState(false);
   const [isArrivalExpanded, setIsArrivalExpanded] = useState(false);
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | null>(null);
+  const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
 
   const [formData, setFormData] = useState({
     // Basic info (editable)
@@ -179,6 +180,14 @@ export default function FlightDataEntryPage() {
   }, [aircraftTypeSearch]);
 
   useEffect(() => {
+    if (formData.airlineId) {
+      fetchAirlineRoutes(formData.airlineId);
+    } else {
+      setAirlineRoutes([]);
+    }
+  }, [formData.airlineId]);
+
+  useEffect(() => {
     if (!flight) return;
     const todayStr = getTodayDateString();
     const flightDateStr = getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO);
@@ -252,6 +261,19 @@ export default function FlightDataEntryPage() {
       setAircraftTypes(data.data || []);
     } catch (error) {
       console.error('Error fetching aircraft types:', error);
+    }
+  };
+
+  const fetchAirlineRoutes = async (airlineId: string) => {
+    try {
+      const response = await fetch(`/api/airlines/${airlineId}/routes`);
+      const result = await response.json();
+      if (result.success) {
+        setAirlineRoutes(result.data);
+      }
+    } catch (err) {
+      console.error('Error fetching airline routes:', err);
+      setAirlineRoutes([]);
     }
   };
 
@@ -791,11 +813,33 @@ export default function FlightDataEntryPage() {
                 <MapPin className="w-4 h-4 inline mr-1" />
                 Ruta
               </Label>
-              <Input
-                value={formData.route}
-                onChange={(e) => handleChange('route', e.target.value)}
-                placeholder="FMM-Memmingen"
-              />
+              {airlineRoutes.length > 0 ? (
+                <select
+                  value={formData.route}
+                  onChange={(e) => handleChange('route', e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-white text-slate-900"
+                  disabled={isReadOnly}
+                >
+                  <option value="">Odaberi rutu</option>
+                  {airlineRoutes.map((route) => (
+                    <option key={route.route} value={route.route}>
+                      {route.route} - {route.destination}, {route.country}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  value={formData.route}
+                  onChange={(e) => handleChange('route', e.target.value)}
+                  placeholder="FMM-Memmingen"
+                  disabled={isReadOnly}
+                />
+              )}
+              {formData.airlineId && airlineRoutes.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Nema definisanih ruta za ovu aviokompaniju. Dodajte rute na stranici Aviokompanije.
+                </p>
+              )}
             </div>
 
             {/* Aircraft Type - Editable */}

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/dates';
+import { RouteMigrationModal } from '@/components/admin/RouteMigrationModal';
 
 interface User {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminUsersPage() {
   const [isBulkVerifying, setIsBulkVerifying] = useState(false);
   const [bulkVerifyMessage, setBulkVerifyMessage] = useState<string | null>(null);
   const [showBulkVerifyModal, setShowBulkVerifyModal] = useState(false);
+  const [showRouteMigrationModal, setShowRouteMigrationModal] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -240,6 +242,13 @@ export default function AdminUsersPage() {
               <p className="text-dark-500">Kreirajte i upravljajte korisničkim nalozima</p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowRouteMigrationModal(true)}
+                className="flex items-center gap-2 px-5 py-3 border border-purple-300 text-purple-800 bg-purple-50 font-semibold rounded-2xl hover:bg-purple-100 transition-all shadow-soft"
+              >
+                <Database className="w-5 h-5" />
+                Migriraj rute
+              </button>
               <button
                 onClick={handleBulkVerify}
                 disabled={isBulkVerifying}
@@ -466,6 +475,11 @@ export default function AdminUsersPage() {
             </div>
           </div>
         )}
+
+        <RouteMigrationModal
+          isOpen={showRouteMigrationModal}
+          onClose={() => setShowRouteMigrationModal(false)}
+        />
       </div>
   );
 }

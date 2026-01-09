@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
@@ -8,6 +8,10 @@ import {
   Calendar,
   TrendingUp,
   Download,
+  Building2,
+  Users,
+  Info,
+  Search,
   Clock,
   ArrowRight,
   BarChart3,
@@ -15,7 +19,9 @@ import {
   Sparkles,
   Filter,
   FileSpreadsheet,
-  Loader2
+  Loader2,
+  Plane,
+  MapPin
 } from 'lucide-react';
 
 export default function GenerateReportPage() {
@@ -62,6 +68,24 @@ export default function GenerateReportPage() {
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
   const [localMessage, setLocalMessage] = useState('');
   const [localFileName, setLocalFileName] = useState('');
+
+  // State za Custom izvještaj
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [customOperationTypes, setCustomOperationTypes] = useState<string[]>([]);
+  const [customAirlines, setCustomAirlines] = useState<string[]>([]);
+  const [customRoutes, setCustomRoutes] = useState<string[]>([]);
+  const [customPassengerType, setCustomPassengerType] = useState<'all' | 'departure' | 'arrival' | 'infants'>('all');
+  const [isCustomGenerating, setIsCustomGenerating] = useState(false);
+  const [customMessage, setCustomMessage] = useState('');
+  const [customFileName, setCustomFileName] = useState('');
+  
+  // Data za filtere
+  const [availableOperationTypes, setAvailableOperationTypes] = useState<Array<{ id: string; name: string; code: string }>>([]);
+  const [availableAirlines, setAvailableAirlines] = useState<Array<{ id: string; name: string; icaoCode: string }>>([]);
+  const [availableRoutes, setAvailableRoutes] = useState<Array<{ route: string; display: string }>>([]);
+  const [operationTypesSearchQuery, setOperationTypesSearchQuery] = useState('');
+  const [airlinesSearchQuery, setAirlinesSearchQuery] = useState('');
 
   // Funkcija za generisanje BHDCA izvještaja
   const handleGenerateBHDCA = async () => {
@@ -303,6 +327,108 @@ export default function GenerateReportPage() {
     }
   };
 
+  // Učitavanje podataka za filtere
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        // Fetch operation types
+        const opTypesRes = await fetch('/api/operation-types');
+        if (opTypesRes.ok) {
+          const opTypesData = await opTypesRes.json();
+          setAvailableOperationTypes(opTypesData.data || []);
+        }
+
+        // Fetch airlines - need to fetch all pages
+        let allAirlines: any[] = [];
+        let page = 1;
+        let hasMore = true;
+        
+        while (hasMore && page <= 10) { // Max 10 pages as safety
+          const airlinesRes = await fetch(`/api/airlines?page=${page}&limit=100`);
+          if (airlinesRes.ok) {
+            const airlinesData = await airlinesRes.json();
+            if (airlinesData.data && airlinesData.data.length > 0) {
+              allAirlines = [...allAirlines, ...airlinesData.data];
+              hasMore = airlinesData.data.length === 100;
+              page++;
+            } else {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+        
+        setAvailableAirlines(allAirlines);
+
+        // Fetch routes from airline routes
+        const routesRes = await fetch('/api/airline-routes');
+        if (routesRes.ok) {
+          const routesData = await routesRes.json();
+          const routes = routesData.data.map((r: any) => ({
+            route: r.route,
+            display: `${r.route} (${r.destination}, ${r.country})`
+          }));
+          
+          // Deduplicate routes by route code
+          const uniqueRoutes = Array.from(
+            new Map(routes.map((r: { route: string; display: string }) => [r.route, r])).values()
+          ) as Array<{ route: string; display: string }>;
+          
+          setAvailableRoutes(uniqueRoutes);
+        }
+      } catch (error) {
+        console.error('Error fetching filter data:', error);
+      }
+    };
+
+    fetchFilterData();
+  }, []);
+
+  // Funkcija za generisanje custom izvještaja
+  const handleGenerateCustom = async () => {
+    setIsCustomGenerating(true);
+    setCustomMessage('');
+    setCustomFileName('');
+
+    try {
+      const response = await fetch('/api/reports/custom-advanced/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dateFrom: customDateFrom,
+          dateTo: customDateTo,
+          operationTypes: customOperationTypes,
+          airlines: customAirlines,
+          routes: customRoutes,
+          passengerType: customPassengerType,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Greška pri generisanju izvještaja');
+      }
+
+      setCustomMessage('Izvještaj uspješno generisan!');
+      setCustomFileName(data.fileName);
+    } catch (error: any) {
+      setCustomMessage(`Greška: ${error.message}`);
+    } finally {
+      setIsCustomGenerating(false);
+    }
+  };
+
+  // Funkcija za preuzimanje custom izvještaja
+  const handleCustomDownload = () => {
+    if (customFileName) {
+      window.open(`/api/reports/custom-advanced/download?fileName=${customFileName}`, '_blank');
+    }
+  };
+
   const quickStats = [
     { label: 'BHDCA', value: 'ICAO', trend: 'Standard' },
     { label: 'Formati', value: 'Excel', trend: 'Dostupno' },
@@ -330,7 +456,7 @@ export default function GenerateReportPage() {
               <div className="flex items-center gap-4 text-sm">
                 <div className="text-right">
                   <p className="text-slate-500 text-xs">Dostupno izvještaja</p>
-                  <p className="text-2xl font-bold text-slate-900">6</p>
+                  <p className="text-2xl font-bold text-slate-900">7</p>
                 </div>
               </div>
             </div>
@@ -1218,6 +1344,370 @@ export default function GenerateReportPage() {
                       <span className="px-3 py-1.5 bg-slate-200 rounded-lg text-xs font-semibold text-slate-700">Excel (.xlsx)</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Custom Advanced Report Generator */}
+        <section>
+          <div className="bg-gradient-to-br from-amber-50 via-white to-orange-50 rounded-3xl shadow-xl border border-amber-200/50 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 px-8 py-8">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
+              <div className="relative flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
+                      <Filter className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full border border-white/30">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Napredno filtriranje</span>
+                    </div>
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">Custom izvještaj</h2>
+                  <p className="text-amber-50 text-base max-w-2xl leading-relaxed">
+                    Kreirajte prilagođeni izvještaj sa naprednim filterima po tipu saobraćaja, aviokompanijama, rutama, periodu i tipu putnika.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg">
+                  <FileSpreadsheet className="w-8 h-8 text-white" />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Filters */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <Filter className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Filteri</h3>
+                  </div>
+
+                  {/* Date Range Card */}
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Calendar className="w-5 h-5 text-amber-600" />
+                      <label className="text-base font-semibold text-slate-900">Period</label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-2">Od datuma</label>
+                        <input
+                          type="date"
+                          value={customDateFrom}
+                          onChange={(e) => setCustomDateFrom(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-2">Do datuma</label>
+                        <input
+                          type="date"
+                          value={customDateTo}
+                          onChange={(e) => setCustomDateTo(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Operation Types Multi-Select Card */}
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Plane className="w-5 h-5 text-amber-600" />
+                      <label className="text-base font-semibold text-slate-900">Tip saobraćaja</label>
+                      <span className="ml-auto px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">{customOperationTypes.length}</span>
+                    </div>
+                      
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Pretraži tipove..."
+                        value={operationTypesSearchQuery}
+                        onChange={(e) => setOperationTypesSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 text-sm"
+                      />
+                    </div>
+                      
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const filtered = availableOperationTypes.filter(opType => 
+                            opType.name.toLowerCase().includes(operationTypesSearchQuery.toLowerCase()) ||
+                            opType.code.toLowerCase().includes(operationTypesSearchQuery.toLowerCase())
+                          );
+                          const filteredIds = filtered.map(o => o.id);
+                          setCustomOperationTypes([...new Set([...customOperationTypes, ...filteredIds])]);
+                        }}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-xs font-bold hover:from-amber-600 hover:to-amber-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        Odaberi sve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const filtered = availableOperationTypes.filter(opType => 
+                            opType.name.toLowerCase().includes(operationTypesSearchQuery.toLowerCase()) ||
+                            opType.code.toLowerCase().includes(operationTypesSearchQuery.toLowerCase())
+                          );
+                          const filteredIds = filtered.map(o => o.id);
+                          setCustomOperationTypes(customOperationTypes.filter(id => !filteredIds.includes(id)));
+                        }}
+                        className="flex-1 px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                      >
+                        Poništi sve
+                      </button>
+                    </div>
+                      
+                    <div className="border-2 border-slate-200 rounded-xl p-2 bg-slate-50 max-h-48 overflow-y-auto custom-scrollbar">
+                      {availableOperationTypes
+                        .filter(opType => 
+                          opType.name.toLowerCase().includes(operationTypesSearchQuery.toLowerCase()) ||
+                          opType.code.toLowerCase().includes(operationTypesSearchQuery.toLowerCase())
+                        )
+                        .map((opType) => (
+                          <label key={opType.id} className="flex items-center gap-3 py-2.5 px-3 hover:bg-white rounded-lg cursor-pointer transition-colors group">
+                            <input
+                              type="checkbox"
+                              checked={customOperationTypes.includes(opType.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCustomOperationTypes([...customOperationTypes, opType.id]);
+                                } else {
+                                  setCustomOperationTypes(customOperationTypes.filter(id => id !== opType.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-2 border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0"
+                            />
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{opType.name}</span>
+                            <span className="ml-auto text-xs font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">{opType.code}</span>
+                          </label>
+                        ))}
+                      {availableOperationTypes.filter(opType => 
+                        opType.name.toLowerCase().includes(operationTypesSearchQuery.toLowerCase()) ||
+                        opType.code.toLowerCase().includes(operationTypesSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <p className="text-sm text-slate-500 text-center py-8">Nema rezultata</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Airlines Multi-Select Card */}
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Building2 className="w-5 h-5 text-amber-600" />
+                      <label className="text-base font-semibold text-slate-900">Aviokompanije</label>
+                      <span className="ml-auto px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">{customAirlines.length}</span>
+                    </div>
+                    
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Pretraži aviokompanije..."
+                        value={airlinesSearchQuery}
+                        onChange={(e) => setAirlinesSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 text-sm"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const filtered = availableAirlines.filter(airline => 
+                            airline.name.toLowerCase().includes(airlinesSearchQuery.toLowerCase()) ||
+                            airline.icaoCode.toLowerCase().includes(airlinesSearchQuery.toLowerCase())
+                          );
+                          const filteredIds = filtered.map(a => a.id);
+                          setCustomAirlines([...new Set([...customAirlines, ...filteredIds])]);
+                        }}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-xs font-bold hover:from-amber-600 hover:to-amber-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        Odaberi sve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const filtered = availableAirlines.filter(airline => 
+                            airline.name.toLowerCase().includes(airlinesSearchQuery.toLowerCase()) ||
+                            airline.icaoCode.toLowerCase().includes(airlinesSearchQuery.toLowerCase())
+                          );
+                          const filteredIds = filtered.map(a => a.id);
+                          setCustomAirlines(customAirlines.filter(id => !filteredIds.includes(id)));
+                        }}
+                        className="flex-1 px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                      >
+                        Poništi sve
+                      </button>
+                    </div>
+                    
+                    <div className="border-2 border-slate-200 rounded-xl p-2 bg-slate-50 max-h-48 overflow-y-auto custom-scrollbar">
+                      {availableAirlines
+                        .filter(airline => 
+                          airline.name.toLowerCase().includes(airlinesSearchQuery.toLowerCase()) ||
+                          airline.icaoCode.toLowerCase().includes(airlinesSearchQuery.toLowerCase())
+                        )
+                        .map((airline) => (
+                          <label key={airline.id} className="flex items-center gap-3 py-2.5 px-3 hover:bg-white rounded-lg cursor-pointer transition-colors group">
+                            <input
+                              type="checkbox"
+                              checked={customAirlines.includes(airline.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCustomAirlines([...customAirlines, airline.id]);
+                                } else {
+                                  setCustomAirlines(customAirlines.filter(id => id !== airline.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-2 border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0"
+                            />
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{airline.name}</span>
+                            <span className="ml-auto text-xs font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">{airline.icaoCode}</span>
+                          </label>
+                        ))}
+                      {availableAirlines.filter(airline => 
+                        airline.name.toLowerCase().includes(airlinesSearchQuery.toLowerCase()) ||
+                        airline.icaoCode.toLowerCase().includes(airlinesSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <p className="text-sm text-slate-500 text-center py-8">Nema rezultata</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Routes Multi-Select Card */}
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MapPin className="w-5 h-5 text-amber-600" />
+                      <label className="text-base font-semibold text-slate-900">Rute</label>
+                      <span className="ml-auto px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">{customRoutes.length}</span>
+                    </div>
+                    <div className="border-2 border-slate-200 rounded-xl p-2 bg-slate-50 max-h-48 overflow-y-auto custom-scrollbar">
+                      {availableRoutes.map((routeObj) => (
+                        <label key={routeObj.route} className="flex items-center gap-3 py-2.5 px-3 hover:bg-white rounded-lg cursor-pointer transition-colors group">
+                          <input
+                            type="checkbox"
+                            checked={customRoutes.includes(routeObj.route)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCustomRoutes([...customRoutes, routeObj.route]);
+                              } else {
+                                setCustomRoutes(customRoutes.filter(r => r !== routeObj.route));
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-2 border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0"
+                          />
+                          <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{routeObj.display}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Passenger Type Card */}
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Users className="w-5 h-5 text-amber-600" />
+                      <label className="text-base font-semibold text-slate-900">Tip putnika</label>
+                    </div>
+                    <select
+                      value={customPassengerType}
+                      onChange={(e) => setCustomPassengerType(e.target.value as any)}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 font-medium"
+                    >
+                      <option value="all">Svi putnici (ukrcani + iskrcani)</option>
+                      <option value="departure">Samo odlazni (ukrcani)</option>
+                      <option value="arrival">Samo dolazni (iskrcani)</option>
+                      <option value="infants">Samo bebe u naručju</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Info Sidebar */}
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Info className="w-5 h-5 text-amber-600" />
+                      <h3 className="text-base font-bold text-slate-900">Mogućnosti</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm mb-0.5">Multi-select</p>
+                          <p className="text-xs text-slate-600 leading-relaxed">Odaberite više tipova saobraćaja, aviokompanija i ruta</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm mb-0.5">Fleksibilan period</p>
+                          <p className="text-xs text-slate-600 leading-relaxed">Bilo koji vremenski period od-do</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm mb-0.5">Excel export</p>
+                          <p className="text-xs text-slate-600 leading-relaxed">Strukturirana Excel tabela</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleGenerateCustom}
+                    disabled={isCustomGenerating || !customDateFrom || !customDateTo}
+                    className="w-full py-4 px-6 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 hover:from-amber-700 hover:to-orange-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+                  >
+                    {isCustomGenerating ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Generišem izvještaj...
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-5 h-5" />
+                        Generiši izvještaj
+                      </>
+                    )}
+                  </button>
+
+                  {customMessage && (
+                    <div className={`p-5 rounded-2xl border-2 ${
+                      customMessage.includes('Greška')
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-green-50 border-green-200'
+                    }`}>
+                      <p className={`text-sm font-semibold ${
+                        customMessage.includes('Greška')
+                          ? 'text-red-700'
+                          : 'text-green-700'
+                      }`}>
+                        {customMessage}
+                      </p>
+                      {customFileName && (
+                        <button
+                          onClick={handleCustomDownload}
+                          className="mt-4 w-full py-3 px-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:from-green-700 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
+                        >
+                          <Download className="w-5 h-5" />
+                          Preuzmi izvještaj
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
