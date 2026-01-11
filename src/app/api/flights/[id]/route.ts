@@ -28,6 +28,21 @@ const hasUnverifiedPastDates = async (cutoffDate: Date) => {
   return pendingCount > 0;
 };
 
+const ensureFlightTypeAllowed = async (operationTypeId: string, flightTypeId?: string | null) => {
+  if (!flightTypeId) return;
+
+  const link = await prisma.operationTypeFlightType.findFirst({
+    where: {
+      operationTypeId,
+      flightTypeId,
+    },
+  });
+
+  if (!link) {
+    throw new Error('INVALID_FLIGHT_TYPE');
+  }
+};
+
 // GET /api/flights/[id] - Pojedinačni let
 export async function GET(
   request: NextRequest,
@@ -42,6 +57,7 @@ export async function GET(
         airline: true,
         aircraftType: true,
         operationType: true,
+        flightType: true,
         arrivalAirport: true,
         departureAirport: true,
         verifiedByUser: {
@@ -97,7 +113,14 @@ export async function PUT(
     // Check if flight is locked
     const existingFlight = await prisma.flight.findUnique({
       where: { id },
-      select: { isLocked: true, isVerified: true, airlineId: true, date: true },
+      select: {
+        isLocked: true,
+        isVerified: true,
+        airlineId: true,
+        date: true,
+        operationTypeId: true,
+        flightTypeId: true,
+      },
     });
 
     if (!existingFlight) {
@@ -164,6 +187,7 @@ export async function PUT(
       airlineId?: string;
       aircraftTypeId?: string;
       operationTypeId?: string;
+      flightTypeId?: string | null;
       arrivalAirportId?: string | null;
       departureAirportId?: string | null;
     };
@@ -171,10 +195,23 @@ export async function PUT(
       airlineId,
       aircraftTypeId,
       operationTypeId,
+      flightTypeId,
       arrivalAirportId,
       departureAirportId,
-      ...flightUpdate
+      ...flightUpdateRaw
     } = validatedData;
+    const flightUpdate = {
+      ...flightUpdateRaw,
+    } as Omit<
+      UpdateFlightInput,
+      'operationTypeId' | 'airlineId' | 'aircraftTypeId' | 'flightTypeId' | 'arrivalAirportId' | 'departureAirportId'
+    >;
+
+    const shouldClearFlightType = !!operationTypeId && flightTypeId === undefined;
+    let normalizedFlightTypeId = flightTypeId;
+    if (flightTypeId === null || shouldClearFlightType) {
+      normalizedFlightTypeId = null;
+    }
     if (flightUpdate.arrivalFerryIn) {
       flightUpdate.arrivalPassengers = null;
       flightUpdate.arrivalMalePassengers = null;
@@ -227,6 +264,13 @@ export async function PUT(
         },
         { status: 400 }
       );
+    }
+
+    const resolvedOperationTypeId = operationTypeId || existingFlight.operationTypeId;
+    const resolvedFlightTypeId =
+      normalizedFlightTypeId !== undefined ? normalizedFlightTypeId : existingFlight.flightTypeId;
+    if (resolvedOperationTypeId && resolvedFlightTypeId) {
+      await ensureFlightTypeAllowed(resolvedOperationTypeId, resolvedFlightTypeId);
     }
 
     let verifiedByUserId: string | null = null;
@@ -309,6 +353,11 @@ export async function PUT(
     if (operationTypeId) {
       relationUpdates.operationType = { connect: { id: operationTypeId } };
     }
+    if (flightTypeId !== undefined || shouldClearFlightType) {
+      relationUpdates.flightType = flightTypeId
+        ? { connect: { id: flightTypeId } }
+        : { disconnect: true };
+    }
     if (arrivalAirportId !== undefined) {
       relationUpdates.arrivalAirport = arrivalAirportId
         ? { connect: { id: arrivalAirportId } }
@@ -378,6 +427,7 @@ export async function PUT(
         airline: true,
         aircraftType: true,
         operationType: true,
+        flightType: true,
         arrivalAirport: true,
         departureAirport: true,
         verifiedByUser: {
@@ -420,6 +470,7 @@ export async function PUT(
         airline: true,
         aircraftType: true,
         operationType: true,
+        flightType: true,
         arrivalAirport: true,
         departureAirport: true,
         verifiedByUser: {
@@ -449,6 +500,16 @@ export async function PUT(
           success: false,
           error: 'Validation error',
           details: error.issues,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'INVALID_FLIGHT_TYPE') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Odabrani tip leta nije dozvoljen za izabrani tip operacije',
         },
         { status: 400 }
       );

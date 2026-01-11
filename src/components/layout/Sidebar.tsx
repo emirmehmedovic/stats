@@ -42,6 +42,7 @@ const navSections: NavSection[] = [
     title: 'HOME',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'Predboarding', href: '/predboarding', icon: Users },
       { label: 'Dnevne operacije', href: '/daily-operations', icon: Calendar },
       { label: 'Generisanje izvještaja', href: '/generate-report', icon: Sparkles },
       { label: 'Pregled', href: '/summary', icon: BarChart3 },
@@ -335,12 +336,28 @@ export function Sidebar() {
     );
   };
 
-  const visibleSections = navSections.filter((section) => {
-    if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
-      return false;
+  const visibleSections = navSections.map((section) => {
+    // STW role - only show Dashboard and Predboarding from HOME section
+    if (userRole === 'STW') {
+      if (section.title === 'HOME') {
+        return {
+          ...section,
+          items: section.items.filter(item =>
+            item.href === '/dashboard' || item.href === '/predboarding'
+          )
+        };
+      }
+      // Hide all other sections for STW
+      return null;
     }
-    return true;
-  });
+
+    // OPERATIONS role - hide MANAGEMENT section
+    if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
+      return null;
+    }
+
+    return section;
+  }).filter((section): section is NavSection => section !== null);
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-dark-100 flex flex-col shadow-soft z-50 overflow-hidden">

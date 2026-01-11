@@ -380,6 +380,90 @@ async function main() {
 
   console.log(`✅ Created ${operationTypes.length} operation types`);
 
+  // ===================================
+  // FLIGHT TYPES
+  // ===================================
+  console.log('📍 Seeding Flight Types...');
+
+  const flightTypes = await Promise.all([
+    prisma.flightType.upsert({
+      where: { code: 'SCHEDULED' },
+      update: {},
+      create: {
+        code: 'SCHEDULED',
+        name: 'Redovan',
+        description: 'Redovni komercijalni letovi',
+        isActive: true,
+      },
+    }),
+    prisma.flightType.upsert({
+      where: { code: 'CHARTER' },
+      update: {},
+      create: {
+        code: 'CHARTER',
+        name: 'Charter',
+        description: 'Charter letovi',
+        isActive: true,
+      },
+    }),
+    prisma.flightType.upsert({
+      where: { code: 'MEDEVAC' },
+      update: {},
+      create: {
+        code: 'MEDEVAC',
+        name: 'Medicinska evakuacija',
+        description: 'Medicinski hitni letovi',
+        isActive: true,
+      },
+    }),
+    prisma.flightType.upsert({
+      where: { code: 'CARGO' },
+      update: {},
+      create: {
+        code: 'CARGO',
+        name: 'Cargo',
+        description: 'Teretni letovi',
+        isActive: true,
+      },
+    }),
+    prisma.flightType.upsert({
+      where: { code: 'MILITARY' },
+      update: {},
+      create: {
+        code: 'MILITARY',
+        name: 'Vojni',
+        description: 'Vojni letovi',
+        isActive: true,
+      },
+    }),
+    prisma.flightType.upsert({
+      where: { code: 'GENERAL_AVIATION' },
+      update: {},
+      create: {
+        code: 'GENERAL_AVIATION',
+        name: 'Generalna avijacija',
+        description: 'Privatni i općeniti avijacijski letovi',
+        isActive: true,
+      },
+    }),
+  ]);
+
+  await prisma.operationTypeFlightType.createMany({
+    data: operationTypes.map((operationType) => {
+      const match = flightTypes.find((flightType) => flightType.code === operationType.code);
+      if (!match) {
+        return null;
+      }
+      return {
+        operationTypeId: operationType.id,
+        flightTypeId: match.id,
+      };
+    }).filter((item): item is { operationTypeId: string; flightTypeId: string } => item !== null),
+    skipDuplicates: true,
+  });
+
+  console.log(`✅ Created ${flightTypes.length} flight types`);
+
   console.log('');
   console.log('🎉 Seed completed successfully!');
   console.log('');
@@ -388,6 +472,7 @@ async function main() {
   console.log(`  - ${aircraftTypesCount} aircraft types (from JSON)`);
   console.log(`  - ${airports.length} airports`);
   console.log(`  - ${operationTypes.length} operation types`);
+  console.log(`  - ${flightTypes.length} flight types`);
   console.log(`  - ${delayCodesCount} delay codes (from IATA JSON)`);
   console.log(`  - 3 default users (admin, manager, viewer)`);
   console.log('');

@@ -7,58 +7,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { showToast } from '../ui/toast';
 
-type OperationType = {
+type FlightType = {
   id: string;
   code: string;
   name: string;
   description: string | null;
   isActive: boolean;
-  flightTypeLinks?: Array<{
-    flightType: {
-      id: string;
-      code: string;
-      name: string;
-      isActive: boolean;
-    };
-  }>;
 };
 
-type FlightType = {
-  id: string;
-  code: string;
-  name: string;
-  isActive: boolean;
-};
-
-type OperationTypeModalProps = {
-  operationType: OperationType | null;
+type FlightTypeModalProps = {
+  flightType: FlightType | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 };
 
-export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }: OperationTypeModalProps) {
+export function FlightTypeModal({ flightType, isOpen, onClose, onSuccess }: FlightTypeModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [flightTypes, setFlightTypes] = useState<FlightType[]>([]);
 
   const [formData, setFormData] = useState({
     code: '',
     name: '',
     description: '',
     isActive: true,
-    flightTypeIds: [] as string[],
   });
 
   useEffect(() => {
     if (isOpen) {
-      if (operationType) {
+      if (flightType) {
         setFormData({
-          code: operationType.code,
-          name: operationType.name,
-          description: operationType.description || '',
-          isActive: operationType.isActive,
-          flightTypeIds: operationType.flightTypeLinks?.map((link) => link.flightType.id) || [],
+          code: flightType.code,
+          name: flightType.name,
+          description: flightType.description || '',
+          isActive: flightType.isActive,
         });
       } else {
         setFormData({
@@ -66,33 +48,11 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
           name: '',
           description: '',
           isActive: true,
-          flightTypeIds: [],
         });
       }
       setError('');
     }
-  }, [operationType, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const fetchFlightTypes = async () => {
-      try {
-        const response = await fetch('/api/flight-types');
-        const result = await response.json();
-        if (response.ok && result.success) {
-          setFlightTypes(result.data || []);
-        } else {
-          setFlightTypes([]);
-        }
-      } catch (err) {
-        console.error('Error fetching flight types:', err);
-        setFlightTypes([]);
-      }
-    };
-
-    fetchFlightTypes();
-  }, [isOpen]);
+  }, [flightType, isOpen]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -105,11 +65,10 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
         name: formData.name,
         description: formData.description || null,
         isActive: formData.isActive,
-        flightTypeIds: formData.flightTypeIds,
       };
 
-      const url = operationType ? `/api/operation-types/${operationType.id}` : '/api/operation-types';
-      const method = operationType ? 'PUT' : 'POST';
+      const url = flightType ? `/api/flight-types/${flightType.id}` : '/api/flight-types';
+      const method = flightType ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
@@ -121,12 +80,12 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
 
       if (response.ok) {
         showToast(
-          operationType ? 'Tip operacije je uspješno ažuriran!' : 'Tip operacije je uspješno kreiran!',
+          flightType ? 'Tip leta je uspješno ažuriran!' : 'Tip leta je uspješno kreiran!',
           'success'
         );
         onSuccess();
       } else {
-        setError(result.error || (operationType ? 'Failed to update operation type' : 'Failed to create operation type'));
+        setError(result.error || (flightType ? 'Failed to update flight type' : 'Failed to create flight type'));
         if (result.details) {
           console.error('Validation errors:', result.details);
         }
@@ -143,18 +102,6 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const toggleFlightType = (flightTypeId: string) => {
-    setFormData((prev) => {
-      const exists = prev.flightTypeIds.includes(flightTypeId);
-      return {
-        ...prev,
-        flightTypeIds: exists
-          ? prev.flightTypeIds.filter((id) => id !== flightTypeId)
-          : [...prev.flightTypeIds, flightTypeId],
-      };
-    });
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -163,7 +110,7 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">
-            {operationType ? 'Uredi tip operacije' : 'Dodaj novi tip operacije'}
+            {flightType ? 'Uredi tip leta' : 'Dodaj novi tip leta'}
           </h2>
           <button
             onClick={onClose}
@@ -183,11 +130,11 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
                 required
                 value={formData.code}
                 onChange={(e) => handleChange('code', e.target.value.toUpperCase())}
-                placeholder="SCHEDULED, CHARTER, CARGO..."
+                placeholder="MEDEVAC, VIP, CARGO..."
                 className="mt-1"
-                disabled={!!operationType} // Kod se ne može mijenjati nakon kreiranja
+                disabled={!!flightType}
               />
-              <p className="text-xs text-slate-500 mt-1">Jedinstveni kod (npr. SCHEDULED, CHARTER)</p>
+              <p className="text-xs text-slate-500 mt-1">Jedinstveni kod (npr. MEDEVAC, VIP)</p>
             </div>
 
             <div>
@@ -197,7 +144,7 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
                 required
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="Redovan, Charter, Cargo..."
+                placeholder="Medicinski, VIP, Cargo..."
                 className="mt-1"
               />
               <p className="text-xs text-slate-500 mt-1">Prikazni naziv</p>
@@ -209,7 +156,7 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="Opis tipa operacije..."
+                placeholder="Opis tipa leta..."
                 className="mt-1"
               />
             </div>
@@ -226,33 +173,6 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
                 <Label htmlFor="isActive" className="cursor-pointer">
                   Aktivan (prikazuje se u dropdown-ovima)
                 </Label>
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <Label>Tipovi leta</Label>
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {flightTypes.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nema definisanih tipova leta.</p>
-                ) : (
-                  flightTypes.map((flightType) => (
-                    <label
-                      key={flightType.id}
-                      className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.flightTypeIds.includes(flightType.id)}
-                        onChange={() => toggleFlightType(flightType.id)}
-                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-slate-700">
-                        {flightType.name} ({flightType.code})
-                        {!flightType.isActive && <span className="ml-2 text-xs text-slate-400">neaktivno</span>}
-                      </span>
-                    </label>
-                  ))
-                )}
               </div>
             </div>
           </div>
@@ -288,7 +208,7 @@ export function OperationTypeModal({ operationType, isOpen, onClose, onSuccess }
               ) : (
                 <span className="flex items-center gap-2">
                   <Save className="w-4 h-4" />
-                  {operationType ? 'Sačuvaj izmjene' : 'Dodaj tip operacije'}
+                  {flightType ? 'Sačuvaj izmjene' : 'Dodaj tip leta'}
                 </span>
               )}
             </Button>

@@ -23,9 +23,38 @@ model OperationType {
   description String?  // Opcionalni opis
   isActive    Boolean  @default(true)
   flights     Flight[]
+  flightTypeLinks OperationTypeFlightType[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Tipovi leta (npr. MED, VIP, CARGO, TRAINING)
+model FlightType {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+
+  flights     Flight[]
+  operationTypeLinks OperationTypeFlightType[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Veza tipova operacije i tipova leta (many-to-many)
+model OperationTypeFlightType {
+  operationType   OperationType @relation(fields: [operationTypeId], references: [id], onDelete: Cascade)
+  operationTypeId String
+
+  flightType   FlightType @relation(fields: [flightTypeId], references: [id], onDelete: Cascade)
+  flightTypeId String
+
+  @@unique([operationTypeId, flightTypeId])
+  @@index([operationTypeId])
+  @@index([flightTypeId])
 }
 
 enum FlightStatus {
@@ -38,6 +67,18 @@ enum FlightStatus {
 enum DelayPhase {
   ARR
   DEP
+}
+
+enum BoardingStatus {
+  IN_PROGRESS  // Boarding je u toku
+  COMPLETED    // Boarding je završen, podaci agregirani
+  CANCELLED    // Boarding je otkazan
+}
+
+enum PassengerBoardingStatus {
+  PENDING   // Čeka boarding
+  BOARDED   // Ukrcan
+  NO_SHOW   // Nije se pojavio
 }
 
 enum ReportType {
@@ -142,6 +183,9 @@ model Flight {
   operationType  OperationType @relation(fields: [operationTypeId], references: [id])
   operationTypeId String
 
+  flightType   FlightType? @relation(fields: [flightTypeId], references: [id])
+  flightTypeId String?
+
   // Kapacitet (realni kapacitet po letu)
   availableSeats Int?
 
@@ -205,6 +249,9 @@ model Flight {
   // Relacija na kašnjenja
   delays FlightDelay[]
 
+  // Relacija na boarding manifest
+  boardingManifest BoardingManifest?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -214,10 +261,14 @@ model Flight {
   @@index([arrivalAirportId])
   @@index([departureAirportId])
   @@index([operationTypeId])
+  @@index([flightTypeId])
   @@index([aircraftTypeId])
+  @@index([departureScheduledTime])  // Za predboarding today-flights query
+  @@index([departureActualTime])  // Za filtering departed flights
   @@index([date, airlineId]) // Composite index za česte kombinacije
   @@index([date, route]) // Za rute analitiku u velikim opsezima
   @@index([date, operationTypeId]) // Za dashboard analytics
+  @@index([date, departureScheduledTime]) // Za today-flights optimizaciju
 }
 
 // Verifikacija dnevnih operacija (po datumu)
@@ -233,6 +284,76 @@ model DailyOperationsVerification {
   updatedAt DateTime @updatedAt
 
   @@index([date])
+}
+
+// ---------------------------------------------------------
+// BOARDING MANIFEST (Temporary storage za predboarding)
+// ---------------------------------------------------------
+
+// Manifest upload za boarding proces (privremeni storage)
+model BoardingManifest {
+  id                String              @id @default(cuid())
+  flightId          String              @unique
+  flight            Flight              @relation(fields: [flightId], references: [id], onDelete: Cascade)
+
+  // File storage
+  originalFileName  String
+  filePath          String              // Path do uploadovanog .txt fajla
+  fileSize          Int
+
+  // Metadata
+  uploadedByUserId  String
+  uploadedByUser    User                @relation(fields: [uploadedByUserId], references: [id])
+  uploadedAt        DateTime            @default(now())
+
+  // Boarding status
+  boardingStatus    BoardingStatus      @default(IN_PROGRESS)
+  startedAt         DateTime            @default(now())
+  completedAt       DateTime?
+  completedByUserId String?
+  completedByUser   User?               @relation("CompletedBoarding", fields: [completedByUserId], references: [id])
+
+  // Relacije
+  passengers        ManifestPassenger[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([flightId])
+  @@index([boardingStatus])
+  @@index([uploadedByUserId])
+}
+
+// Pojedinačni putnik iz manifesta (privremeni storage)
+model ManifestPassenger {
+  id                String                   @id @default(cuid())
+  manifestId        String
+  manifest          BoardingManifest         @relation(fields: [manifestId], references: [id], onDelete: Cascade)
+
+  // Podaci o putniku (iz manifesta)
+  seatNumber        String?
+  passengerName     String              // Format: "LASTNAME,FIRSTNAME"
+  title             String              // MR, MS, CHD, MSTR, etc.
+  passengerId       String?             // Passenger ID iz manifesta
+  fareClass         String?
+  confirmationDate  String?
+  isInfant          Boolean             @default(false) // Parsiran iz (i) markera
+
+  // Boarding status
+  boardingStatus    PassengerBoardingStatus @default(PENDING)
+  boardedAt         DateTime?
+
+  // SSR kodovi ako treba
+  ssrCodes          String?             // JSON array SSR kodova
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([manifestId])
+  @@index([boardingStatus])
+  @@index([passengerName])  // Za pretragu po imenu
+  @@index([manifestId, boardingStatus])  // Composite - brže filtriranje po statusu u manifestu
+  @@index([seatNumber])  // Za pretragu po sjedištu
 }
 
 // Delay kodovi (IATA ili interni)
@@ -505,6 +626,7 @@ enum UserRole {
   MANAGER
   OPERATIONS
   VIEWER
+  STW  // Ground staff - Predboarding access
 }
 
 model User {
@@ -518,6 +640,8 @@ model User {
   dailyOperationsVerifications DailyOperationsVerification[]
   verifiedFlights Flight[]
   auditLogs AuditLog[]
+  uploadedManifests     BoardingManifest[]
+  completedBoardings    BoardingManifest[] @relation("CompletedBoarding")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

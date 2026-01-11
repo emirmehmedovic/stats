@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -11,6 +12,7 @@ const updateOperationTypeSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
+  flightTypeIds: z.array(z.string().min(1)).optional(),
 });
 
 // GET /api/operation-types/[id] - Pojedinačni tip operacije
@@ -21,6 +23,9 @@ export async function GET(
   try {
     const { id } = await context.params;
 
+    const searchParams = request.nextUrl.searchParams;
+    const includeFlightTypes = searchParams.get('includeFlightTypes') === 'true';
+
     const operationType = await prisma.operationType.findUnique({
       where: { id },
       include: {
@@ -29,6 +34,23 @@ export async function GET(
             flights: true,
           },
         },
+        ...(includeFlightTypes
+          ? {
+              flightTypeLinks: {
+                select: {
+                  flightType: {
+                    select: {
+                      id: true,
+                      code: true,
+                      name: true,
+                      description: true,
+                      isActive: true,
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -68,11 +90,36 @@ export async function PUT(
     const body = await request.json();
 
     const validatedData = updateOperationTypeSchema.parse(body);
+    const { flightTypeIds, ...operationData } = validatedData;
 
-    const operationType = await prisma.operationType.update({
-      where: { id },
-      data: validatedData,
-    });
+    const operations: Prisma.PrismaPromise<unknown>[] = [
+      prisma.operationType.update({
+        where: { id },
+        data: operationData,
+      }),
+    ];
+
+    if (flightTypeIds !== undefined) {
+      operations.push(
+        prisma.operationTypeFlightType.deleteMany({
+          where: { operationTypeId: id },
+        })
+      );
+
+      if (flightTypeIds.length > 0) {
+        operations.push(
+          prisma.operationTypeFlightType.createMany({
+            data: flightTypeIds.map((flightTypeId) => ({
+              operationTypeId: id,
+              flightTypeId,
+            })),
+            skipDuplicates: true,
+          })
+        );
+      }
+    }
+
+    const [operationType] = await prisma.$transaction(operations);
 
     return NextResponse.json({
       success: true,
@@ -155,4 +202,3 @@ export async function DELETE(
     );
   }
 }
-

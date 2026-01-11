@@ -8,9 +8,29 @@ import { LoadingSpinner } from '@/components/ui/loading';
 import { ErrorDisplay } from '@/components/ui/error';
 import { showToast } from '@/components/ui/toast';
 import { OperationTypeModal } from '@/components/operation-types/OperationTypeModal';
+import { FlightTypeModal } from '@/components/flight-types/FlightTypeModal';
 import { MainLayout } from '@/components/layout/MainLayout';
 
 type OperationType = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  flightTypeLinks?: Array<{
+    flightType: {
+      id: string;
+      code: string;
+      name: string;
+      isActive: boolean;
+    };
+  }>;
+  _count: {
+    flights: number;
+  };
+};
+
+type FlightType = {
   id: string;
   code: string;
   name: string;
@@ -28,10 +48,20 @@ export default function OperationTypesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOperationType, setEditingOperationType] = useState<OperationType | null>(null);
+  const [flightTypes, setFlightTypes] = useState<FlightType[]>([]);
+  const [isFlightTypesLoading, setIsFlightTypesLoading] = useState(true);
+  const [flightTypesError, setFlightTypesError] = useState('');
+  const [flightTypesSearch, setFlightTypesSearch] = useState('');
+  const [isFlightTypeModalOpen, setIsFlightTypeModalOpen] = useState(false);
+  const [editingFlightType, setEditingFlightType] = useState<FlightType | null>(null);
 
   useEffect(() => {
     fetchOperationTypes();
   }, [searchTerm]);
+
+  useEffect(() => {
+    fetchFlightTypes();
+  }, [flightTypesSearch]);
 
   const fetchOperationTypes = async () => {
     setIsLoading(true);
@@ -43,6 +73,7 @@ export default function OperationTypesPage() {
         params.append('search', searchTerm);
       }
 
+      params.append('includeFlightTypes', 'true');
       const response = await fetch(`/api/operation-types?${params.toString()}`);
       const result = await response.json();
 
@@ -56,6 +87,32 @@ export default function OperationTypesPage() {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchFlightTypes = async () => {
+    setIsFlightTypesLoading(true);
+    setFlightTypesError('');
+
+    try {
+      const params = new URLSearchParams();
+      if (flightTypesSearch) {
+        params.append('search', flightTypesSearch);
+      }
+
+      const response = await fetch(`/api/flight-types?${params.toString()}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setFlightTypes(result.data);
+      } else {
+        setFlightTypesError(result.error || 'Greška pri učitavanju tipova leta');
+      }
+    } catch (err) {
+      setFlightTypesError('Greška pri učitavanju tipova leta');
+      console.error(err);
+    } finally {
+      setIsFlightTypesLoading(false);
     }
   };
 
@@ -83,14 +140,58 @@ export default function OperationTypesPage() {
     }
   };
 
+  const handleFlightTypeDelete = async (flightType: FlightType) => {
+    if (!confirm(`Da li ste sigurni da želite obrisati "${flightType.name}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/flight-types/${flightType.id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast('Tip leta je uspješno obrisan!', 'success');
+        fetchFlightTypes();
+      } else {
+        showToast(result.error || 'Greška pri brisanju', 'error');
+      }
+    } catch (err) {
+      showToast('Greška pri brisanju tipa leta', 'error');
+      console.error(err);
+    }
+  };
+
   const handleEdit = (operationType: OperationType) => {
     setEditingOperationType(operationType);
     setIsModalOpen(true);
   };
 
+  const handleFlightTypeEdit = (flightType: FlightType) => {
+    setEditingFlightType(flightType);
+    setIsFlightTypeModalOpen(true);
+  };
+
+  const handleFlightTypeAdd = () => {
+    setEditingFlightType(null);
+    setIsFlightTypeModalOpen(true);
+  };
+
   const handleAdd = () => {
     setEditingOperationType(null);
     setIsModalOpen(true);
+  };
+
+  const handleFlightTypeModalClose = () => {
+    setIsFlightTypeModalOpen(false);
+    setEditingFlightType(null);
+  };
+
+  const handleFlightTypeModalSuccess = () => {
+    fetchFlightTypes();
+    handleFlightTypeModalClose();
   };
 
   const handleModalClose = () => {
@@ -229,6 +330,18 @@ export default function OperationTypesPage() {
                             <span className="text-sm text-dark-500">{operationType.description}</span>
                           )}
                         </div>
+                        {operationType.flightTypeLinks && operationType.flightTypeLinks.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {operationType.flightTypeLinks.map((link) => (
+                              <span
+                                key={link.flightType.id}
+                                className="px-2.5 py-1 bg-blue-50 rounded-full text-xs font-semibold text-blue-700 border border-blue-200"
+                              >
+                                {link.flightType.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-4 px-4 py-2.5 bg-primary-50 rounded-2xl border border-primary-200 w-fit">
@@ -263,6 +376,105 @@ export default function OperationTypesPage() {
         )}
       </div>
 
+      {/* Flight Types Management */}
+      <div className="bg-white rounded-3xl shadow-soft p-6 relative overflow-hidden group border-[6px] border-white">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-50/60 via-white/70 to-primary-100/50 opacity-70"></div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-dark-900">Tipovi leta</h2>
+            <p className="text-sm text-dark-500">Upravljanje tipovima leta unutar tipova operacije</p>
+          </div>
+          <Button
+            onClick={handleFlightTypeAdd}
+            className="bg-white text-dark-900 hover:bg-dark-50 font-semibold shadow-soft-lg"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Dodaj tip leta
+          </Button>
+        </div>
+        <div className="relative z-10 mt-6">
+          <div className="relative mb-4">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
+            <Input
+              type="text"
+              placeholder="Pretraži tipove leta (naziv, kod, opis)..."
+              value={flightTypesSearch}
+              onChange={(e) => setFlightTypesSearch(e.target.value)}
+              className="pl-14 pr-5 py-3 bg-white border border-dark-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-shadow text-dark-900 placeholder:text-dark-400 shadow-soft text-base"
+            />
+          </div>
+
+          {isFlightTypesLoading ? (
+            <LoadingSpinner text="Učitavam tipove leta..." />
+          ) : flightTypesError ? (
+            <ErrorDisplay error={flightTypesError} onRetry={fetchFlightTypes} />
+          ) : flightTypes.length === 0 ? (
+            <div className="p-6 text-center">
+              <div className="p-4 bg-primary-50 rounded-2xl inline-block mb-3">
+                <Plane className="w-8 h-8 text-primary-600" />
+              </div>
+              <p className="text-dark-600">Nema tipova leta</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {flightTypes.map((flightType) => (
+                <div
+                  key={flightType.id}
+                  className="bg-white rounded-2xl p-4 shadow-soft border-[4px] border-white relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-white/70 to-primary-100/50 opacity-70"></div>
+                  <div className="relative z-10 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h3 className="text-lg font-bold text-dark-900">{flightType.name}</h3>
+                        {flightType.isActive ? (
+                          <span className="px-2.5 py-1 bg-green-50 rounded-full text-xs font-semibold text-green-700 border border-green-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Aktivno
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-dark-50 rounded-full text-xs font-semibold text-dark-500 border border-dark-200 flex items-center gap-1">
+                            <XCircle className="w-3 h-3" />
+                            Neaktivno
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 bg-dark-50 rounded-full text-xs font-semibold text-dark-700 border border-dark-200">
+                          Kod: {flightType.code}
+                        </span>
+                        {flightType.description && (
+                          <span className="text-sm text-dark-500">{flightType.description}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => handleFlightTypeEdit(flightType)}
+                        className="bg-white border-2 border-dark-200 text-dark-900 hover:bg-dark-50 hover:border-dark-300 shadow-soft"
+                        size="sm"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Uredi
+                      </Button>
+                      <Button
+                        onClick={() => handleFlightTypeDelete(flightType)}
+                        className="bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 shadow-soft disabled:opacity-50 disabled:cursor-not-allowed"
+                        size="sm"
+                        disabled={flightType._count.flights > 0}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Obriši
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Modal */}
       <OperationTypeModal
         operationType={editingOperationType}
@@ -270,8 +482,13 @@ export default function OperationTypesPage() {
         onClose={handleModalClose}
         onSuccess={handleModalSuccess}
       />
+      <FlightTypeModal
+        flightType={editingFlightType}
+        isOpen={isFlightTypeModalOpen}
+        onClose={handleFlightTypeModalClose}
+        onSuccess={handleFlightTypeModalSuccess}
+      />
     </div>
     </MainLayout>
   );
 }
-

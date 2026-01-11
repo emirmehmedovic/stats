@@ -1,42 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createFlightTypeSchema } from '@/lib/validators/flight-type';
 import { z } from 'zod';
 
-const createOperationTypeSchema = z.object({
-  code: z.string().min(1, 'Kod je obavezan').toUpperCase(),
-  name: z.string().min(1, 'Naziv je obavezan'),
-  description: z.string().optional().nullable(),
-  isActive: z.boolean().default(true),
-  flightTypeIds: z.array(z.string().min(1)).optional(),
-});
-
-/**
- * OPTIMIZED Operation Types API
- *
- * BEFORE:
- * - No pagination - returns ALL operation types
- * - Returns all fields
- *
- * AFTER:
- * - Pagination with page/limit
- * - Select only needed fields
- * - Parallel queries for count
- * - 70%+ performance improvement
- */
-
-// GET /api/operation-types - Lista svih tipova operacije SA PAGINACIJOM
+// GET /api/flight-types - Lista svih tipova leta SA PAGINACIJOM
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
     const activeOnly = searchParams.get('activeOnly') === 'true';
-    const includeFlightTypes = searchParams.get('includeFlightTypes') === 'true';
 
-    // ✅ DODATO: Paginacija parametri
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    // Validate pagination
     if (page < 1 || limit < 1 || limit > 100) {
       return NextResponse.json(
         {
@@ -62,14 +38,10 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    // ✅ OPTIMIZOVANO: Paralelni upiti za podatke i count
-    const [operationTypes, total] = await Promise.all([
-      prisma.operationType.findMany({
+    const [flightTypes, total] = await Promise.all([
+      prisma.flightType.findMany({
         where,
-        orderBy: {
-          name: 'asc',
-        },
-        // ✅ DODATO: Select samo potrebna polja
+        orderBy: { name: 'asc' },
         select: {
           id: true,
           code: true,
@@ -83,34 +55,16 @@ export async function GET(request: NextRequest) {
               flights: true,
             },
           },
-          ...(includeFlightTypes
-            ? {
-                flightTypeLinks: {
-                  select: {
-                    flightType: {
-                      select: {
-                        id: true,
-                        code: true,
-                        name: true,
-                        description: true,
-                        isActive: true,
-                      },
-                    },
-                  },
-                },
-              }
-            : {}),
         },
-        // ✅ DODATO: Paginacija
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.operationType.count({ where }),
+      prisma.flightType.count({ where }),
     ]);
 
     return NextResponse.json({
       success: true,
-      data: operationTypes,
+      data: flightTypes,
       pagination: {
         page,
         limit,
@@ -120,38 +74,25 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching operation types:', error);
+    console.error('Error fetching flight types:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch operation types',
+        error: 'Failed to fetch flight types',
       },
       { status: 500 }
     );
   }
 }
 
-// POST /api/operation-types - Kreiranje novog tipa operacije
+// POST /api/flight-types - Kreiranje novog tipa leta
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validatedData = createOperationTypeSchema.parse(body);
-    const { flightTypeIds, ...operationData } = validatedData;
+    const validatedData = createFlightTypeSchema.parse(body);
 
-    const operationType = await prisma.operationType.create({
-      data: {
-        ...operationData,
-        ...(flightTypeIds && flightTypeIds.length > 0
-          ? {
-              flightTypeLinks: {
-                create: flightTypeIds.map((flightTypeId) => ({
-                  flightTypeId,
-                })),
-              },
-            }
-          : {}),
-      },
-      // ✅ DODATO: Select samo potrebna polja
+    const flightType = await prisma.flightType.create({
+      data: validatedData,
       select: {
         id: true,
         code: true,
@@ -166,8 +107,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: operationType,
-        message: 'Tip operacije uspješno kreiran',
+        data: flightType,
+        message: 'Tip leta uspješno kreiran',
       },
       { status: 201 }
     );
@@ -183,22 +124,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle unique constraint violation
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         {
           success: false,
-          error: 'Tip operacije sa ovim kodom već postoji',
+          error: 'Tip leta sa ovim kodom već postoji',
         },
         { status: 400 }
       );
     }
 
-    console.error('Error creating operation type:', error);
+    console.error('Error creating flight type:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to create operation type',
+        error: 'Failed to create flight type',
       },
       { status: 500 }
     );

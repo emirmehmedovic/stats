@@ -47,6 +47,10 @@ export default function GenerateReportPage() {
   const [isWizzairGenerating, setIsWizzairGenerating] = useState(false);
   const [wizzairMessage, setWizzairMessage] = useState('');
   const [wizzairFileName, setWizzairFileName] = useState('');
+  const [wizzairDay, setWizzairDay] = useState(new Date().getDate());
+  const [isWizzairDayGenerating, setIsWizzairDayGenerating] = useState(false);
+  const [wizzairDayMessage, setWizzairDayMessage] = useState('');
+  const [wizzairDayFileName, setWizzairDayFileName] = useState('');
 
   // State za Carina generisanje
   const [customsYear, setCustomsYear] = useState(new Date().getFullYear());
@@ -68,6 +72,25 @@ export default function GenerateReportPage() {
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
   const [localMessage, setLocalMessage] = useState('');
   const [localFileName, setLocalFileName] = useState('');
+
+  const wizzairDaysInMonth = new Date(wizzairYear, wizzairMonth, 0).getDate();
+  const wizzairToday = new Date();
+  const isCurrentWizzairMonth =
+    wizzairYear === wizzairToday.getFullYear() && wizzairMonth === wizzairToday.getMonth() + 1;
+  const wizzairMaxSelectableDay = isCurrentWizzairMonth
+    ? Math.min(wizzairDaysInMonth, wizzairToday.getDate())
+    : wizzairDaysInMonth;
+  const wizzairSelectedDate = new Date(wizzairYear, wizzairMonth - 1, wizzairDay);
+  wizzairSelectedDate.setHours(0, 0, 0, 0);
+  const wizzairTodayDate = new Date();
+  wizzairTodayDate.setHours(0, 0, 0, 0);
+  const isWizzairFutureDay = wizzairSelectedDate > wizzairTodayDate;
+
+  useEffect(() => {
+    if (wizzairDay > wizzairMaxSelectableDay) {
+      setWizzairDay(wizzairMaxSelectableDay || 1);
+    }
+  }, [wizzairDay, wizzairMaxSelectableDay]);
 
   // State za Custom izvještaj
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -205,6 +228,45 @@ export default function GenerateReportPage() {
   const handleWizzairDownload = () => {
     if (wizzairFileName) {
       window.open(`/api/reports/wizzair/download?fileName=${wizzairFileName}`, '_blank');
+    }
+  };
+
+  const handleGenerateWizzairDay = async () => {
+    setIsWizzairDayGenerating(true);
+    setWizzairDayMessage('');
+    setWizzairDayFileName('');
+
+    try {
+      const response = await fetch('/api/reports/wizzair/generate-day', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          year: wizzairYear,
+          month: wizzairMonth,
+          day: wizzairDay,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Greška pri generisanju izvještaja');
+      }
+
+      setWizzairDayMessage('Izvještaj za dan uspješno generisan!');
+      setWizzairDayFileName(data.fileName);
+    } catch (error: any) {
+      setWizzairDayMessage(`Greška: ${error.message}`);
+    } finally {
+      setIsWizzairDayGenerating(false);
+    }
+  };
+
+  const handleWizzairDayDownload = () => {
+    if (wizzairDayFileName) {
+      window.open(`/api/reports/wizzair/download?fileName=${wizzairDayFileName}`, '_blank');
     }
   };
 
@@ -1277,6 +1339,19 @@ export default function GenerateReportPage() {
                       </select>
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Dan</label>
+                      <select
+                        value={wizzairDay}
+                        onChange={(e) => setWizzairDay(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all bg-white text-slate-900"
+                      >
+                        {Array.from({ length: wizzairMaxSelectableDay }, (_, i) => i + 1).map((day) => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <button
                       onClick={handleGenerateWizzair}
                       disabled={isWizzairGenerating}
@@ -1290,10 +1365,33 @@ export default function GenerateReportPage() {
                       ) : (
                         <>
                           <FileSpreadsheet className="w-4 h-4" />
-                          Generiši izvještaj
+                          Generiši mjesečni izvještaj
                         </>
                       )}
                     </button>
+
+                    <button
+                      onClick={handleGenerateWizzairDay}
+                      disabled={isWizzairDayGenerating || isWizzairFutureDay}
+                      className="w-full py-3 px-4 bg-violet-100 text-violet-800 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-violet-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isWizzairDayGenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Generišem...
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="w-4 h-4" />
+                          Generiši izvještaj za dan
+                        </>
+                      )}
+                    </button>
+                    {isWizzairFutureDay && (
+                      <p className="text-xs text-amber-600">
+                        Izvještaj za budući datum nije dozvoljen.
+                      </p>
+                    )}
                   </div>
 
                   {wizzairMessage && (
@@ -1312,6 +1410,30 @@ export default function GenerateReportPage() {
                       {wizzairFileName && (
                         <button
                           onClick={handleWizzairDownload}
+                          className="mt-3 w-full py-2 px-4 bg-green-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          Preuzmi izvještaj
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {wizzairDayMessage && (
+                    <div className={`mt-4 p-4 rounded-lg ${
+                      wizzairDayMessage.includes('Greška')
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-green-50 border border-green-200'
+                    }`}>
+                      <p className={`text-sm font-medium ${
+                        wizzairDayMessage.includes('Greška')
+                          ? 'text-red-700'
+                          : 'text-green-700'
+                      }`}>
+                        {wizzairDayMessage}
+                      </p>
+                      {wizzairDayFileName && (
+                        <button
+                          onClick={handleWizzairDayDownload}
                           className="mt-3 w-full py-2 px-4 bg-green-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
                         >
                           <Download className="w-4 h-4" />

@@ -21,6 +21,21 @@ const hasUnverifiedPastDates = async (cutoffDate: Date) => {
   return pendingCount > 0;
 };
 
+const ensureFlightTypeAllowed = async (operationTypeId: string, flightTypeId?: string | null) => {
+  if (!flightTypeId) return;
+
+  const link = await prisma.operationTypeFlightType.findFirst({
+    where: {
+      operationTypeId,
+      flightTypeId,
+    },
+  });
+
+  if (!link) {
+    throw new Error('INVALID_FLIGHT_TYPE');
+  }
+};
+
 // GET /api/flights - Lista letova sa paginacijom i filterima
 export async function GET(request: NextRequest) {
   try {
@@ -35,10 +50,11 @@ export async function GET(request: NextRequest) {
       route: searchParams.get('route'),
       operationType: searchParams.get('operationType'),
       operationTypeId: searchParams.get('operationTypeId'),
+      flightTypeId: searchParams.get('flightTypeId'),
     };
 
     const validatedQuery = getFlightsQuerySchema.parse(queryParams);
-    const { page, limit, search, airlineId, dateFrom, dateTo, route, operationTypeId } = validatedQuery;
+    const { page, limit, search, airlineId, dateFrom, dateTo, route, operationTypeId, flightTypeId } = validatedQuery;
     
     // Handle operationType code filter (legacy support)
     const operationTypeCode = searchParams.get('operationType');
@@ -61,6 +77,7 @@ export async function GET(request: NextRequest) {
           : {},
         route ? { route: { contains: route, mode: 'insensitive' } } : {},
         operationTypeId ? { operationTypeId } : {},
+        flightTypeId ? { flightTypeId } : {},
         operationTypeCode ? { operationType: { code: operationTypeCode } } : {},
         search
           ? {
@@ -85,6 +102,7 @@ export async function GET(request: NextRequest) {
         airline: true,
         aircraftType: true,
         operationType: true,
+        flightType: true,
         arrivalAirport: true,
         departureAirport: true,
         verifiedByUser: {
@@ -197,12 +215,15 @@ export async function POST(request: NextRequest) {
       flightData.departureInfants = null;
     }
 
+    await ensureFlightTypeAllowed(flightData.operationTypeId, flightData.flightTypeId);
+
     const flight = await prisma.flight.create({
       data: flightData,
       include: {
         airline: true,
         aircraftType: true,
         operationType: true,
+        flightType: true,
         arrivalAirport: true,
         departureAirport: true,
       },
@@ -223,6 +244,16 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'Validation error',
           details: error.issues,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'INVALID_FLIGHT_TYPE') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Odabrani tip leta nije dozvoljen za izabrani tip operacije',
         },
         { status: 400 }
       );

@@ -22,11 +22,17 @@ type Flight = {
   route: string;
   registration: string;
   operationTypeId: string;
+  flightTypeId?: string | null;
   operationType: {
     id: string;
     code: string;
     name: string;
   };
+  flightType?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
   availableSeats: number | null;
   airline: {
     name: string;
@@ -92,7 +98,15 @@ export default function FlightDataEntryPage() {
   const [error, setError] = useState('');
   const [airlines, setAirlines] = useState<Array<{ id: string; name: string; icaoCode: string }>>([]);
   const [aircraftTypes, setAircraftTypes] = useState<Array<{ id: string; model: string; seats: number; mtow: number }>>([]);
-  const [operationTypes, setOperationTypes] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [operationTypes, setOperationTypes] = useState<Array<{
+    id: string;
+    code: string;
+    name: string;
+    flightTypeLinks?: Array<{
+      flightType: { id: string; code: string; name: string; isActive: boolean };
+    }>;
+  }>>([]);
+  const [availableFlightTypes, setAvailableFlightTypes] = useState<Array<{ id: string; code: string; name: string; isActive: boolean }>>([]);
   const [delayCodes, setDelayCodes] = useState<Array<{ id: string; code: string; description: string; category: string }>>([]);
   const [airlineSearch, setAirlineSearch] = useState('');
   const [aircraftTypeSearch, setAircraftTypeSearch] = useState('');
@@ -111,6 +125,7 @@ export default function FlightDataEntryPage() {
     registration: '',
     availableSeats: '',
     operationTypeId: '',
+    flightTypeId: '',
     // Arrival
     arrivalFlightNumber: '',
     arrivalScheduledTime: '',
@@ -186,6 +201,25 @@ export default function FlightDataEntryPage() {
       setAirlineRoutes([]);
     }
   }, [formData.airlineId]);
+
+  useEffect(() => {
+    if (!formData.operationTypeId) {
+      setAvailableFlightTypes([]);
+      if (formData.flightTypeId) {
+        setFormData(prev => ({ ...prev, flightTypeId: '' }));
+      }
+      return;
+    }
+
+    const currentOperationType = operationTypes.find((type) => type.id === formData.operationTypeId);
+    const linkedFlightTypes = currentOperationType?.flightTypeLinks?.map((link) => link.flightType) || [];
+    const activeFlightTypes = linkedFlightTypes.filter((type) => type.isActive);
+    setAvailableFlightTypes(activeFlightTypes);
+
+    if (formData.flightTypeId && !activeFlightTypes.some((type) => type.id === formData.flightTypeId)) {
+      setFormData(prev => ({ ...prev, flightTypeId: '' }));
+    }
+  }, [formData.operationTypeId, operationTypes, formData.flightTypeId]);
 
   useEffect(() => {
     if (!flight) return;
@@ -280,7 +314,7 @@ export default function FlightDataEntryPage() {
   const fetchFormData = async () => {
     try {
       const [operationTypesRes, delayCodesRes] = await Promise.all([
-        fetch('/api/operation-types?activeOnly=true'),
+        fetch('/api/operation-types?activeOnly=true&includeFlightTypes=true'),
         fetch('/api/delay-codes'),
       ]);
 
@@ -340,6 +374,7 @@ export default function FlightDataEntryPage() {
           registration: flightData.registration || '',
           availableSeats: flightData.availableSeats?.toString() || '',
           operationTypeId: flightData.operationType?.id || flightData.operationTypeId || '',
+          flightTypeId: flightData.flightType?.id || flightData.flightTypeId || '',
           arrivalFlightNumber: flightData.arrivalFlightNumber || '',
           arrivalScheduledTime: formatDateTimeLocalValue(flightData.arrivalScheduledTime),
           arrivalActualTime: formatDateTimeLocalValue(flightData.arrivalActualTime),
@@ -433,6 +468,7 @@ export default function FlightDataEntryPage() {
         registration: formData.registration || null,
         availableSeats: formData.availableSeats ? parseInt(formData.availableSeats) : null,
         operationTypeId: formData.operationTypeId || undefined,
+        flightTypeId: formData.flightTypeId ? formData.flightTypeId : null,
         arrivalFlightNumber: formData.arrivalFlightNumber || null,
         arrivalScheduledTime: formData.arrivalScheduledTime ? new Date(formData.arrivalScheduledTime).toISOString() : null,
         arrivalActualTime: formData.arrivalActualTime ? new Date(formData.arrivalActualTime).toISOString() : null,
@@ -915,6 +951,31 @@ export default function FlightDataEntryPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Flight Type - Depends on operation type */}
+            <div>
+              <Label>Tip leta</Label>
+              <select
+                value={formData.flightTypeId}
+                onChange={(e) => handleChange('flightTypeId', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!formData.operationTypeId || availableFlightTypes.length === 0}
+              >
+                <option value="">
+                  {formData.operationTypeId ? 'Izaberite tip leta' : 'Prvo odaberite tip operacije'}
+                </option>
+                {availableFlightTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+              {formData.operationTypeId && availableFlightTypes.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Nema povezanih tipova leta za odabrani tip operacije.
+                </p>
+              )}
             </div>
             </div>
         </div>

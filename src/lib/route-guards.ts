@@ -57,3 +57,11 @@ export function requireAdmin(request: Request): Promise<AuthCheck> {
 export function requireAdminOrManager(request: Request): Promise<AuthCheck> {
   return requireRole(request, ['ADMIN', 'MANAGER']);
 }
+
+export function requireSTW(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['STW', 'ADMIN']);
+}
+
+export function requireAdminOrOperations(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'OPERATIONS']);
+}

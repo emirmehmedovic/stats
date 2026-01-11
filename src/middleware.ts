@@ -151,6 +151,18 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // STW role - can only access predboarding API and dashboard API
+    if (decoded.role === 'STW') {
+      const allowedSTWRoutes = ['/api/predboarding', '/api/dashboard'];
+      const hasSTWAccess = allowedSTWRoutes.some(route => pathname.startsWith(route));
+
+      if (!hasSTWAccess) {
+        return applySecurityHeaders(
+          ensureCsrfCookie(NextResponse.json({ error: 'Nemate dozvolu za pristup' }, { status: 403 }))
+        );
+      }
+    }
+
     const response = NextResponse.next();
     return applySecurityHeaders(ensureCsrfCookie(response));
   }
@@ -200,6 +212,30 @@ export async function middleware(request: NextRequest) {
     if (decoded?.role === 'OPERATIONS') {
       const response = NextResponse.redirect(new URL('/dashboard', request.url));
       return applySecurityHeaders(ensureCsrfCookie(response));
+    }
+  }
+
+  // STW role - can only access /dashboard and /predboarding
+  const stwRoutes = ['/predboarding'];
+  const isSTWRoute = stwRoutes.some(route => pathname.startsWith(route));
+  const allowedSTWPages = ['/dashboard', '/predboarding'];
+
+  if (token) {
+    const decoded = await verifyToken(token);
+    if (decoded?.role === 'STW') {
+      // STW trying to access non-allowed pages - redirect to dashboard
+      const hasPageAccess = allowedSTWPages.some(route => pathname.startsWith(route));
+      if (!hasPageAccess) {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+    } else if (decoded) {
+      // Non-STW users cannot access STW-specific routes
+      // (although ADMIN can access everything, so we allow ADMIN)
+      if (isSTWRoute && decoded.role !== 'ADMIN') {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
     }
   }
 

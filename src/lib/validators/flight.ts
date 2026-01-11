@@ -9,6 +9,10 @@ export const createFlightSchema = z.object({
   registration: z.string().min(1, 'Registracija je obavezna'),
   route: z.string().min(1, 'Ruta je obavezna'),
   operationTypeId: z.string().min(1, 'Tip operacije je obavezan'),
+  flightTypeId: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string().min(1, 'Tip leta je obavezan').optional().nullable()
+  ),
   availableSeats: z.number().int().positive().optional().nullable(),
 
   // Airports
@@ -103,6 +107,7 @@ export const getFlightsQuerySchema = z.object({
   }),
   route: z.string().nullable().optional().transform((val) => val || undefined),
   operationTypeId: z.string().nullable().optional().transform((val) => val || undefined),
+  flightTypeId: z.string().nullable().optional().transform((val) => val || undefined),
 });
 
 export type CreateFlightInput = z.infer<typeof createFlightSchema>;

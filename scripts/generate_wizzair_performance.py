@@ -126,17 +126,21 @@ def calculate_delay_minutes(scheduled, actual):
     return minutes if minutes > 0 else 0
 
 
-def get_flight_data(year: int, month: int):
+def get_flight_data(year: int, month: int, day: int = None):
     """
-    Povuči sve Wizz Air letove za zadati mjesec
+    Povuči sve Wizz Air letove za zadati mjesec ili dan
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Datum početka i kraja mjeseca
-    first_day = f"{year}-{month:02d}-01"
-    last_day = calendar.monthrange(year, month)[1]
-    last_date = f"{year}-{month:02d}-{last_day:02d}"
+    # Datum početka i kraja perioda
+    if day:
+        first_day = f"{year}-{month:02d}-{day:02d}"
+        last_date = first_day
+    else:
+        first_day = f"{year}-{month:02d}-01"
+        last_day = calendar.monthrange(year, month)[1]
+        last_date = f"{year}-{month:02d}-{last_day:02d}"
 
     query = """
         SELECT
@@ -224,15 +228,18 @@ def parse_route(route_str):
     return parts[0].strip() if parts[0] else None
 
 
-def generate_wizzair_performance(year: int, month: int, output_path: Path = None):
+def generate_wizzair_performance(year: int, month: int, day: int = None, output_path: Path = None):
     """
     Glavni metod za generisanje Wizz Air Performance izvještaja
     """
-    print(f"Generišem Wizz Air Performance izvještaj za {MONTH_NAMES[month]} {year}...")
+    if day:
+        print(f"Generišem Wizz Air Performance izvještaj za {day:02d}.{month:02d}.{year}...")
+    else:
+        print(f"Generišem Wizz Air Performance izvještaj za {MONTH_NAMES[month]} {year}...")
 
     # 1. Povući podatke iz baze
     print("Povlačim podatke iz baze...")
-    flights = get_flight_data(year, month)
+    flights = get_flight_data(year, month, day)
     print(f"Pronađeno {len(flights)} Wizz Air letova.")
 
     if len(flights) == 0:
@@ -272,10 +279,11 @@ def generate_wizzair_performance(year: int, month: int, output_path: Path = None
     center_align = Alignment(horizontal='center', vertical='center')
     left_align = Alignment(horizontal='left', vertical='center')
 
-    # 5. Kreiranje sheet-a za svaki dan u mjesecu
+    # 5. Kreiranje sheet-a za svaki dan u mjesecu (ili jedan dan)
     num_days = calendar.monthrange(year, month)[1]
+    days_to_generate = [day] if day else list(range(1, num_days + 1))
 
-    for day in range(1, num_days + 1):
+    for day in days_to_generate:
         # Kreiraj sheet za ovaj dan
         sheet_name = f"{day:02d}"
         ws = wb.create_sheet(title=sheet_name)
@@ -406,7 +414,10 @@ def generate_wizzair_performance(year: int, month: int, output_path: Path = None
     # 6. Sačuvaj fajl
     if output_path is None:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        output_path = OUTPUT_DIR / f"Wizz_Air_Performance_{MONTH_NAMES[month]}_{year}.xlsx"
+        if day:
+            output_path = OUTPUT_DIR / f"Wizz_Air_Performance_{year}-{month:02d}-{day:02d}.xlsx"
+        else:
+            output_path = OUTPUT_DIR / f"Wizz_Air_Performance_{MONTH_NAMES[month]}_{year}.xlsx"
 
     print(f"Čuvam izvještaj u: {output_path}")
     wb.save(output_path)
@@ -416,20 +427,28 @@ def generate_wizzair_performance(year: int, month: int, output_path: Path = None
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python generate_wizzair_performance.py <year> <month>")
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python generate_wizzair_performance.py <year> <month> [day]")
         print("Example: python generate_wizzair_performance.py 2025 10")
+        print("Example (day): python generate_wizzair_performance.py 2025 10 12")
         sys.exit(1)
 
     year = int(sys.argv[1])
     month = int(sys.argv[2])
+    day = int(sys.argv[3]) if len(sys.argv) == 4 else None
 
     if month < 1 or month > 12:
         print("Mjesec mora biti između 1 i 12")
         sys.exit(1)
 
+    if day:
+        max_day = calendar.monthrange(year, month)[1]
+        if day < 1 or day > max_day:
+            print("Dan nije validan za odabrani mjesec")
+            sys.exit(1)
+
     try:
-        output_file = generate_wizzair_performance(year, month)
+        output_file = generate_wizzair_performance(year, month, day)
         print(f"\nIzvještaj sačuvan: {output_file}")
     except Exception as e:
         print(f"GREŠKA: {e}")
