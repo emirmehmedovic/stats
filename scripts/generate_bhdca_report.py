@@ -84,6 +84,10 @@ def get_flight_data(year: int, month: int):
             ot.code as operation_type_code,
             ot.name as operation_type_name,
 
+            -- Flight Type
+            ft.code as flight_type_code,
+            ft.name as flight_type_name,
+
             -- Arrival
             f."arrivalFlightNumber",
             f."arrivalScheduledTime",
@@ -133,6 +137,7 @@ def get_flight_data(year: int, month: int):
         INNER JOIN "Airline" a ON f."airlineId" = a.id
         INNER JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         INNER JOIN "OperationType" ot ON f."operationTypeId" = ot.id
+        LEFT JOIN "FlightType" ft ON f."flightTypeId" = ft.id
         LEFT JOIN "Airport" arr_ap ON f."arrivalAirportId" = arr_ap.id
         LEFT JOIN "Airport" dep_ap ON f."departureAirportId" = dep_ap.id
         WHERE f.date >= %s AND f.date <= %s
@@ -198,7 +203,14 @@ def aggregate_airport_traffic(flights):
         print(f"  arrivalFerryIn: {flights[0].get('arrivalFerryIn')}")
         print(f"  departureFerryOut: {flights[0].get('departureFerryOut')}")
         print(f"  operation_type_code: {flights[0].get('operation_type_code')}")
+        print(f"  flight_type_code: {flights[0].get('flight_type_code')}")
         print()
+
+    def is_scheduled_flight(flight):
+        flight_type_code = (flight.get('flight_type_code') or '').upper()
+        if flight_type_code:
+            return flight_type_code == 'SCHEDULED'
+        return (flight.get('operation_type_code') or '').upper() == 'SCHEDULED'
 
     for flight in flights:
         # Određivanje da li je international ili domestic
@@ -212,8 +224,7 @@ def aggregate_airport_traffic(flights):
             is_domestic = True
 
         # Određivanje scheduled vs non-scheduled
-        operation_code = flight.get('operation_type_code', '').upper()
-        is_scheduled = operation_code == 'SCHEDULED'
+        is_scheduled = is_scheduled_flight(flight)
 
         # Odabir kategorije
         if is_domestic:
@@ -285,6 +296,59 @@ def parse_route(route_str):
     return parts[0].strip(), parts[1].strip()
 
 
+def split_city_pairs(city_pairs, base_iata='TZL'):
+    outbound = []
+    inbound = []
+
+    for pair_key, data in city_pairs.items():
+        from_airport, to_airport = pair_key.split('-')
+        if from_airport == base_iata and to_airport != base_iata:
+            outbound.append((from_airport, to_airport, data))
+        elif to_airport == base_iata and from_airport != base_iata:
+            inbound.append((from_airport, to_airport, data))
+
+    return outbound, inbound
+
+
+def find_row_by_label(ws, label, column=4):
+    for row in range(1, ws.max_row + 1):
+        value = ws.cell(row=row, column=column).value
+        if value and label in str(value):
+            return row
+    return None
+
+
+def write_city_pairs_sheet(ws, city_pairs, start_row=23):
+    outbound, inbound = split_city_pairs(city_pairs)
+    remarks_row = find_row_by_label(ws, 'Remarks', column=4)
+    if remarks_row is None:
+        remarks_row = ws.max_row + 1
+
+    rows_needed = len(outbound) + len(inbound)
+    available_rows = max(0, remarks_row - start_row)
+
+    if rows_needed > available_rows:
+        ws.insert_rows(remarks_row, rows_needed - available_rows)
+        remarks_row += rows_needed - available_rows
+
+    end_row = remarks_row - 1
+    for row in range(start_row, end_row + 1):
+        ws.cell(row=row, column=4).value = None
+        ws.cell(row=row, column=5).value = None
+        ws.cell(row=row, column=9).value = None
+        ws.cell(row=row, column=14).value = None
+        ws.cell(row=row, column=15).value = None
+
+    row_num = start_row
+    for from_airport, to_airport, data in outbound + inbound:
+        ws.cell(row=row_num, column=4).value = from_airport
+        ws.cell(row=row_num, column=5).value = to_airport
+        ws.cell(row=row_num, column=9).value = data['passengers']
+        ws.cell(row=row_num, column=14).value = data['freight']
+        ws.cell(row=row_num, column=15).value = data['mail']
+        row_num += 1
+
+
 def aggregate_city_pair_data(flights, scheduled_only=True):
     """
     Agregirati city-pair podatke za Sheet 2/3
@@ -313,11 +377,17 @@ def aggregate_city_pair_data(flights, scheduled_only=True):
         print(f"  departurePassengers: {flights[0].get('departurePassengers')}")
         print(f"  arrivalPassengers: {flights[0].get('arrivalPassengers')}")
         print(f"  operation_type_code: {flights[0].get('operation_type_code')}")
+        print(f"  flight_type_code: {flights[0].get('flight_type_code')}")
         print()
 
+    def is_scheduled_flight(flight):
+        flight_type_code = (flight.get('flight_type_code') or '').upper()
+        if flight_type_code:
+            return flight_type_code == 'SCHEDULED'
+        return (flight.get('operation_type_code') or '').upper() == 'SCHEDULED'
+
     for flight in flights:
-        operation_code = flight.get('operation_type_code', '').upper()
-        is_scheduled = operation_code == 'SCHEDULED'
+        is_scheduled = is_scheduled_flight(flight)
 
         # Filtrirati po scheduled/non-scheduled
         if scheduled_only and not is_scheduled:
@@ -503,42 +573,7 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws2['N10'] = year
 
     # Očistiti stare podatke (redovi 23-35) - skip merged cells
-    for row in range(23, 36):
-        try:
-            ws2[f'D{row}'] = None
-        except AttributeError:
-            pass  # Skip merged cells
-        try:
-            ws2[f'E{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws2[f'I{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws2[f'N{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws2[f'O{row}'] = None
-        except AttributeError:
-            pass
-
-    # City-pair podaci (počinje od reda 23)
-    row_num = 23
-    for pair_key, data in city_pairs_scheduled.items():
-        from_airport, to_airport = pair_key.split('-')
-
-        print(f"  Sheet2 Row {row_num}: {from_airport}-{to_airport} = {data['passengers']} putnika")
-
-        ws2[f'D{row_num}'] = from_airport
-        ws2[f'E{row_num}'] = to_airport
-        ws2[f'I{row_num}'] = data['passengers']
-        ws2[f'N{row_num}'] = data['freight']
-        ws2[f'O{row_num}'] = data['mail']
-
-        row_num += 1
+    write_city_pairs_sheet(ws2, city_pairs_scheduled, start_row=23)
 
     # 6. Popuniti Sheet 3 - O-D TRAFFIC (Non-Scheduled)
     print("Popunjavam Sheet 3 - O-D TRAFFIC (Non-Scheduled)...")
@@ -549,42 +584,7 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws3['N10'] = year
 
     # Očistiti stare podatke (redovi 23-35) - skip merged cells
-    for row in range(23, 36):
-        try:
-            ws3[f'D{row}'] = None
-        except AttributeError:
-            pass  # Skip merged cells
-        try:
-            ws3[f'E{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws3[f'I{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws3[f'N{row}'] = None
-        except AttributeError:
-            pass
-        try:
-            ws3[f'O{row}'] = None
-        except AttributeError:
-            pass
-
-    # City-pair podaci (počinje od reda 23)
-    row_num = 23
-    for pair_key, data in city_pairs_non_scheduled.items():
-        from_airport, to_airport = pair_key.split('-')
-
-        print(f"  Sheet3 Row {row_num}: {from_airport}-{to_airport} = {data['passengers']} putnika")
-
-        ws3[f'D{row_num}'] = from_airport
-        ws3[f'E{row_num}'] = to_airport
-        ws3[f'I{row_num}'] = data['passengers']
-        ws3[f'N{row_num}'] = data['freight']
-        ws3[f'O{row_num}'] = data['mail']
-
-        row_num += 1
+    write_city_pairs_sheet(ws3, city_pairs_non_scheduled, start_row=23)
 
     # 7. Sačuvati Excel fajl
     if output_path is None:
