@@ -5,7 +5,7 @@ import { eachDayOfInterval } from 'date-fns';
 import { endOfDayUtc, formatDateDisplay, getDateStringInTimeZone, startOfDayUtc, TIME_ZONE_SARAJEVO } from '@/lib/dates';
 import { cache, CacheTTL } from '@/lib/cache';
 
-// GET /api/analytics/load-factor?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO&route=TEXT&operationTypeId=ID
+// GET /api/analytics/load-factor?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airlines=ICAO,ICAO&routes=TEXT,TEXT&operationTypeId=ID&direction=arrival|departure|all
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     const dateToParam = searchParams.get('dateTo');
     const airlineParam = searchParams.get('airline');
     const routeParam = searchParams.get('route');
+    const airlinesParam = searchParams.get('airlines');
+    const routesParam = searchParams.get('routes');
     const operationTypeParam = searchParams.get('operationTypeId');
+    const directionParam = searchParams.get('direction');
 
     if (!dateFromParam || !dateToParam) {
       return NextResponse.json(
@@ -38,7 +41,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `analytics:load-factor:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}:${routeParam || 'ALL'}:${operationTypeParam || 'ALL'}`;
+    const direction =
+      directionParam === 'arrival' || directionParam === 'departure'
+        ? directionParam
+        : 'all';
+
+    const airlineCodes = airlinesParam
+      ? airlinesParam.split(',').map((code) => code.trim()).filter(Boolean)
+      : airlineParam
+        ? [airlineParam.trim()]
+        : [];
+    const routeFilters = routesParam
+      ? routesParam.split(',').map((route) => route.trim()).filter(Boolean)
+      : routeParam
+        ? [routeParam.trim()]
+        : [];
+
+    const cacheKey = `analytics:load-factor:${dateFromParam}:${dateToParam}:${airlineCodes.join('|') || 'ALL'}:${routeFilters.join('|') || 'ALL'}:${operationTypeParam || 'ALL'}:${direction}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       return NextResponse.json({
@@ -53,25 +72,54 @@ export async function GET(request: NextRequest) {
       Prisma.sql`f.date <= ${endDate}`,
     ];
 
-    if (airlineParam) {
-      const airline = await prisma.airline.findFirst({
-        where: { icaoCode: airlineParam },
+    if (airlineCodes.length > 0) {
+      const airlineRows = await prisma.airline.findMany({
+        where: { icaoCode: { in: airlineCodes } },
         select: { id: true },
       });
-      if (airline) {
-        whereSql.push(Prisma.sql`f."airlineId" = ${airline.id}`);
+      if (airlineRows.length === 0) {
+        whereSql.push(Prisma.sql`1 = 0`);
+      } else {
+        const airlineIds = airlineRows.map((row) => row.id);
+        whereSql.push(Prisma.sql`f."airlineId" IN (${Prisma.join(airlineIds)})`);
       }
     }
 
-    if (routeParam) {
-      whereSql.push(Prisma.sql`f."route" ILIKE ${`%${routeParam}%`}`);
+    if (routeFilters.length > 0) {
+      if (routesParam) {
+        whereSql.push(Prisma.sql`f."route" IN (${Prisma.join(routeFilters)})`);
+      } else {
+        whereSql.push(Prisma.sql`f."route" ILIKE ${`%${routeFilters[0]}%`}`);
+      }
     }
 
     if (operationTypeParam) {
       whereSql.push(Prisma.sql`f."operationTypeId" = ${operationTypeParam}`);
     }
 
+    if (direction === 'arrival') {
+      whereSql.push(Prisma.sql`f."arrivalFlightNumber" IS NOT NULL`);
+    } else if (direction === 'departure') {
+      whereSql.push(Prisma.sql`f."departureFlightNumber" IS NOT NULL`);
+    }
+
     const whereClauseSql = Prisma.join(whereSql, ' AND ');
+
+    const passengerExpr =
+      direction === 'arrival'
+        ? Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END`
+        : direction === 'departure'
+          ? Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`
+          : Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`;
+
+    const seatsExpr =
+      direction === 'arrival'
+        ? Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`
+        : direction === 'departure'
+          ? Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`
+          : Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`;
 
     const summaryQuery = Prisma.sql`
       WITH flight_stats AS (
@@ -79,12 +127,8 @@ export async function GET(request: NextRequest) {
           f.id,
           f."airlineId" AS airline_id,
           f.date,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         WHERE ${whereClauseSql}
@@ -101,12 +145,8 @@ export async function GET(request: NextRequest) {
       WITH flight_stats AS (
         SELECT
           f."airlineId" AS airline_id,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         WHERE ${whereClauseSql}
@@ -128,12 +168,8 @@ export async function GET(request: NextRequest) {
       WITH flight_stats AS (
         SELECT
           date_trunc('day', f.date) AS day,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         WHERE ${whereClauseSql}
@@ -151,12 +187,8 @@ export async function GET(request: NextRequest) {
     const distributionQuery = Prisma.sql`
       WITH flight_stats AS (
         SELECT
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          (CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         WHERE ${whereClauseSql}
@@ -232,9 +264,12 @@ export async function GET(request: NextRequest) {
     const details = await prisma.flight.findMany({
       where: {
         date: { gte: startDate, lte: endDate },
-        ...(airlineParam ? { airline: { icaoCode: airlineParam } } : {}),
-        ...(routeParam ? { route: { contains: routeParam, mode: 'insensitive' } } : {}),
+        ...(airlineCodes.length > 0 ? { airline: { icaoCode: { in: airlineCodes } } } : {}),
+        ...(routesParam && routeFilters.length > 0 ? { route: { in: routeFilters } } : {}),
+        ...(routeParam && !routesParam ? { route: { contains: routeParam, mode: 'insensitive' } } : {}),
         ...(operationTypeParam ? { operationTypeId: operationTypeParam } : {}),
+        ...(direction === 'arrival' ? { arrivalFlightNumber: { not: null } } : {}),
+        ...(direction === 'departure' ? { departureFlightNumber: { not: null } } : {}),
       },
       select: {
         id: true,
@@ -267,12 +302,20 @@ export async function GET(request: NextRequest) {
     const flightsWithLoadFactor = details.map((flight) => {
       const arrivalPassengers = flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
       const departurePassengers = flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
-      const totalPassengers = arrivalPassengers + departurePassengers;
+      const totalPassengers =
+        direction === 'arrival'
+          ? arrivalPassengers
+          : direction === 'departure'
+            ? departurePassengers
+            : arrivalPassengers + departurePassengers;
 
       const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
       const totalSeats =
-        (flight.arrivalFerryIn ? 0 : seatsPerLeg) +
-        (flight.departureFerryOut ? 0 : seatsPerLeg);
+        direction === 'arrival'
+          ? (flight.arrivalFerryIn ? 0 : seatsPerLeg)
+          : direction === 'departure'
+            ? (flight.departureFerryOut ? 0 : seatsPerLeg)
+            : (flight.arrivalFerryIn ? 0 : seatsPerLeg) + (flight.departureFerryOut ? 0 : seatsPerLeg);
 
       const loadFactor = totalSeats > 0
         ? Math.round((totalPassengers / totalSeats) * 100)
@@ -299,9 +342,10 @@ export async function GET(request: NextRequest) {
       filters: {
         dateFrom: dateFromParam,
         dateTo: dateToParam,
-        airline: airlineParam || 'ALL',
-        route: routeParam || '',
+        airlines: airlineCodes,
+        routes: routeFilters,
         operationTypeId: operationTypeParam || 'ALL',
+        direction,
       },
       summary: {
         totalFlights: summaryRow.total_flights || 0,

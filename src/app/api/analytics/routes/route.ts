@@ -4,15 +4,19 @@ import { Prisma } from '@prisma/client';
 import { endOfDayUtc, startOfDayUtc } from '@/lib/dates';
 import { cache, CacheTTL } from '@/lib/cache';
 
-// GET /api/analytics/routes?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO&limit=20&page=1
+// GET /api/analytics/routes?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airlines=ICAO,ICAO&routes=TEXT,TEXT&limit=20&page=1&direction=arrival|departure|all
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const dateFromParam = searchParams.get('dateFrom');
     const dateToParam = searchParams.get('dateTo');
     const airlineParam = searchParams.get('airline');
+    const airlinesParam = searchParams.get('airlines');
     const limitParam = searchParams.get('limit') || '20';
     const pageParam = searchParams.get('page') || '1';
+    const routesParam = searchParams.get('routes');
+    const routeParam = searchParams.get('route');
+    const directionParam = searchParams.get('direction');
 
     if (!dateFromParam || !dateToParam) {
       return NextResponse.json(
@@ -35,7 +39,22 @@ export async function GET(request: NextRequest) {
     const page = Math.max(parseInt(pageParam), 1);
     const offset = (page - 1) * limit;
 
-    const cacheKey = `analytics:routes:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}:${limit}:${page}`;
+    const direction =
+      directionParam === 'arrival' || directionParam === 'departure'
+        ? directionParam
+        : 'all';
+    const airlineCodes = airlinesParam
+      ? airlinesParam.split(',').map((code) => code.trim()).filter(Boolean)
+      : airlineParam
+        ? [airlineParam.trim()]
+        : [];
+    const routeFilters = routesParam
+      ? routesParam.split(',').map((route) => route.trim()).filter(Boolean)
+      : routeParam
+        ? [routeParam.trim()]
+        : [];
+
+    const cacheKey = `analytics:routes:${dateFromParam}:${dateToParam}:${airlineCodes.join('|') || 'ALL'}:${routeFilters.join('|') || 'ALL'}:${limit}:${page}:${direction}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       return NextResponse.json({
@@ -45,63 +64,103 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const whereClause: { airlineId?: string } = {};
-    if (airlineParam) {
-      const airline = await prisma.airline.findFirst({
-        where: { icaoCode: airlineParam },
-        select: { id: true },
-      });
-      if (airline) {
-        whereClause.airlineId = airline.id;
-      }
-    }
-
     const whereSql = [
       Prisma.sql`f.date >= ${dateFrom}`,
       Prisma.sql`f.date <= ${dateTo}`,
     ];
-    if (whereClause.airlineId) {
-      whereSql.push(Prisma.sql`f."airlineId" = ${whereClause.airlineId}`);
+
+    if (airlineCodes.length > 0) {
+      const airlineRows = await prisma.airline.findMany({
+        where: { icaoCode: { in: airlineCodes } },
+        select: { id: true },
+      });
+      if (airlineRows.length === 0) {
+        whereSql.push(Prisma.sql`1 = 0`);
+      } else {
+        const airlineIds = airlineRows.map((row) => row.id);
+        whereSql.push(Prisma.sql`f."airlineId" IN (${Prisma.join(airlineIds)})`);
+      }
+    }
+
+    if (routeFilters.length > 0) {
+      if (routesParam) {
+        whereSql.push(Prisma.sql`f."route" IN (${Prisma.join(routeFilters)})`);
+      } else {
+        whereSql.push(Prisma.sql`f."route" ILIKE ${`%${routeFilters[0]}%`}`);
+      }
+    }
+
+    if (direction === 'arrival') {
+      whereSql.push(Prisma.sql`f."arrivalFlightNumber" IS NOT NULL`);
+    } else if (direction === 'departure') {
+      whereSql.push(Prisma.sql`f."departureFlightNumber" IS NOT NULL`);
     }
 
     const whereClauseSql = Prisma.join(whereSql, ' AND ');
+
+    const arrivalPassengersExpr = Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END`;
+    const departurePassengersExpr = Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`;
+    const arrivalSeatsExpr = Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`;
+    const departureSeatsExpr = Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`;
+
+    const passengerExpr = direction === 'arrival'
+      ? arrivalPassengersExpr
+      : direction === 'departure'
+        ? departurePassengersExpr
+        : Prisma.sql`${arrivalPassengersExpr} + ${departurePassengersExpr}`;
+    const seatsExpr = direction === 'arrival'
+      ? arrivalSeatsExpr
+      : direction === 'departure'
+        ? departureSeatsExpr
+        : Prisma.sql`${arrivalSeatsExpr} + ${departureSeatsExpr}`;
+    const arrivalCountExpr = direction === 'departure'
+      ? Prisma.sql`0`
+      : Prisma.sql`SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int`;
+    const departureCountExpr = direction === 'arrival'
+      ? Prisma.sql`0`
+      : Prisma.sql`SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int`;
+    const frequencyExpr = direction === 'arrival'
+      ? Prisma.sql`SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int`
+      : direction === 'departure'
+        ? Prisma.sql`SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int`
+        : Prisma.sql`COUNT(*)::int`;
+    const totalDelayArrExpr = direction === 'departure'
+      ? Prisma.sql`0::float`
+      : Prisma.sql`SUM(
+          CASE
+            WHEN f."arrivalFlightNumber" IS NOT NULL
+              AND f."arrivalActualTime" IS NOT NULL
+              AND f."arrivalScheduledTime" IS NOT NULL
+              AND f."arrivalActualTime" > f."arrivalScheduledTime"
+            THEN EXTRACT(EPOCH FROM (f."arrivalActualTime" - f."arrivalScheduledTime")) / 60
+            ELSE 0
+          END
+        )::float`;
+    const totalDelayDepExpr = direction === 'arrival'
+      ? Prisma.sql`0::float`
+      : Prisma.sql`SUM(
+          CASE
+            WHEN f."departureFlightNumber" IS NOT NULL
+              AND f."departureActualTime" IS NOT NULL
+              AND f."departureScheduledTime" IS NOT NULL
+              AND f."departureActualTime" > f."departureScheduledTime"
+            THEN EXTRACT(EPOCH FROM (f."departureActualTime" - f."departureScheduledTime")) / 60
+            ELSE 0
+          END
+        )::float`;
 
     const routeStatsQuery = Prisma.sql`
       WITH route_stats AS (
         SELECT
           f.route,
-          COUNT(*)::int AS frequency,
-          SUM(
-            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          SUM(
-            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats,
-          SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_count,
-          SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_count,
+          ${frequencyExpr} AS frequency,
+          SUM(${passengerExpr})::int AS total_passengers,
+          SUM(${seatsExpr})::int AS total_seats,
+          ${arrivalCountExpr} AS arrival_count,
+          ${departureCountExpr} AS departure_count,
           ARRAY_AGG(DISTINCT a.name) AS airlines,
-          SUM(
-            CASE
-              WHEN f."arrivalFlightNumber" IS NOT NULL
-                AND f."arrivalActualTime" IS NOT NULL
-                AND f."arrivalScheduledTime" IS NOT NULL
-                AND f."arrivalActualTime" > f."arrivalScheduledTime"
-              THEN EXTRACT(EPOCH FROM (f."arrivalActualTime" - f."arrivalScheduledTime")) / 60
-              ELSE 0
-            END
-          )::float AS total_delay_arr,
-          SUM(
-            CASE
-              WHEN f."departureFlightNumber" IS NOT NULL
-                AND f."departureActualTime" IS NOT NULL
-                AND f."departureScheduledTime" IS NOT NULL
-                AND f."departureActualTime" > f."departureScheduledTime"
-              THEN EXTRACT(EPOCH FROM (f."departureActualTime" - f."departureScheduledTime")) / 60
-              ELSE 0
-            END
-          )::float AS total_delay_dep
+          ${totalDelayArrExpr} AS total_delay_arr,
+          ${totalDelayDepExpr} AS total_delay_dep
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         LEFT JOIN "Airline" a ON f."airlineId" = a.id
@@ -128,38 +187,14 @@ export async function GET(request: NextRequest) {
       WITH route_stats AS (
         SELECT
           f.route,
-          COUNT(*)::int AS frequency,
-          SUM(
-            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
-          )::int AS total_passengers,
-          SUM(
-            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
-          )::int AS total_seats,
-          SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_count,
-          SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_count,
+          ${frequencyExpr} AS frequency,
+          SUM(${passengerExpr})::int AS total_passengers,
+          SUM(${seatsExpr})::int AS total_seats,
+          ${arrivalCountExpr} AS arrival_count,
+          ${departureCountExpr} AS departure_count,
           ARRAY_AGG(DISTINCT a.name) AS airlines,
-          SUM(
-            CASE
-              WHEN f."arrivalFlightNumber" IS NOT NULL
-                AND f."arrivalActualTime" IS NOT NULL
-                AND f."arrivalScheduledTime" IS NOT NULL
-                AND f."arrivalActualTime" > f."arrivalScheduledTime"
-              THEN EXTRACT(EPOCH FROM (f."arrivalActualTime" - f."arrivalScheduledTime")) / 60
-              ELSE 0
-            END
-          )::float AS total_delay_arr,
-          SUM(
-            CASE
-              WHEN f."departureFlightNumber" IS NOT NULL
-                AND f."departureActualTime" IS NOT NULL
-                AND f."departureScheduledTime" IS NOT NULL
-                AND f."departureActualTime" > f."departureScheduledTime"
-              THEN EXTRACT(EPOCH FROM (f."departureActualTime" - f."departureScheduledTime")) / 60
-              ELSE 0
-            END
-          )::float AS total_delay_dep
+          ${totalDelayArrExpr} AS total_delay_arr,
+          ${totalDelayDepExpr} AS total_delay_dep
         FROM "Flight" f
         LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
         LEFT JOIN "Airline" a ON f."airlineId" = a.id
@@ -304,12 +339,21 @@ export async function GET(request: NextRequest) {
       .slice(0, 10);
 
     const responseData = {
+      period: {
+        from: dateFromParam,
+        to: dateToParam,
+      },
       summary,
       routes: topRoutes,
-      destinationAnalysis,
+      byDestination: destinationAnalysis,
       pagination: {
         page,
         limit,
+      },
+      filters: {
+        airlines: airlineCodes,
+        routes: routeFilters,
+        direction,
       },
     };
 

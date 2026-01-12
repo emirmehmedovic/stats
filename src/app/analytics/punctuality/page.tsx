@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,14 +9,16 @@ import { formatDateDisplay, getDateStringDaysAgo, getTodayDateString } from '@/l
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { X } from 'lucide-react';
 
 interface PunctualityData {
   filters: {
     dateFrom: string;
     dateTo: string;
-    airline: string;
-    route: string;
+    airlines: string[];
+    routes: string[];
     operationTypeId: string;
+    direction: string;
   };
   summary: {
     totalFlights: number;
@@ -66,51 +68,30 @@ interface OperationType {
   name: string;
 }
 
-interface AirlineRoute {
-  route: string;
-  destination: string;
-  country: string;
-}
-
 export default function PunctualityPage() {
   const [dateFrom, setDateFrom] = useState(getDateStringDaysAgo(30));
   const [dateTo, setDateTo] = useState(getTodayDateString());
-  const [selectedAirline, setSelectedAirline] = useState('ALL');
-  const [airlineSearch, setAirlineSearch] = useState('');
-  const [routeFilter, setRouteFilter] = useState('');
-  const [airlineRoutes, setAirlineRoutes] = useState<AirlineRoute[]>([]);
+  const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
+  const [airlineOptions, setAirlineOptions] = useState<Airline[]>([]);
+  const [routeOptions, setRouteOptions] = useState<string[]>([]);
+  const [airlineSelectValue, setAirlineSelectValue] = useState('');
+  const [routeSelectValue, setRouteSelectValue] = useState('');
   const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [selectedOperationType, setSelectedOperationType] = useState('ALL');
   const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [direction, setDirection] = useState<'all' | 'arrival' | 'departure'>('all');
   const [analyticsData, setAnalyticsData] = useState<PunctualityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAirlines = async (search?: string) => {
+  const fetchAirlines = async () => {
     try {
-      const allAirlines: Airline[] = [];
-      let page = 1;
-      let hasMore = true;
-
-      while (hasMore) {
-        const params = new URLSearchParams({
-          page: String(page),
-          limit: '100',
-        });
-        if (search) {
-          params.set('search', search);
-        }
-
-        const response = await fetch(`/api/airlines?${params.toString()}`);
-        if (!response.ok) break;
-
-        const result = await response.json();
-        allAirlines.push(...(result.data || []));
-        hasMore = !!result.pagination?.hasMore;
-        page += 1;
-      }
-
-      setAirlines(allAirlines);
+      const response = await fetch('/api/airlines?page=1&limit=100');
+      if (!response.ok) return;
+      const result = await response.json();
+      setAirlines(result.data || []);
+      setAirlineOptions(result.data || []);
     } catch (err) {
       console.error('Error fetching airlines:', err);
     }
@@ -119,14 +100,6 @@ export default function PunctualityPage() {
   useEffect(() => {
     fetchAirlines();
   }, []);
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      fetchAirlines(airlineSearch);
-    }, 300);
-
-    return () => clearTimeout(handle);
-  }, [airlineSearch]);
 
   useEffect(() => {
     const fetchOperationTypes = async () => {
@@ -145,52 +118,85 @@ export default function PunctualityPage() {
   }, []);
 
   useEffect(() => {
-    const fetchAirlineRoutes = async (airlineId: string) => {
+    const fetchRoutes = async () => {
       try {
-        const response = await fetch(`/api/airlines/${airlineId}/routes`);
+        const response = await fetch('/api/routes?page=1&limit=100');
+        if (!response.ok) return;
         const result = await response.json();
-        if (result.success) {
-          setAirlineRoutes(result.data || []);
-        } else {
-          setAirlineRoutes([]);
-        }
+        setRouteOptions(result.data || []);
       } catch (err) {
-        console.error('Error fetching airline routes:', err);
-        setAirlineRoutes([]);
+        console.error('Error fetching routes:', err);
       }
     };
 
-    if (!selectedAirline || selectedAirline === 'ALL') {
-      setAirlineRoutes([]);
+    fetchRoutes();
+  }, []);
+
+  const fetchAirlineOptions = useCallback(async (search: string) => {
+    const trimmed = search.trim();
+    if (!trimmed) {
+      setAirlineOptions(airlines);
       return;
     }
-
-    const selected = airlines.find((airline) => airline.icaoCode === selectedAirline);
-    if (selected?.id) {
-      fetchAirlineRoutes(selected.id);
-    } else {
-      setAirlineRoutes([]);
+    try {
+      const response = await fetch(`/api/airlines?search=${encodeURIComponent(trimmed)}&page=1&limit=100`);
+      if (!response.ok) return;
+      const result = await response.json();
+      setAirlineOptions(result.data || []);
+    } catch (err) {
+      console.error('Error fetching airlines:', err);
     }
-  }, [selectedAirline, airlines]);
+  }, [airlines]);
+
+  const fetchRouteOptions = useCallback(async (search: string) => {
+    const trimmed = search.trim();
+    if (!trimmed) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/routes?search=${encodeURIComponent(trimmed)}&page=1&limit=100`);
+      if (!response.ok) return;
+      const result = await response.json();
+      setRouteOptions(result.data || []);
+    } catch (err) {
+      console.error('Error fetching routes:', err);
+    }
+  }, []);
+
+  const addAirline = (code: string) => {
+    setSelectedAirlines((prev) => (prev.includes(code) ? prev : [...prev, code]));
+  };
+
+  const removeAirline = (code: string) => {
+    setSelectedAirlines((prev) => prev.filter((item) => item !== code));
+  };
+
+  const addRoute = (route: string) => {
+    setSelectedRoutes((prev) => (prev.includes(route) ? prev : [...prev, route]));
+  };
+
+  const removeRoute = (route: string) => {
+    setSelectedRoutes((prev) => prev.filter((item) => item !== route));
+  };
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        dateFrom,
-        dateTo,
-      });
+      const params = new URLSearchParams({ dateFrom, dateTo });
 
-      if (selectedAirline && selectedAirline !== 'ALL') {
-        params.append('airline', selectedAirline);
+      if (selectedAirlines.length > 0) {
+        params.append('airlines', selectedAirlines.join(','));
       }
-      if (routeFilter.trim()) {
-        params.append('route', routeFilter.trim());
+      if (selectedRoutes.length > 0) {
+        params.append('routes', selectedRoutes.join(','));
       }
       if (selectedOperationType && selectedOperationType !== 'ALL') {
         params.append('operationTypeId', selectedOperationType);
+      }
+      if (direction !== 'all') {
+        params.append('direction', direction);
       }
 
       const response = await fetch(`/api/analytics/punctuality?${params.toString()}`);
@@ -223,9 +229,10 @@ export default function PunctualityPage() {
     const summaryData = [
       ['ANALIZA TAČNOSTI - Aerodrom Tuzla'],
       ['Period:', `${analyticsData.filters.dateFrom} - ${analyticsData.filters.dateTo}`],
-      ['Aviokompanija:', analyticsData.filters.airline],
-      ['Ruta filter:', analyticsData.filters.route || 'SVE'],
+      ['Aviokompanije:', analyticsData.filters.airlines.length ? analyticsData.filters.airlines.join(', ') : 'SVE'],
+      ['Rute:', analyticsData.filters.routes.length ? analyticsData.filters.routes.join(', ') : 'SVE'],
       ['Tip saobraćaja:', operationTypeLabel],
+      ['Smjer:', analyticsData.filters.direction === 'arrival' ? 'Dolazni' : analyticsData.filters.direction === 'departure' ? 'Odlazni' : 'Svi'],
       [],
       ['SAŽETAK'],
       ['Ukupno letova:', analyticsData.summary.totalFlights],
@@ -266,22 +273,24 @@ export default function PunctualityPage() {
   ] : [];
 
   const filteredDailyTrend = analyticsData?.dailyTrend.filter((d) => d.flights > 0) ?? [];
-  const selectedAirlineName =
-    selectedAirline === 'ALL'
-      ? ''
-      : airlines.find((airline) => airline.icaoCode === selectedAirline)?.name || selectedAirline;
   const selectedOperationTypeName =
     selectedOperationType === 'ALL'
       ? ''
       : operationTypes.find((type) => type.id === selectedOperationType)?.name || selectedOperationType;
   const showActiveFilters =
-    selectedAirline !== 'ALL' || routeFilter.trim() || selectedOperationType !== 'ALL';
+    selectedAirlines.length > 0 ||
+    selectedRoutes.length > 0 ||
+    selectedOperationType !== 'ALL' ||
+    direction !== 'all';
+  const directionLabel = direction === 'arrival' ? 'Dolazni' : direction === 'departure' ? 'Odlazni' : 'Svi';
 
   const handleResetFilters = () => {
-    setSelectedAirline('ALL');
-    setRouteFilter('');
+    setSelectedAirlines([]);
+    setSelectedRoutes([]);
+    setAirlineSelectValue('');
+    setRouteSelectValue('');
     setSelectedOperationType('ALL');
-    setAirlineSearch('');
+    setDirection('all');
   };
 
   return (
@@ -314,55 +323,6 @@ export default function PunctualityPage() {
               />
             </div>
             <div>
-              <Label htmlFor="airline">Aviokompanija</Label>
-              <SearchableSelect
-                options={[
-                  { value: 'ALL', label: 'Sve aviokompanije' },
-                  ...airlines.map((airline) => ({
-                    value: airline.icaoCode,
-                    label: `${airline.icaoCode} - ${airline.name}`,
-                    subtitle: airline.name,
-                  })),
-                ]}
-                value={selectedAirline}
-                onChange={(value) => {
-                  setSelectedAirline(value);
-                  setRouteFilter('');
-                }}
-                onSearchChange={setAirlineSearch}
-                placeholder="Izaberite aviokompaniju"
-                searchPlaceholder="Pretraga aviokompanija..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="routeFilter">Ruta</Label>
-              {selectedAirline !== 'ALL' && airlineRoutes.length > 0 ? (
-                <SearchableSelect
-                  options={[
-                    { value: '', label: 'Sve rute' },
-                    ...airlineRoutes.map((route) => ({
-                      value: route.route,
-                      label: route.route,
-                      subtitle: `${route.destination}, ${route.country}`,
-                    })),
-                  ]}
-                  value={routeFilter}
-                  onChange={setRouteFilter}
-                  placeholder="Izaberite rutu"
-                  searchPlaceholder="Pretraga ruta..."
-                />
-              ) : (
-                <Input
-                  id="routeFilter"
-                  type="text"
-                  value={routeFilter}
-                  onChange={(e) => setRouteFilter(e.target.value)}
-                  className="mt-1"
-                  placeholder="npr. TZL-VIE"
-                />
-              )}
-            </div>
-            <div>
               <Label htmlFor="operationType">Tip saobraćaja</Label>
               <select
                 id="operationType"
@@ -377,6 +337,100 @@ export default function PunctualityPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <Label htmlFor="direction">Smjer</Label>
+              <select
+                id="direction"
+                value={direction}
+                onChange={(e) => setDirection(e.target.value as 'all' | 'arrival' | 'departure')}
+                className="w-full mt-1 flex h-10 rounded-xl border border-dark-100 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+              >
+                <option value="all">Svi letovi</option>
+                <option value="arrival">Dolazni</option>
+                <option value="departure">Odlazni</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <Label>Aviokompanije</Label>
+              <SearchableSelect
+                options={airlineOptions.map((airline) => ({
+                  value: airline.icaoCode,
+                  label: airline.icaoCode,
+                  subtitle: airline.name,
+                }))}
+                value={airlineSelectValue}
+                onChange={(value) => {
+                  if (value) {
+                    addAirline(value);
+                  }
+                  setAirlineSelectValue('');
+                }}
+                onSearchChange={(search) => fetchAirlineOptions(search)}
+                placeholder="Izaberite aviokompaniju"
+                searchPlaceholder="Pretraga aviokompanija..."
+                className="mt-2"
+              />
+              {selectedAirlines.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedAirlines.map((code) => (
+                    <span key={code} className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                      {code}
+                      <button type="button" onClick={() => removeAirline(code)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAirlines([])}
+                    className="px-3 py-1.5 rounded-xl text-xs bg-red-100 text-red-700 hover:bg-red-200"
+                  >
+                    Očisti sve
+                  </button>
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>Rute</Label>
+              <SearchableSelect
+                options={routeOptions.map((route) => ({
+                  value: route,
+                  label: route,
+                }))}
+                value={routeSelectValue}
+                onChange={(value) => {
+                  if (value) {
+                    addRoute(value);
+                  }
+                  setRouteSelectValue('');
+                }}
+                onSearchChange={(search) => fetchRouteOptions(search)}
+                placeholder="Izaberite rutu"
+                searchPlaceholder="Pretraga ruta..."
+                className="mt-2"
+              />
+              {selectedRoutes.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedRoutes.map((route) => (
+                    <span key={route} className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                      {route}
+                      <button type="button" onClick={() => removeRoute(route)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRoutes([])}
+                    className="px-3 py-1.5 rounded-xl text-xs bg-red-100 text-red-700 hover:bg-red-200"
+                  >
+                    Očisti sve rute
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex gap-3 mt-6">
@@ -403,19 +457,24 @@ export default function PunctualityPage() {
           </div>
           {showActiveFilters && (
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-              {selectedAirline !== 'ALL' && (
+              {selectedAirlines.length > 0 && (
                 <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                  Kompanija: {selectedAirline} {selectedAirlineName ? `(${selectedAirlineName})` : ''}
+                  Kompanije: {selectedAirlines.join(', ')}
                 </span>
               )}
-              {routeFilter.trim() && (
+              {selectedRoutes.length > 0 && (
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                  Ruta: {routeFilter.trim()}
+                  Rute: {selectedRoutes.join(', ')}
                 </span>
               )}
               {selectedOperationType !== 'ALL' && (
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
                   Saobraćaj: {selectedOperationTypeName}
+                </span>
+              )}
+              {direction !== 'all' && (
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                  Smjer: {directionLabel}
                 </span>
               )}
             </div>
