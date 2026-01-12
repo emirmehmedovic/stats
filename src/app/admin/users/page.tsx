@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database, Shuffle } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/dates';
 import { RouteMigrationModal } from '@/components/admin/RouteMigrationModal';
+import { FlightTypeMigrationModal } from '@/components/admin/FlightTypeMigrationModal';
 
 interface User {
   id: string;
@@ -25,6 +26,7 @@ export default function AdminUsersPage() {
   const [bulkVerifyMessage, setBulkVerifyMessage] = useState<string | null>(null);
   const [showBulkVerifyModal, setShowBulkVerifyModal] = useState(false);
   const [showRouteMigrationModal, setShowRouteMigrationModal] = useState(false);
+  const [showFlightTypeMigrationModal, setShowFlightTypeMigrationModal] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -245,6 +247,13 @@ export default function AdminUsersPage() {
               <p className="text-dark-500">Kreirajte i upravljajte korisničkim nalozima</p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowFlightTypeMigrationModal(true)}
+                className="flex items-center gap-2 px-5 py-3 border border-emerald-300 text-emerald-800 bg-emerald-50 font-semibold rounded-2xl hover:bg-emerald-100 transition-all shadow-soft"
+              >
+                <Shuffle className="w-5 h-5" />
+                Migriraj tipove leta
+              </button>
               <button
                 onClick={() => setShowRouteMigrationModal(true)}
                 className="flex items-center gap-2 px-5 py-3 border border-purple-300 text-purple-800 bg-purple-50 font-semibold rounded-2xl hover:bg-purple-100 transition-all shadow-soft"
@@ -483,6 +492,10 @@ export default function AdminUsersPage() {
         <RouteMigrationModal
           isOpen={showRouteMigrationModal}
           onClose={() => setShowRouteMigrationModal(false)}
+        />
+        <FlightTypeMigrationModal
+          isOpen={showFlightTypeMigrationModal}
+          onClose={() => setShowFlightTypeMigrationModal(false)}
         />
       </div>
   );

@@ -414,6 +414,12 @@ export async function PUT(
       departureLoadFactor = Math.round((flightUpdate.departurePassengers / capacity) * 10000) / 100;
     }
 
+    const flightModel = (prisma as any)?._dmmf?.datamodel?.models?.find((model: any) => model.name === 'Flight');
+    const hasDepartureNoShow = flightModel?.fields?.some((field: any) => field.name === 'departureNoShow');
+    if (!hasDepartureNoShow) {
+      delete (flightUpdate as any).departureNoShow;
+    }
+
     const flight = await prisma.flight.update({
       where: { id },
       data: {

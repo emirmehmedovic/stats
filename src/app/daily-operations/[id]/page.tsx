@@ -2,7 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Plane, Clock, Users, Package, Mail, Calendar, Building2, MapPin, Settings, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Plane, Clock, Users, Package, Mail, Calendar, Building2, MapPin, Settings, AlertCircle, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,6 +97,7 @@ export default function FlightDataEntryPage() {
   const [flight, setFlight] = useState<Flight | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [airlines, setAirlines] = useState<Array<{ id: string; name: string; icaoCode: string }>>([]);
   const [aircraftTypes, setAircraftTypes] = useState<Array<{ id: string; model: string; seats: number; mtow: number }>>([]);
@@ -618,6 +619,35 @@ export default function FlightDataEntryPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (isDeleting || isReadOnly) return;
+    const confirmed = window.confirm('Da li ste sigurni da želite obrisati ovaj let?');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/flights/${flightId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast('Let je uspješno obrisan.', 'success');
+        router.push('/daily-operations');
+      } else {
+        setError(result.error || 'Greška pri brisanju leta');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Greška pri brisanju leta');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleWarningConfirm = () => {
     setShowWarningModal(false);
     setPendingSubmit(false);
@@ -757,6 +787,7 @@ export default function FlightDataEntryPage() {
     if (!value) return '-';
     return formatDateTimeDisplay(value);
   };
+  const formId = 'daily-operations-form';
   const getDelaySummary = (delays: DelayInput[]) => {
     const summary = delays
       .map((delay) => {
@@ -772,98 +803,178 @@ export default function FlightDataEntryPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
-      {/* Hero Header - Izdvojen i vizuelno naglašen */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-8 border-4 border-dark-700">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
-        <div className="relative z-10">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/daily-operations')}
-            className="flex items-center gap-2 mb-6 bg-white/10 border-white/20 text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Nazad na pregled
-          </Button>
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-3 font-semibold">📋 OPŠTE INFORMACIJE O LETU</p>
-              <h1 className="text-4xl font-bold mb-4">Dnevne operacije</h1>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-base">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-medium">Ruta:</span>
-                  <span className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur border border-white/30 font-bold text-lg">
-                    {String(routeDisplay || '')}
-                  </span>
+      <div className="p-8 space-y-8">
+        {/* Back Button */}
+        <Button
+          variant="outline"
+          onClick={() => router.push('/daily-operations')}
+          className="flex items-center gap-2 hover:bg-slate-100 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Nazad na pregled
+        </Button>
+
+        {/* Flight Info Header Card */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 to-dark-800 text-white shadow-soft-xl">
+          {/* Decorative blobs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 opacity-10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+          <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-500 opacity-10 rounded-full blur-3xl -ml-24 -mb-24"></div>
+
+          <div className="relative z-10 p-8">
+            {/* Title & Status Row */}
+            <div className="flex flex-col lg:flex-row items-start justify-between gap-6 mb-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+                    <Plane className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Flight Operations</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-medium">Aviokompanija:</span>
-                  <span className="font-semibold">
-                    {flight.airline?.name || ''} ({flight.airline?.icaoCode || ''})
-                  </span>
+                <h1 className="text-3xl font-bold">Dnevne operacije - {routeDisplay}</h1>
+              </div>
+              <div className="flex flex-col items-start lg:items-end gap-3 w-full lg:w-auto">
+                <div className="flex flex-wrap gap-2 justify-start lg:justify-end">
+                  {flight.isLocked && (
+                    <span className="px-4 py-2 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 text-sm font-semibold flex items-center gap-2">
+                      🔒 Zaključan
+                    </span>
+                  )}
+                  {flight.isVerified && (
+                    <span className="px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-sm font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Verifikovan
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-medium">Datum:</span>
-                  <span className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur border border-white/30 font-bold">
-                    {flightDateDisplay}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-medium">Tip aviona:</span>
-                  <span className="font-semibold">
-                    {flight.aircraftType?.model || '-'}
-                  </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="submit"
+                    form={formId}
+                    disabled={isSaving || isReadOnly}
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                  >
+                    {isSaving ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Čuvam...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Save className="w-4 h-4" />
+                        Sačuvaj
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting || isReadOnly}
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-100 border border-red-400/30"
+                  >
+                    {isDeleting ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-red-100 border-t-transparent rounded-full animate-spin" />
+                        Brišem...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Trash2 className="w-4 h-4" />
+                        Obriši
+                      </span>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
-            {flight.isLocked && (
-              <div className="px-6 py-3 rounded-2xl bg-red-500/20 border-2 border-red-400/40 text-red-200 font-bold">
-                🔒 Let zaključan
+
+            {/* Flight Details Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide font-medium">Ruta</p>
+                <p className="text-xl font-bold">{routeDisplay || '-'}</p>
               </div>
-            )}
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide font-medium">Broj leta</p>
+                <p className="text-lg font-bold">{displayValue(formData.arrivalFlightNumber)}</p>
+                <p className="text-xs text-slate-300">ARR</p>
+                <p className="text-lg font-bold mt-2">{displayValue(formData.departureFlightNumber)}</p>
+                <p className="text-xs text-slate-300">DEP</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide font-medium">Aviokompanija</p>
+                <p className="text-xl font-bold">{flight.airline?.icaoCode || '-'}</p>
+                <p className="text-xs text-slate-300">{flight.airline?.name || ''}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide font-medium">Datum</p>
+                <p className="text-xl font-bold">{flightDateDisplay}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide font-medium">Avion</p>
+                <p className="text-xl font-bold">{flight.aircraftType?.model || '-'}</p>
+                {flight.registration && (
+                  <p className="text-xs text-slate-300">{flight.registration}</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {isVerificationLocked && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-          <p className="text-sm text-amber-800">
-            Verifikujte prethodne operacije{pendingVerificationDate ? ` za ${formatDateString(pendingVerificationDate)}` : ''}
-            na stranici Dnevne operacije kako biste mogli unositi podatke za današnje letove.
-          </p>
-        </div>
-      )}
-      {flight.isVerified && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
-          <div className="text-sm text-emerald-800">
-            <p>Let je verifikovan i više se ne može uređivati.</p>
-            {flight.verifiedByUser && (
-              <p className="text-xs text-emerald-700 mt-1">
-                Verifikovao: {flight.verifiedByUser.name || flight.verifiedByUser.email}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <fieldset disabled={isReadOnly} className="space-y-6">
-        {/* Basic Information Section */}
-        <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl shadow-lg border-4 border-slate-300 p-8">
-          <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-200">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-md">
-              <Settings className="w-7 h-7 text-slate-700" />
+        {/* Alert Cards */}
+        {isVerificationLocked && (
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-6 flex items-start gap-4 shadow-soft">
+            <div className="p-3 bg-amber-100 rounded-2xl">
+              <AlertCircle className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">⚙️ Osnovne informacije</h2>
-              <p className="text-sm text-slate-600 font-medium">Opšti podaci o letu</p>
+              <p className="font-semibold text-amber-900 mb-1">Potrebna verifikacija</p>
+              <p className="text-sm text-amber-800">
+                Verifikujte prethodne operacije{pendingVerificationDate ? ` za ${formatDateString(pendingVerificationDate)}` : ''}
+                na stranici Dnevne operacije kako biste mogli unositi podatke za današnje letove.
+              </p>
             </div>
           </div>
+        )}
+        {flight.isVerified && (
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-3xl p-6 flex items-start gap-4 shadow-soft">
+            <div className="p-3 bg-emerald-100 rounded-2xl">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-emerald-900 mb-1">Let verifikovan</p>
+              <p className="text-sm text-emerald-800">
+                Let je verifikovan i više se ne može uređivati.
+              </p>
+              {flight.verifiedByUser && (
+                <p className="text-xs text-emerald-700 mt-2 font-medium">
+                  Verifikovao: {flight.verifiedByUser.name || flight.verifiedByUser.email}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Form */}
+        <form id={formId} onSubmit={handleSubmit} className="space-y-8">
+          <fieldset disabled={isReadOnly} className="space-y-8">
+            {/* Basic Information Section */}
+            <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border border-slate-200">
+              {/* Decorative blob */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-slate-100 opacity-50 rounded-full blur-3xl -mr-20 -mt-20"></div>
+
+              <div className="relative z-10 p-8">
+                {/* Section Header */}
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-100">
+                  <div className="p-3.5 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl shadow-sm">
+                    <Settings className="w-6 h-6 text-slate-700" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Osnovne informacije</h2>
+                    <p className="text-sm text-slate-600 font-medium">Opšti podaci o letu</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Date - Read Only */}
             <div>
               <Label>
@@ -918,7 +1029,7 @@ export default function FlightDataEntryPage() {
                 <select
                   value={formData.route}
                   onChange={(e) => handleChange('route', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-white text-slate-900"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-white text-slate-900"
                   disabled={isReadOnly}
                 >
                   <option value="">Odaberi rutu</option>
@@ -1007,7 +1118,7 @@ export default function FlightDataEntryPage() {
               <select
                 value={formData.operationTypeId}
                 onChange={(e) => handleChange('operationTypeId', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Izaberite tip operacije</option>
                 {operationTypes.map((type) => (
@@ -1024,7 +1135,7 @@ export default function FlightDataEntryPage() {
               <select
                 value={formData.flightTypeId}
                 onChange={(e) => handleChange('flightTypeId', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!formData.operationTypeId || availableFlightTypes.length === 0}
               >
                 <option value="">
@@ -1042,516 +1153,623 @@ export default function FlightDataEntryPage() {
                 </p>
               )}
             </div>
-            </div>
-        </div>
-
-        {/* Departure Section - Vizuelno izdvojena */}
-        <div className="bg-gradient-to-br from-slate-100 to-white rounded-3xl shadow-lg border-4 border-slate-400 p-8">
-          <div 
-            className="flex items-center justify-between mb-8 pb-6 border-b-2 border-slate-300 cursor-pointer"
-            onClick={() => setIsDepartureExpanded(!isDepartureExpanded)}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-400 flex items-center justify-center shadow-md">
-                <Plane className="w-7 h-7 text-slate-700 transform -rotate-45" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">🛫 Odlazak (Departure)</h2>
-                <p className="text-sm text-slate-700 font-medium">Podaci o odlasku leta</p>
+                </div>
               </div>
             </div>
-            <ChevronDown 
-              className={`w-6 h-6 text-slate-700 transition-transform duration-300 ${
-                isDepartureExpanded ? 'transform rotate-180' : ''
-              }`}
-            />
-          </div>
 
-          {isDepartureExpanded && (
-          <>
-            {/* LDM Message Input */}
-            <div className="mb-6">
-              <LdmMessageInput
-                phase="departure"
-                onDataParsed={(data) => handleLdmDataParsed(data, 'departure')}
-              />
-            </div>
+            {/* Departure Section */}
+            <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border-l-8 border-orange-400">
+              {/* Decorative blobs */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100 opacity-40 rounded-full blur-3xl -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-100 opacity-40 rounded-full blur-3xl -ml-24 -mb-24"></div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div>
-              <Label htmlFor="departureFlightNumber">Broj leta</Label>
-              <Input
-                id="departureFlightNumber"
-                value={formData.departureFlightNumber}
-                onChange={(e) => handleChange('departureFlightNumber', e.target.value)}
-                placeholder="W62830"
-              />
-            </div>
+              <div className="relative z-10">
+                {/* Section Header - Collapsible */}
+                <div
+                  className="flex items-center justify-between p-8 cursor-pointer hover:bg-orange-50/30 transition-colors group"
+                  onClick={() => setIsDepartureExpanded(!isDepartureExpanded)}
+                  role="button"
+                  aria-expanded={isDepartureExpanded}
+                  aria-controls="departure-section"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3.5 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                      <Plane className="w-6 h-6 text-orange-600 transform -rotate-45" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-orange-900">Odlazak (Departure)</h2>
+                      <p className="text-sm text-orange-700 font-medium">Podaci o odlasku leta</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                      {isDepartureExpanded ? 'Kliknite za zatvaranje' : 'Kliknite za otvaranje'}
+                    </span>
+                    <ChevronDown
+                      className={`w-6 h-6 text-orange-600 transition-all duration-300 group-hover:scale-110 ${
+                        isDepartureExpanded ? 'transform rotate-180' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <Label htmlFor="departureScheduledTime" className="text-base font-semibold">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Planirano vrijeme
-              </Label>
-              <Input
-                id="departureScheduledTime"
-                type="datetime-local"
-                value={formData.departureScheduledTime}
-                onChange={(e) => handleChange('departureScheduledTime', e.target.value)}
-                className="text-base font-medium"
-                disabled={flight.isLocked}
-              />
-            </div>
+                <div
+                  className={`px-8 pb-8 transition-[max-height,opacity,transform] duration-300 ease-in-out overflow-hidden ${
+                    isDepartureExpanded ? 'max-h-[3000px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
+                  }`}
+                  id="departure-section"
+                  aria-hidden={!isDepartureExpanded}
+                >
+                  <div className="space-y-6 pt-2">
+                    <div className="rounded-2xl border border-orange-200/60 bg-white/70 p-4 shadow-sm">
+                      <LdmMessageInput
+                        phase="departure"
+                        onDataParsed={(data) => handleLdmDataParsed(data, 'departure')}
+                      />
+                    </div>
 
-            <div>
-              <Label htmlFor="departureActualTime" className="text-base font-semibold">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Stvarno vrijeme
-              </Label>
-              <Input
-                id="departureActualTime"
-                type="datetime-local"
-                value={formData.departureActualTime}
-                onChange={(e) => handleChange('departureActualTime', e.target.value)}
-                className="text-base font-medium"
-                disabled={flight.isLocked}
-              />
-            </div>
-            </div>
+                    <div className="rounded-2xl border border-orange-200/60 bg-white/70 p-5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label htmlFor="departureFlightNumber">Broj leta</Label>
+                          <Input
+                            id="departureFlightNumber"
+                            value={formData.departureFlightNumber}
+                            onChange={(e) => handleChange('departureFlightNumber', e.target.value)}
+                            placeholder="W62830"
+                          />
+                        </div>
 
-            {/* Door Closing Time - CRITICAL PARAMETER */}
-            <div className="mt-4 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl">
-              <Label htmlFor="departureDoorClosingTime" className="text-base font-semibold flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4" />
-                ⚠️ Vrijeme zatvaranja vrata
-              </Label>
-              <p className="text-xs text-amber-700 mb-3">Kritičan parametar tačnosti - ako su vrata zatvorena na vrijeme, niste odgovorni za dalja kašnjenja</p>
-              <Input
-                id="departureDoorClosingTime"
-                type="datetime-local"
-                value={formData.departureDoorClosingTime}
-                onChange={(e) => handleChange('departureDoorClosingTime', e.target.value)}
-                className="text-base font-medium"
-                disabled={flight.isLocked}
-              />
-            </div>
+                        <div>
+                          <Label htmlFor="departureScheduledTime" className="text-base font-semibold">
+                            <Clock className="w-4 h-4 inline mr-1" />
+                            Planirano vrijeme
+                          </Label>
+                          <Input
+                            id="departureScheduledTime"
+                            type="datetime-local"
+                            value={formData.departureScheduledTime}
+                            onChange={(e) => handleChange('departureScheduledTime', e.target.value)}
+                            className="text-base font-medium"
+                            disabled={flight.isLocked}
+                          />
+                        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div>
-              <Label htmlFor="departureStatus">Status odlaska</Label>
-              <select
-                id="departureStatus"
-                value={formData.departureStatus}
-                onChange={(e) => handleChange('departureStatus', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              >
-                <option value="OPERATED">Realizovan</option>
-                <option value="CANCELLED">Otkazan</option>
-                <option value="DIVERTED">Divertovan</option>
-                <option value="SCHEDULED">Zakazan</option>
-              </select>
-            </div>
+                        <div>
+                          <Label htmlFor="departureActualTime" className="text-base font-semibold">
+                            <Clock className="w-4 h-4 inline mr-1" />
+                            Stvarno vrijeme
+                          </Label>
+                          <Input
+                            id="departureActualTime"
+                            type="datetime-local"
+                            value={formData.departureActualTime}
+                            onChange={(e) => handleChange('departureActualTime', e.target.value)}
+                            className="text-base font-medium"
+                            disabled={flight.isLocked}
+                          />
+                        </div>
 
-            {formData.departureStatus === 'CANCELLED' && (
-              <div className="md:col-span-2 lg:col-span-3">
-                <Label htmlFor="departureCancelReason">Razlog otkazivanja odlaska</Label>
-                <Input
-                  id="departureCancelReason"
-                  value={formData.departureCancelReason}
-                  onChange={(e) => handleChange('departureCancelReason', e.target.value)}
-                  placeholder="Unesite razlog otkazivanja"
-                />
+                        <div>
+                          <Label htmlFor="departureStatus" className="text-orange-900 font-semibold">
+                            Status odlaska
+                            <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                              Obavezno
+                            </span>
+                          </Label>
+                          <select
+                            id="departureStatus"
+                            value={formData.departureStatus}
+                            onChange={(e) => handleChange('departureStatus', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                          >
+                            <option value="OPERATED">Realizovan</option>
+                            <option value="CANCELLED">Otkazan</option>
+                            <option value="DIVERTED">Divertovan</option>
+                            <option value="SCHEDULED">Zakazan</option>
+                          </select>
+                          <p className="mt-1 text-xs text-orange-700">
+                            Odaberite status odlaska prije čuvanja.
+                          </p>
+                        </div>
+
+                        {formData.departureStatus === 'CANCELLED' && (
+                          <div className="md:col-span-2 lg:col-span-3">
+                            <Label htmlFor="departureCancelReason">Razlog otkazivanja odlaska</Label>
+                            <Input
+                              id="departureCancelReason"
+                              value={formData.departureCancelReason}
+                              onChange={(e) => handleChange('departureCancelReason', e.target.value)}
+                              placeholder="Unesite razlog otkazivanja"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl">
+                      <Label htmlFor="departureDoorClosingTime" className="text-base font-semibold flex items-center gap-2 mb-2">
+                        <Clock className="w-4 h-4" />
+                        ⚠️ Vrijeme zatvaranja vrata
+                      </Label>
+                      <p className="text-xs text-amber-700 mb-3">
+                        Kritičan parametar tačnosti - ako su vrata zatvorena na vrijeme, niste odgovorni za dalja kašnjenja
+                      </p>
+                      <Input
+                        id="departureDoorClosingTime"
+                        type="datetime-local"
+                        value={formData.departureDoorClosingTime}
+                        onChange={(e) => handleChange('departureDoorClosingTime', e.target.value)}
+                        className="text-base font-medium"
+                        disabled={flight.isLocked}
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-orange-200/60 bg-orange-50/50 p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-orange-700" />
+                        <h3 className="text-sm font-semibold text-orange-900">Putnici</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div className="md:col-span-2 lg:col-span-3">
+                          <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={formData.departureFerryOut}
+                              onChange={(e) => handleFerryToggle('departureFerryOut', e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300"
+                              disabled={flight.isLocked}
+                            />
+                            Ferry OUT (prazan let bez putnika)
+                          </label>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <Label htmlFor="departurePassengers">
+                            <Users className="w-4 h-4 inline mr-1" />
+                            Ukupan broj putnika
+                          </Label>
+                          <Input
+                            id="departurePassengers"
+                            type="number"
+                            min="0"
+                            max="999"
+                            value={formData.departurePassengers}
+                            onChange={(e) => handleChange('departurePassengers', e.target.value)}
+                            placeholder="0"
+                            disabled={formData.departureFerryOut}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="departureNoShow" className="text-orange-900 font-semibold">
+                            No Show
+                            <span className="text-xs text-slate-500 ml-1">(automatski iz boardinga)</span>
+                          </Label>
+                          <Input
+                            id="departureNoShow"
+                            type="number"
+                            min="0"
+                            value={formData.departureNoShow}
+                            onChange={(e) => handleChange('departureNoShow', e.target.value)}
+                            placeholder="0"
+                            className="border-orange-200 focus-visible:ring-orange-300 bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="departureInfants">
+                            Bebe u naručju
+                            <span className="text-xs text-slate-500 ml-1">(ne računaju se u putnike)</span>
+                          </Label>
+                          <Input
+                            id="departureInfants"
+                            type="number"
+                            min="0"
+                            value={formData.departureInfants}
+                            onChange={(e) => handleChange('departureInfants', e.target.value)}
+                            placeholder="0"
+                            disabled={formData.departureFerryOut}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-orange-200/60 bg-white/70 p-4">
+                        <PassengerBreakdownInput
+                          totalPassengers={parseInt(formData.departurePassengers) || 0}
+                          male={parseInt(formData.departureMalePassengers) || 0}
+                          female={parseInt(formData.departureFemalePassengers) || 0}
+                          children={parseInt(formData.departureChildren) || 0}
+                          onChange={(breakdown) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              departureMalePassengers: breakdown.male.toString(),
+                              departureFemalePassengers: breakdown.female.toString(),
+                              departureChildren: breakdown.children.toString(),
+                            }));
+                          }}
+                          label="Breakdown putnika (odlazak)"
+                          disabled={formData.departureFerryOut}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-orange-200/60 bg-white/70 p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Package className="w-4 h-4 text-orange-700" />
+                        <h3 className="text-sm font-semibold text-orange-900">Prtljag i teret</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label htmlFor="departureBaggageCount">
+                            <Package className="w-4 h-4 inline mr-1" />
+                            Broj prtljaga (komadi)
+                          </Label>
+                          <Input
+                            id="departureBaggageCount"
+                            type="number"
+                            min="0"
+                            value={formData.departureBaggageCount}
+                            onChange={(e) => handleChange('departureBaggageCount', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="departureBaggage">
+                            <Package className="w-4 h-4 inline mr-1" />
+                            Prtljag (kg)
+                          </Label>
+                          <Input
+                            id="departureBaggage"
+                            type="number"
+                            min="0"
+                            value={formData.departureBaggage}
+                            onChange={(e) => handleChange('departureBaggage', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="departureCargo">Cargo (kg)</Label>
+                          <Input
+                            id="departureCargo"
+                            type="number"
+                            min="0"
+                            value={formData.departureCargo}
+                            onChange={(e) => handleChange('departureCargo', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="departureMail">
+                            <Mail className="w-4 h-4 inline mr-1" />
+                            Pošta (kg)
+                          </Label>
+                          <Input
+                            id="departureMail"
+                            type="number"
+                            min="0"
+                            value={formData.departureMail}
+                            onChange={(e) => handleChange('departureMail', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-orange-200/60 bg-orange-50/50 p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-orange-700" />
+                          <h3 className="text-sm font-semibold text-orange-900">Kašnjenja (DEP)</h3>
+                        </div>
+                        <span className="text-xs text-orange-700 font-semibold">
+                          {getDelaySummary(departureDelays)}
+                        </span>
+                      </div>
+                      <MultipleDelaysInput
+                        phase="DEP"
+                        airlineId={formData.airlineId}
+                        delays={departureDelays}
+                        onChange={setDepartureDelays}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-
-            <div className="md:col-span-2 lg:col-span-3">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={formData.departureFerryOut}
-                  onChange={(e) => handleFerryToggle('departureFerryOut', e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
-                  disabled={flight.isLocked}
-                />
-                Ferry OUT (prazan let bez putnika)
-              </label>
             </div>
 
-            <div className="md:col-span-2 lg:col-span-3">
-              <Label htmlFor="departurePassengers">
-                <Users className="w-4 h-4 inline mr-1" />
-                Ukupan broj putnika
-              </Label>
-              <Input
-                id="departurePassengers"
-                type="number"
-                min="0"
-                max="999"
-                value={formData.departurePassengers}
-                onChange={(e) => handleChange('departurePassengers', e.target.value)}
-                placeholder="0"
-                disabled={formData.departureFerryOut}
-              />
-            </div>
+            {/* Arrival Section */}
+            <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border-l-8 border-blue-400">
+              {/* Decorative blobs */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 opacity-40 rounded-full blur-3xl -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-100 opacity-40 rounded-full blur-3xl -ml-24 -mb-24"></div>
 
-            {/* Passenger Breakdown */}
-            <div className="md:col-span-2 lg:col-span-3">
-              <PassengerBreakdownInput
-                totalPassengers={parseInt(formData.departurePassengers) || 0}
-                male={parseInt(formData.departureMalePassengers) || 0}
-                female={parseInt(formData.departureFemalePassengers) || 0}
-                children={parseInt(formData.departureChildren) || 0}
-                onChange={(breakdown) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    departureMalePassengers: breakdown.male.toString(),
-                    departureFemalePassengers: breakdown.female.toString(),
-                    departureChildren: breakdown.children.toString(),
-                  }));
-                }}
-                label="Breakdown putnika (odlazak)"
-                disabled={formData.departureFerryOut}
-              />
-            </div>
+              <div className="relative z-10">
+                {/* Section Header - Collapsible */}
+                <div
+                  className="flex items-center justify-between p-8 cursor-pointer hover:bg-blue-50/30 transition-colors group"
+                  onClick={() => setIsArrivalExpanded(!isArrivalExpanded)}
+                  role="button"
+                  aria-expanded={isArrivalExpanded}
+                  aria-controls="arrival-section"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3.5 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                      <Plane className="w-6 h-6 text-blue-600 transform rotate-[135deg]" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-blue-900">Dolazak (Arrival)</h2>
+                      <p className="text-sm text-blue-700 font-medium">Podaci o dolasku leta</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      {isArrivalExpanded ? 'Kliknite za zatvaranje' : 'Kliknite za otvaranje'}
+                    </span>
+                    <ChevronDown
+                      className={`w-6 h-6 text-blue-600 transition-all duration-300 group-hover:scale-110 ${
+                        isArrivalExpanded ? 'transform rotate-180' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <Label htmlFor="departureInfants">
-                Bebe u naručju
-                <span className="text-xs text-slate-500 ml-1">(ne računaju se u putnike)</span>
-              </Label>
-              <Input
-                id="departureInfants"
-                type="number"
-                min="0"
-                value={formData.departureInfants}
-                onChange={(e) => handleChange('departureInfants', e.target.value)}
-                placeholder="0"
-                disabled={formData.departureFerryOut}
-              />
-            </div>
+                <div
+                  className={`px-8 pb-8 transition-[max-height,opacity,transform] duration-300 ease-in-out overflow-hidden ${
+                    isArrivalExpanded ? 'max-h-[3000px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
+                  }`}
+                  id="arrival-section"
+                  aria-hidden={!isArrivalExpanded}
+                >
+                  <div className="space-y-6 pt-2">
+                    <div className="rounded-2xl border border-blue-200/60 bg-white/70 p-4 shadow-sm">
+                      <LdmMessageInput
+                        phase="arrival"
+                        onDataParsed={(data) => handleLdmDataParsed(data, 'arrival')}
+                      />
+                    </div>
 
-            <div>
-              <Label htmlFor="departureNoShow">
-                No Show
-                <span className="text-xs text-slate-500 ml-1">(automatski iz boardinga)</span>
-              </Label>
-              <Input
-                id="departureNoShow"
-                type="number"
-                min="0"
-                value={formData.departureNoShow}
-                onChange={(e) => handleChange('departureNoShow', e.target.value)}
-                placeholder="0"
-              />
-            </div>
+                    <div className="rounded-2xl border border-blue-200/60 bg-white/70 p-5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label htmlFor="arrivalFlightNumber">Broj leta</Label>
+                          <Input
+                            id="arrivalFlightNumber"
+                            value={formData.arrivalFlightNumber}
+                            onChange={(e) => handleChange('arrivalFlightNumber', e.target.value)}
+                            placeholder="W62829"
+                          />
+                        </div>
 
-            <div>
-              <Label htmlFor="departureBaggageCount">
-                <Package className="w-4 h-4 inline mr-1" />
-                Broj prtljaga (komadi)
-              </Label>
-              <Input
-                id="departureBaggageCount"
-                type="number"
-                min="0"
-                value={formData.departureBaggageCount}
-                onChange={(e) => handleChange('departureBaggageCount', e.target.value)}
-                placeholder="0"
-              />
-            </div>
+                        <div>
+                          <Label htmlFor="arrivalScheduledTime" className="text-base font-semibold">
+                            <Clock className="w-4 h-4 inline mr-1" />
+                            Planirano vrijeme
+                          </Label>
+                          <Input
+                            id="arrivalScheduledTime"
+                            type="datetime-local"
+                            value={formData.arrivalScheduledTime}
+                            onChange={(e) => handleChange('arrivalScheduledTime', e.target.value)}
+                            className="text-base font-medium"
+                            disabled={flight.isLocked}
+                          />
+                        </div>
 
-            <div>
-              <Label htmlFor="departureBaggage">
-                <Package className="w-4 h-4 inline mr-1" />
-                Prtljag (kg)
-              </Label>
-              <Input
-                id="departureBaggage"
-                type="number"
-                min="0"
-                value={formData.departureBaggage}
-                onChange={(e) => handleChange('departureBaggage', e.target.value)}
-                placeholder="0"
-              />
-            </div>
+                        <div>
+                          <Label htmlFor="arrivalActualTime" className="text-base font-semibold">
+                            <Clock className="w-4 h-4 inline mr-1" />
+                            Stvarno vrijeme
+                          </Label>
+                          <Input
+                            id="arrivalActualTime"
+                            type="datetime-local"
+                            value={formData.arrivalActualTime}
+                            onChange={(e) => handleChange('arrivalActualTime', e.target.value)}
+                            className="text-base font-medium"
+                            disabled={flight.isLocked}
+                          />
+                        </div>
 
-            <div>
-              <Label htmlFor="departureCargo">Cargo (kg)</Label>
-              <Input
-                id="departureCargo"
-                type="number"
-                min="0"
-                value={formData.departureCargo}
-                onChange={(e) => handleChange('departureCargo', e.target.value)}
-                placeholder="0"
-              />
-            </div>
+                        <div>
+                          <Label htmlFor="arrivalStatus" className="text-blue-900 font-semibold">
+                            Status dolaska
+                            <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                              Obavezno
+                            </span>
+                          </Label>
+                          <select
+                            id="arrivalStatus"
+                            value={formData.arrivalStatus}
+                            onChange={(e) => handleChange('arrivalStatus', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                          >
+                            <option value="OPERATED">Realizovan</option>
+                            <option value="CANCELLED">Otkazan</option>
+                            <option value="DIVERTED">Divertovan</option>
+                            <option value="SCHEDULED">Zakazan</option>
+                          </select>
+                          <p className="mt-1 text-xs text-blue-700">
+                            Odaberite status dolaska prije čuvanja.
+                          </p>
+                        </div>
 
-            <div>
-              <Label htmlFor="departureMail">
-                <Mail className="w-4 h-4 inline mr-1" />
-                Pošta (kg)
-              </Label>
-              <Input
-                id="departureMail"
-                type="number"
-                min="0"
-                value={formData.departureMail}
-                onChange={(e) => handleChange('departureMail', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            </div>
+                        {formData.arrivalStatus === 'CANCELLED' && (
+                          <div className="md:col-span-2 lg:col-span-3">
+                            <Label htmlFor="arrivalCancelReason">Razlog otkazivanja dolaska</Label>
+                            <Input
+                              id="arrivalCancelReason"
+                              value={formData.arrivalCancelReason}
+                              onChange={(e) => handleChange('arrivalCancelReason', e.target.value)}
+                              placeholder="Unesite razlog otkazivanja"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-            {/* Departure Delays - Multiple */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <MultipleDelaysInput
-                phase="DEP"
-                airlineId={formData.airlineId}
-                delays={departureDelays}
-                onChange={setDepartureDelays}
-              />
-            </div>
-          </>
-          )}
-        </div>
+                    <div className="rounded-2xl border border-blue-200/60 bg-blue-50/50 p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-blue-700" />
+                        <h3 className="text-sm font-semibold text-blue-900">Putnici</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div className="md:col-span-2 lg:col-span-3">
+                          <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={formData.arrivalFerryIn}
+                              onChange={(e) => handleFerryToggle('arrivalFerryIn', e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300"
+                              disabled={flight.isLocked}
+                            />
+                            Ferry IN (prazan let bez putnika)
+                          </label>
+                        </div>
 
-        {/* Arrival Section - Vizuelno izdvojena */}
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-3xl shadow-lg border-4 border-blue-400 p-8">
-          <div 
-            className="flex items-center justify-between mb-8 pb-6 border-b-2 border-blue-200 cursor-pointer"
-            onClick={() => setIsArrivalExpanded(!isArrivalExpanded)}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-300 flex items-center justify-center shadow-md">
-                <Plane className="w-7 h-7 text-blue-700 transform rotate-[135deg]" />
+                        <div className="md:col-span-2">
+                          <Label htmlFor="arrivalPassengers">
+                            <Users className="w-4 h-4 inline mr-1" />
+                            Ukupan broj putnika
+                          </Label>
+                          <Input
+                            id="arrivalPassengers"
+                            type="number"
+                            min="0"
+                            max="999"
+                            value={formData.arrivalPassengers}
+                            onChange={(e) => handleChange('arrivalPassengers', e.target.value)}
+                            placeholder="0"
+                            disabled={formData.arrivalFerryIn}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="arrivalInfants">
+                            Bebe u naručju
+                            <span className="text-xs text-slate-500 ml-1">(ne računaju se u putnike)</span>
+                          </Label>
+                          <Input
+                            id="arrivalInfants"
+                            type="number"
+                            min="0"
+                            value={formData.arrivalInfants}
+                            onChange={(e) => handleChange('arrivalInfants', e.target.value)}
+                            placeholder="0"
+                            disabled={formData.arrivalFerryIn}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-blue-200/60 bg-white/70 p-4">
+                        <PassengerBreakdownInput
+                          totalPassengers={parseInt(formData.arrivalPassengers) || 0}
+                          male={parseInt(formData.arrivalMalePassengers) || 0}
+                          female={parseInt(formData.arrivalFemalePassengers) || 0}
+                          children={parseInt(formData.arrivalChildren) || 0}
+                          onChange={(breakdown) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              arrivalMalePassengers: breakdown.male.toString(),
+                              arrivalFemalePassengers: breakdown.female.toString(),
+                              arrivalChildren: breakdown.children.toString(),
+                            }));
+                          }}
+                          label="Breakdown putnika (dolazak)"
+                          disabled={formData.arrivalFerryIn}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-200/60 bg-white/70 p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Package className="w-4 h-4 text-blue-700" />
+                        <h3 className="text-sm font-semibold text-blue-900">Prtljag i teret</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label htmlFor="arrivalBaggageCount">
+                            <Package className="w-4 h-4 inline mr-1" />
+                            Broj prtljaga (komadi)
+                          </Label>
+                          <Input
+                            id="arrivalBaggageCount"
+                            type="number"
+                            min="0"
+                            value={formData.arrivalBaggageCount}
+                            onChange={(e) => handleChange('arrivalBaggageCount', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="arrivalBaggage">
+                            <Package className="w-4 h-4 inline mr-1" />
+                            Prtljag (kg)
+                          </Label>
+                          <Input
+                            id="arrivalBaggage"
+                            type="number"
+                            min="0"
+                            value={formData.arrivalBaggage}
+                            onChange={(e) => handleChange('arrivalBaggage', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="arrivalCargo">Cargo (kg)</Label>
+                          <Input
+                            id="arrivalCargo"
+                            type="number"
+                            min="0"
+                            value={formData.arrivalCargo}
+                            onChange={(e) => handleChange('arrivalCargo', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="arrivalMail">
+                            <Mail className="w-4 h-4 inline mr-1" />
+                            Pošta (kg)
+                          </Label>
+                          <Input
+                            id="arrivalMail"
+                            type="number"
+                            min="0"
+                            value={formData.arrivalMail}
+                            onChange={(e) => handleChange('arrivalMail', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-200/60 bg-blue-50/50 p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-blue-700" />
+                          <h3 className="text-sm font-semibold text-blue-900">Kašnjenja (ARR)</h3>
+                        </div>
+                        <span className="text-xs text-blue-700 font-semibold">
+                          {getDelaySummary(arrivalDelays)}
+                        </span>
+                      </div>
+                      <MultipleDelaysInput
+                        phase="ARR"
+                        airlineId={formData.airlineId}
+                        delays={arrivalDelays}
+                        onChange={setArrivalDelays}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-blue-900 uppercase tracking-wide">🛬 Dolazak (Arrival)</h2>
-                <p className="text-sm text-blue-700 font-medium">Podaci o dolasku leta</p>
-              </div>
             </div>
-            <ChevronDown 
-              className={`w-6 h-6 text-blue-700 transition-transform duration-300 ${
-                isArrivalExpanded ? 'transform rotate-180' : ''
-              }`}
-            />
-          </div>
-
-          {isArrivalExpanded && (
-          <>
-            {/* LDM Message Input */}
-            <div className="mb-6">
-              <LdmMessageInput
-                phase="arrival"
-                onDataParsed={(data) => handleLdmDataParsed(data, 'arrival')}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div>
-              <Label htmlFor="arrivalFlightNumber">Broj leta</Label>
-              <Input
-                id="arrivalFlightNumber"
-                value={formData.arrivalFlightNumber}
-                onChange={(e) => handleChange('arrivalFlightNumber', e.target.value)}
-                placeholder="W62829"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalScheduledTime" className="text-base font-semibold">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Planirano vrijeme
-              </Label>
-              <Input
-                id="arrivalScheduledTime"
-                type="datetime-local"
-                value={formData.arrivalScheduledTime}
-                onChange={(e) => handleChange('arrivalScheduledTime', e.target.value)}
-                className="text-base font-medium"
-                disabled={flight.isLocked}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalActualTime" className="text-base font-semibold">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Stvarno vrijeme
-              </Label>
-              <Input
-                id="arrivalActualTime"
-                type="datetime-local"
-                value={formData.arrivalActualTime}
-                onChange={(e) => handleChange('arrivalActualTime', e.target.value)}
-                className="text-base font-medium"
-                disabled={flight.isLocked}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalStatus">Status dolaska</Label>
-              <select
-                id="arrivalStatus"
-                value={formData.arrivalStatus}
-                onChange={(e) => handleChange('arrivalStatus', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              >
-                <option value="OPERATED">Realizovan</option>
-                <option value="CANCELLED">Otkazan</option>
-                <option value="DIVERTED">Divertovan</option>
-                <option value="SCHEDULED">Zakazan</option>
-              </select>
-            </div>
-
-            {formData.arrivalStatus === 'CANCELLED' && (
-              <div className="md:col-span-2 lg:col-span-3">
-                <Label htmlFor="arrivalCancelReason">Razlog otkazivanja dolaska</Label>
-                <Input
-                  id="arrivalCancelReason"
-                  value={formData.arrivalCancelReason}
-                  onChange={(e) => handleChange('arrivalCancelReason', e.target.value)}
-                  placeholder="Unesite razlog otkazivanja"
-                />
-              </div>
-            )}
-
-            <div className="md:col-span-2 lg:col-span-3">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={formData.arrivalFerryIn}
-                  onChange={(e) => handleFerryToggle('arrivalFerryIn', e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
-                  disabled={flight.isLocked}
-                />
-                Ferry IN (prazan let bez putnika)
-              </label>
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-3">
-              <Label htmlFor="arrivalPassengers">
-                <Users className="w-4 h-4 inline mr-1" />
-                Ukupan broj putnika
-              </Label>
-              <Input
-                id="arrivalPassengers"
-                type="number"
-                min="0"
-                max="999"
-                value={formData.arrivalPassengers}
-                onChange={(e) => handleChange('arrivalPassengers', e.target.value)}
-                placeholder="0"
-                disabled={formData.arrivalFerryIn}
-              />
-            </div>
-
-            {/* Passenger Breakdown */}
-            <div className="md:col-span-2 lg:col-span-3">
-              <PassengerBreakdownInput
-                totalPassengers={parseInt(formData.arrivalPassengers) || 0}
-                male={parseInt(formData.arrivalMalePassengers) || 0}
-                female={parseInt(formData.arrivalFemalePassengers) || 0}
-                children={parseInt(formData.arrivalChildren) || 0}
-                onChange={(breakdown) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    arrivalMalePassengers: breakdown.male.toString(),
-                    arrivalFemalePassengers: breakdown.female.toString(),
-                    arrivalChildren: breakdown.children.toString(),
-                  }));
-                }}
-                label="Breakdown putnika (dolazak)"
-                disabled={formData.arrivalFerryIn}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalInfants">
-                Bebe u naručju
-                <span className="text-xs text-slate-500 ml-1">(ne računaju se u putnike)</span>
-              </Label>
-              <Input
-                id="arrivalInfants"
-                type="number"
-                min="0"
-                value={formData.arrivalInfants}
-                onChange={(e) => handleChange('arrivalInfants', e.target.value)}
-                placeholder="0"
-                disabled={formData.arrivalFerryIn}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalBaggageCount">
-                <Package className="w-4 h-4 inline mr-1" />
-                Broj prtljaga (komadi)
-              </Label>
-              <Input
-                id="arrivalBaggageCount"
-                type="number"
-                min="0"
-                value={formData.arrivalBaggageCount}
-                onChange={(e) => handleChange('arrivalBaggageCount', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalBaggage">
-                <Package className="w-4 h-4 inline mr-1" />
-                Prtljag (kg)
-              </Label>
-              <Input
-                id="arrivalBaggage"
-                type="number"
-                min="0"
-                value={formData.arrivalBaggage}
-                onChange={(e) => handleChange('arrivalBaggage', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalCargo">Cargo (kg)</Label>
-              <Input
-                id="arrivalCargo"
-                type="number"
-                min="0"
-                value={formData.arrivalCargo}
-                onChange={(e) => handleChange('arrivalCargo', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="arrivalMail">
-                <Mail className="w-4 h-4 inline mr-1" />
-                Pošta (kg)
-              </Label>
-              <Input
-                id="arrivalMail"
-                type="number"
-                min="0"
-                value={formData.arrivalMail}
-                onChange={(e) => handleChange('arrivalMail', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            </div>
-
-            {/* Arrival Delays - Multiple */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <MultipleDelaysInput
-                phase="ARR"
-                airlineId={formData.airlineId}
-                delays={arrivalDelays}
-                onChange={setArrivalDelays}
-              />
-            </div>
-          </>
-          )}
-        </div>
         </fieldset>
 
         {/* Error Message */}
@@ -1563,7 +1781,7 @@ export default function FlightDataEntryPage() {
         )}
 
         {/* Summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-gradient-to-br from-white to-slate-50 rounded-3xl shadow-soft border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-900">Sažetak za verifikaciju</h3>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -1571,10 +1789,11 @@ export default function FlightDataEntryPage() {
             </span>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-sm">
-              <thead className="text-left text-slate-500 bg-slate-50">
+            <div className="min-w-[980px] w-full border border-slate-200 rounded-2xl overflow-hidden bg-white">
+              <table className="min-w-[980px] w-full text-sm">
+              <thead className="text-left text-slate-600 bg-slate-100/80">
                 <tr>
-                  <th className="py-2 pr-4 font-semibold sticky left-0 z-10 bg-slate-50">Sekcija</th>
+                  <th className="py-2 pr-4 font-semibold sticky left-0 z-10 bg-slate-100/80">Sekcija</th>
                   <th className="py-2 pr-4 font-semibold">Broj leta</th>
                   <th className="py-2 pr-4 font-semibold">Planirano</th>
                   <th className="py-2 pr-4 font-semibold">Stvarno</th>
@@ -1596,8 +1815,8 @@ export default function FlightDataEntryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td className="py-3 pr-4 font-semibold text-blue-700 sticky left-0 z-10 bg-white">Dolazak</td>
+                <tr className="bg-blue-50/70 hover:bg-blue-50/90 transition-colors">
+                  <td className="py-3 pr-4 font-semibold text-blue-700 sticky left-0 z-10 bg-blue-50/70">Dolazak</td>
                   <td className="py-3 pr-4">{displayValue(formData.arrivalFlightNumber)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.arrivalScheduledTime)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.arrivalActualTime)}</td>
@@ -1619,8 +1838,8 @@ export default function FlightDataEntryPage() {
                   <td className="py-3 pr-4">{formData.arrivalFerryIn ? 'Ferry IN' : '-'}</td>
                   <td className="py-3 pr-4">{getDelaySummary(arrivalDelays)}</td>
                 </tr>
-                <tr>
-                  <td className="py-3 pr-4 font-semibold text-emerald-700 sticky left-0 z-10 bg-white">Odlazak</td>
+                <tr className="bg-orange-50/60 hover:bg-orange-50/90 transition-colors">
+                  <td className="py-3 pr-4 font-semibold text-orange-700 sticky left-0 z-10 bg-orange-50/60">Odlazak</td>
                   <td className="py-3 pr-4">{displayValue(formData.departureFlightNumber)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.departureScheduledTime)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.departureActualTime)}</td>
@@ -1644,11 +1863,12 @@ export default function FlightDataEntryPage() {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         {/* Load Factor Display */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white/90 rounded-3xl shadow-soft border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
               <Users className="w-5 h-5 text-slate-600" />
@@ -1661,10 +1881,10 @@ export default function FlightDataEntryPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Arrival Load Factor */}
-            <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
+            <div className="bg-blue-50/60 rounded-2xl border border-blue-200/60 p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Plane className="w-4 h-4 text-slate-500 transform -rotate-45" />
-                <h3 className="text-sm font-semibold text-slate-700">Dolazak</h3>
+                <Plane className="w-4 h-4 text-blue-600 transform -rotate-45" />
+                <h3 className="text-sm font-semibold text-blue-900">Dolazak</h3>
               </div>
               <div className="space-y-2.5">
                 <div className="flex justify-between text-sm">
@@ -1707,10 +1927,10 @@ export default function FlightDataEntryPage() {
             </div>
 
             {/* Departure Load Factor */}
-            <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
+            <div className="bg-orange-50/60 rounded-2xl border border-orange-200/60 p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Plane className="w-4 h-4 text-slate-500 transform rotate-45" />
-                <h3 className="text-sm font-semibold text-slate-700">Odlazak</h3>
+                <Plane className="w-4 h-4 text-orange-600 transform rotate-45" />
+                <h3 className="text-sm font-semibold text-orange-900">Odlazak</h3>
               </div>
               <div className="space-y-2.5">
                 <div className="flex justify-between text-sm">
@@ -1753,7 +1973,7 @@ export default function FlightDataEntryPage() {
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
             <p className="text-xs text-slate-600">
               <strong>Napomena:</strong> Load factor se automatski izračunava i čuva kada sačuvate podatke.
               Koristi se raspoloživa mjesta ako je uneseno, inače standardni kapacitet tipa aviona.
@@ -1762,7 +1982,7 @@ export default function FlightDataEntryPage() {
         </div>
 
         {/* Actions */}
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-slate-600">
