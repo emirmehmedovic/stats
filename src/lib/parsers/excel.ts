@@ -341,10 +341,32 @@ export async function parseExcelFile(
           findColumn(['st vrijeme dol', 'St vrijeme dol', 'stvarno vrijeme dol', 'Stvarno vrijeme dol'], row)
         );
         parsedRow.data.arrivalPassengers = parseNumber(
-          findColumn(['Putnici u avionu', 'putnici u avionu', 'Putnici u avionu (dol)', 'putnici u avionu (dol)', 'Putnici u avionu (dolazak)'], row)
+          findColumn(
+            [
+              'Putnici u avionu_1',
+              'putnici u avionu_1',
+              'Putnici u avionu.1',
+              'putnici u avionu.1',
+              'Putnici u avionu (dol)',
+              'putnici u avionu (dol)',
+              'Putnici u avionu (dolazak)',
+            ],
+            row
+          )
         );
         parsedRow.data.arrivalInfants = parseNumber(
-          findColumn(['Bebe u naručju', 'bebe u naručju', 'Bebe u naručju (dol)', 'bebe u naručju (dol)', 'Bebe u naručju (dolazak)'], row)
+          findColumn(
+            [
+              'Bebe u naručju_1',
+              'bebe u naručju_1',
+              'Bebe u naručju.1',
+              'bebe u naručju.1',
+              'Bebe u naručju (dol)',
+              'bebe u naručju (dol)',
+              'Bebe u naručju (dolazak)',
+            ],
+            row
+          )
         );
         parsedRow.data.arrivalBaggage = parseNumber(
           findColumn(['prtljag dol (kg)', 'Prtljag dol (kg)', 'prtljag dolazak (kg)', 'Prtljag dolazak (kg)', 'prtljag dol(kg)', 'Prtljag dol(kg)'], row)
@@ -367,30 +389,32 @@ export async function parseExcelFile(
           findColumn(['st vrijeme odl', 'St vrijeme odl', 'stvarno vrijeme odl', 'Stvarno vrijeme odl'], row)
         );
         parsedRow.data.departurePassengers = parseNumber(
-          findColumn([
-            'Putnici u avionu.1',
-            'putnici u avionu.1',
-            'Putnici u avionu_1',
-            'putnici u avionu_1',
-            'Putnici u avionu (odl)', 
-            'putnici u avionu (odl)',
-            'Putnici u avionu (odlazak)',
-            'Putnici u avionu 2',
-            'Putnici u avionu (2)'
-          ], row)
+          findColumn(
+            [
+              'Putnici u avionu',
+              'putnici u avionu',
+              'Putnici u avionu (odl)',
+              'putnici u avionu (odl)',
+              'Putnici u avionu (odlazak)',
+              'Putnici u avionu 2',
+              'Putnici u avionu (2)',
+            ],
+            row
+          )
         );
         parsedRow.data.departureInfants = parseNumber(
-          findColumn([
-            'Bebe u naručju.1',
-            'bebe u naručju.1',
-            'Bebe u naručju_1',
-            'bebe u naručju_1',
-            'Bebe u naručju (odl)', 
-            'bebe u naručju (odl)',
-            'Bebe u naručju (odlazak)',
-            'Bebe u naručju 2',
-            'Bebe u naručju (2)'
-          ], row)
+          findColumn(
+            [
+              'Bebe u naručju',
+              'bebe u naručju',
+              'Bebe u naručju (odl)',
+              'bebe u naručju (odl)',
+              'Bebe u naručju (odlazak)',
+              'Bebe u naručju 2',
+              'Bebe u naručju (2)',
+            ],
+            row
+          )
         );
         parsedRow.data.departureBaggage = parseNumber(
           findColumn([
