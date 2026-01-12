@@ -116,6 +116,7 @@ export function FlightTypeMigrationModal({ isOpen, onClose }: Props) {
               <li>• Dodaje INTERNATIONAL SCHEDULED kao tip leta za redovne letove</li>
               <li>• Premješta CHARTER/MEDEVAC/GENERAL_AVIATION u INTERNATIONAL NON-SCHEDULED</li>
               <li>• Premješta MILITARY u ALL OTHER MOVEMENT</li>
+              <li>• Premješta DIVERTED u INTERNATIONAL NON-SCHEDULED</li>
               <li>• Postavlja odgovarajući tip leta za svaku grupu</li>
             </ul>
           </div>

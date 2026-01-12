@@ -46,6 +46,13 @@ const MIGRATION_MAPPINGS: MigrationMapping[] = [
     targetFlightTypeCode: 'MILITARY',
     label: 'Vojni → All Other Movement / Military',
   },
+  {
+    key: 'diverted',
+    sourceOperationCode: 'DIVERTED',
+    targetOperationCode: 'INTERNATIONAL-NON-SCHEDULED',
+    targetFlightTypeCode: 'DIVERTED',
+    label: 'Divertovani → International Non-Scheduled / Diverted',
+  },
 ];
 
 const buildUpdateWhere = (
