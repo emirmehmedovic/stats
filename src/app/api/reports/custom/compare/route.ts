@@ -235,17 +235,19 @@ const buildPeriodAnalytics = (flights: any[], startDate: Date, endDate: Date) =>
   >();
 
   flights.forEach((flight) => {
-    const routeKey = flight.route || 'N/A';
-    const currentRoute = routeStats.get(routeKey) || {
-      route: routeKey,
-      flights: 0,
-      passengers: 0,
-      seats: 0,
-      passengersForLoad: 0,
-      delayCount: 0,
-      delayTotal: 0,
-      onTimeCount: 0,
-    };
+    const routeKey = flight.route?.trim();
+    const currentRoute = routeKey
+      ? routeStats.get(routeKey) || {
+          route: routeKey,
+          flights: 0,
+          passengers: 0,
+          seats: 0,
+          passengersForLoad: 0,
+          delayCount: 0,
+          delayTotal: 0,
+          onTimeCount: 0,
+        }
+      : null;
 
     const arrivalPassengers = getArrivalPassengers(flight);
     const departurePassengers = getDeparturePassengers(flight);
@@ -253,13 +255,17 @@ const buildPeriodAnalytics = (flights: any[], startDate: Date, endDate: Date) =>
     const legCount = getLegCount(flight);
     const seatsPerLeg = flight.availableSeats || flight.aircraftType?.seats || 0;
 
-    currentRoute.flights += 1;
-    currentRoute.passengers += passengers;
+    if (currentRoute) {
+      currentRoute.flights += 1;
+      currentRoute.passengers += passengers;
+    }
 
     if (seatsPerLeg > 0 && legCount > 0) {
       const seatsForFlight = seatsPerLeg * legCount;
-      currentRoute.seats += seatsForFlight;
-      currentRoute.passengersForLoad += passengers;
+      if (currentRoute) {
+        currentRoute.seats += seatsForFlight;
+        currentRoute.passengersForLoad += passengers;
+      }
       totalSeats += seatsForFlight;
     }
 
@@ -268,12 +274,16 @@ const buildPeriodAnalytics = (flights: any[], startDate: Date, endDate: Date) =>
       flight.arrivalActualTime
     );
     if (arrivalDelay !== null && flight.arrivalStatus !== 'CANCELLED') {
-      currentRoute.delayTotal += arrivalDelay;
-      currentRoute.delayCount += 1;
+      if (currentRoute) {
+        currentRoute.delayTotal += arrivalDelay;
+        currentRoute.delayCount += 1;
+      }
       totalDelayMinutes += arrivalDelay;
       totalDelaySamples += 1;
       if (arrivalDelay <= ON_TIME_THRESHOLD_MINUTES) {
-        currentRoute.onTimeCount += 1;
+        if (currentRoute) {
+          currentRoute.onTimeCount += 1;
+        }
         totalOnTimeSamples += 1;
       }
     }
@@ -283,17 +293,23 @@ const buildPeriodAnalytics = (flights: any[], startDate: Date, endDate: Date) =>
       flight.departureActualTime
     );
     if (departureDelay !== null && flight.departureStatus !== 'CANCELLED') {
-      currentRoute.delayTotal += departureDelay;
-      currentRoute.delayCount += 1;
+      if (currentRoute) {
+        currentRoute.delayTotal += departureDelay;
+        currentRoute.delayCount += 1;
+      }
       totalDelayMinutes += departureDelay;
       totalDelaySamples += 1;
       if (departureDelay <= ON_TIME_THRESHOLD_MINUTES) {
-        currentRoute.onTimeCount += 1;
+        if (currentRoute) {
+          currentRoute.onTimeCount += 1;
+        }
         totalOnTimeSamples += 1;
       }
     }
 
-    routeStats.set(routeKey, currentRoute);
+    if (currentRoute) {
+      routeStats.set(routeKey, currentRoute);
+    }
 
     if (flight.arrivalFlightNumber) {
       totalLegs += 1;
@@ -660,6 +676,7 @@ export async function POST(request: NextRequest) {
 
     const baseSelect = {
       date: true,
+      route: true,
       arrivalFlightNumber: true,
       departureFlightNumber: true,
       arrivalPassengers: true,

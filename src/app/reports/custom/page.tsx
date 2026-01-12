@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -353,7 +353,9 @@ export default function CustomReportPage() {
   const [trendGranularity, setTrendGranularity] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
 
   const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [airlineOptions, setAirlineOptions] = useState<Airline[]>([]);
   const [routes, setRoutes] = useState<string[]>([]);
+  const [routeOptions, setRouteOptions] = useState<string[]>([]);
 
   const [reportData, setReportData] = useState<CustomReportData | null>(null);
   const [comparisonData, setComparisonData] = useState<CustomComparisonData | null>(null);
@@ -365,20 +367,11 @@ export default function CustomReportPage() {
   useEffect(() => {
     const fetchAirlines = async () => {
       try {
-        const aggregated: Airline[] = [];
-        let page = 1;
-        let hasMore = true;
-
-        while (hasMore) {
-          const response = await fetch(`/api/airlines?page=${page}&limit=100`);
-          if (!response.ok) break;
-          const result = await response.json();
-          aggregated.push(...(result.data || []));
-          hasMore = !!result.pagination?.hasMore;
-          page += 1;
-        }
-
-        setAirlines(aggregated);
+        const response = await fetch('/api/airlines?page=1&limit=100');
+        if (!response.ok) return;
+        const result = await response.json();
+        setAirlines(result.data || []);
+        setAirlineOptions(result.data || []);
       } catch (err) {
         console.error('Error fetching airlines:', err);
       }
@@ -408,12 +401,11 @@ export default function CustomReportPage() {
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
-        const response = await fetch('/api/flights?limit=1000');
-        if (response.ok) {
-          const result = await response.json();
-          const uniqueRoutes = Array.from(new Set(result.data.map((f: any) => f.route))).sort();
-          setRoutes(uniqueRoutes as string[]);
-        }
+        const response = await fetch('/api/routes?page=1&limit=100');
+        if (!response.ok) return;
+        const result = await response.json();
+        setRoutes(result.data || []);
+        setRouteOptions(result.data || []);
       } catch (err) {
         console.error('Error fetching routes:', err);
       }
@@ -421,6 +413,38 @@ export default function CustomReportPage() {
 
     fetchRoutes();
   }, []);
+
+  const fetchAirlineOptions = useCallback(async (search: string) => {
+    const trimmed = search.trim();
+    if (!trimmed) {
+      setAirlineOptions(airlines);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/airlines?search=${encodeURIComponent(trimmed)}&page=1&limit=100`);
+      if (!response.ok) return;
+      const result = await response.json();
+      setAirlineOptions(result.data || []);
+    } catch (err) {
+      console.error('Error searching airlines:', err);
+    }
+  }, [airlines]);
+
+  const fetchRouteOptions = useCallback(async (search: string) => {
+    const trimmed = search.trim();
+    if (!trimmed) {
+      setRouteOptions(routes);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/routes?search=${encodeURIComponent(trimmed)}&page=1&limit=100`);
+      if (!response.ok) return;
+      const result = await response.json();
+      setRouteOptions(result.data || []);
+    } catch (err) {
+      console.error('Error searching routes:', err);
+    }
+  }, [routes]);
 
   const handleGenerateReport = async () => {
     setIsLoading(true);
@@ -1036,7 +1060,7 @@ export default function CustomReportPage() {
           <div className="mb-4">
             <Label>Aviokompanije</Label>
             <SearchableSelect
-              options={airlines.map((airline) => ({
+              options={airlineOptions.map((airline) => ({
                 value: airline.icaoCode,
                 label: airline.icaoCode,
                 subtitle: airline.name,
@@ -1048,6 +1072,7 @@ export default function CustomReportPage() {
                 }
                 setAirlineSelectValue('');
               }}
+              onSearchChange={(search) => fetchAirlineOptions(search)}
               placeholder="Izaberite aviokompaniju"
               searchPlaceholder="Pretraga aviokompanija..."
               className="mt-2"
@@ -1076,7 +1101,7 @@ export default function CustomReportPage() {
           <div className="mb-4">
             <Label>Rute</Label>
             <SearchableSelect
-              options={routes.map((route) => ({
+              options={routeOptions.map((route) => ({
                 value: route,
                 label: route,
               }))}
@@ -1087,6 +1112,7 @@ export default function CustomReportPage() {
                 }
                 setRouteSelectValue('');
               }}
+              onSearchChange={(search) => fetchRouteOptions(search)}
               placeholder="Izaberite rutu"
               searchPlaceholder="Pretraga ruta..."
               className="mt-2"
