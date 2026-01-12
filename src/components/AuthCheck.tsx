@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW';
 }
 
 export default function AuthCheck({ children }: { children: React.ReactNode }) {

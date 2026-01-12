@@ -9,7 +9,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -29,7 +29,7 @@ export default function AdminUsersPage() {
     email: '',
     password: '',
     name: '',
-    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER',
+    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW',
     isActive: true,
   });
 
@@ -72,11 +72,11 @@ export default function AdminUsersPage() {
       });
     } else {
       setEditingUser(null);
-      setFormData({
-        email: '',
-        password: '',
-        name: '',
-        role: 'VIEWER',
+        setFormData({
+          email: '',
+          password: '',
+          name: '',
+          role: 'VIEWER',
         isActive: true,
       });
     }
@@ -86,11 +86,11 @@ export default function AdminUsersPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingUser(null);
-    setFormData({
-      email: '',
-      password: '',
-      name: '',
-      role: 'VIEWER',
+      setFormData({
+        email: '',
+        password: '',
+        name: '',
+        role: 'VIEWER',
       isActive: true,
     });
   };
@@ -195,6 +195,8 @@ export default function AdminUsersPage() {
         return <UserCheck className="w-5 h-5 text-blue-600" />;
       case 'OPERATIONS':
         return <Briefcase className="w-5 h-5 text-emerald-600" />;
+      case 'STW':
+        return <Database className="w-5 h-5 text-violet-600" />;
       default:
         return <Eye className="w-5 h-5 text-gray-600" />;
     }
@@ -205,6 +207,7 @@ export default function AdminUsersPage() {
       ADMIN: 'bg-red-100 text-red-700',
       MANAGER: 'bg-blue-100 text-blue-700',
       OPERATIONS: 'bg-emerald-100 text-emerald-700',
+      STW: 'bg-violet-100 text-violet-700',
       VIEWER: 'bg-gray-100 text-gray-700',
     };
     return styles[role as keyof typeof styles] || styles.VIEWER;
@@ -420,6 +423,7 @@ export default function AdminUsersPage() {
                     required
                   >
                     <option value="VIEWER">Viewer</option>
+                    <option value="STW">STW</option>
                     <option value="OPERATIONS">Operacije</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Admin</option>

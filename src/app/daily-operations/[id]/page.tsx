@@ -114,7 +114,7 @@ export default function FlightDataEntryPage() {
   const [pendingVerificationDate, setPendingVerificationDate] = useState<string | null>(null);
   const [isDepartureExpanded, setIsDepartureExpanded] = useState(false);
   const [isArrivalExpanded, setIsArrivalExpanded] = useState(false);
-  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | null>(null);
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null>(null);
   const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
 
   const [formData, setFormData] = useState({
@@ -174,7 +174,7 @@ export default function FlightDataEntryPage() {
     fetchFlight();
 
     // Get user role from localStorage (set by AuthCheck)
-    const role = localStorage.getItem('userRole') as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | null;
+    const role = localStorage.getItem('userRole') as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null;
     setUserRole(role);
   }, [flightId]);
 
