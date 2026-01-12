@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatDateDisplay, getDateStringDaysAgo, getTodayDateString } from '@/lib/dates';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -14,6 +15,8 @@ interface PunctualityData {
     dateFrom: string;
     dateTo: string;
     airline: string;
+    route: string;
+    operationTypeId: string;
   };
   summary: {
     totalFlights: number;
@@ -57,30 +60,118 @@ interface Airline {
   icaoCode: string;
 }
 
+interface OperationType {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface AirlineRoute {
+  route: string;
+  destination: string;
+  country: string;
+}
+
 export default function PunctualityPage() {
   const [dateFrom, setDateFrom] = useState(getDateStringDaysAgo(30));
   const [dateTo, setDateTo] = useState(getTodayDateString());
   const [selectedAirline, setSelectedAirline] = useState('ALL');
+  const [airlineSearch, setAirlineSearch] = useState('');
+  const [routeFilter, setRouteFilter] = useState('');
+  const [airlineRoutes, setAirlineRoutes] = useState<AirlineRoute[]>([]);
+  const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
+  const [selectedOperationType, setSelectedOperationType] = useState('ALL');
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [analyticsData, setAnalyticsData] = useState<PunctualityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchAirlines = async (search?: string) => {
+    try {
+      const allAirlines: Airline[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: '100',
+        });
+        if (search) {
+          params.set('search', search);
+        }
+
+        const response = await fetch(`/api/airlines?${params.toString()}`);
+        if (!response.ok) break;
+
+        const result = await response.json();
+        allAirlines.push(...(result.data || []));
+        hasMore = !!result.pagination?.hasMore;
+        page += 1;
+      }
+
+      setAirlines(allAirlines);
+    } catch (err) {
+      console.error('Error fetching airlines:', err);
+    }
+  };
+
   useEffect(() => {
-    const fetchAirlines = async () => {
+    fetchAirlines();
+  }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      fetchAirlines(airlineSearch);
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [airlineSearch]);
+
+  useEffect(() => {
+    const fetchOperationTypes = async () => {
       try {
-        const response = await fetch('/api/airlines');
+        const response = await fetch('/api/operation-types?activeOnly=true');
         if (response.ok) {
           const result = await response.json();
-          setAirlines(result.data);
+          setOperationTypes(result.data || []);
         }
       } catch (err) {
-        console.error('Error fetching airlines:', err);
+        console.error('Error fetching operation types:', err);
       }
     };
 
-    fetchAirlines();
+    fetchOperationTypes();
   }, []);
+
+  useEffect(() => {
+    const fetchAirlineRoutes = async (airlineId: string) => {
+      try {
+        const response = await fetch(`/api/airlines/${airlineId}/routes`);
+        const result = await response.json();
+        if (result.success) {
+          setAirlineRoutes(result.data || []);
+        } else {
+          setAirlineRoutes([]);
+        }
+      } catch (err) {
+        console.error('Error fetching airline routes:', err);
+        setAirlineRoutes([]);
+      }
+    };
+
+    if (!selectedAirline || selectedAirline === 'ALL') {
+      setAirlineRoutes([]);
+      return;
+    }
+
+    const selected = airlines.find((airline) => airline.icaoCode === selectedAirline);
+    if (selected?.id) {
+      fetchAirlineRoutes(selected.id);
+    } else {
+      setAirlineRoutes([]);
+    }
+  }, [selectedAirline, airlines]);
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
@@ -94,6 +185,12 @@ export default function PunctualityPage() {
 
       if (selectedAirline && selectedAirline !== 'ALL') {
         params.append('airline', selectedAirline);
+      }
+      if (routeFilter.trim()) {
+        params.append('route', routeFilter.trim());
+      }
+      if (selectedOperationType && selectedOperationType !== 'ALL') {
+        params.append('operationTypeId', selectedOperationType);
       }
 
       const response = await fetch(`/api/analytics/punctuality?${params.toString()}`);
@@ -118,10 +215,17 @@ export default function PunctualityPage() {
     const wb = XLSX.utils.book_new();
 
     // Summary
+    const operationTypeLabel =
+      selectedOperationType === 'ALL'
+        ? 'SVE'
+        : operationTypes.find((type) => type.id === selectedOperationType)?.name || selectedOperationType;
+
     const summaryData = [
       ['ANALIZA TAČNOSTI - Aerodrom Tuzla'],
       ['Period:', `${analyticsData.filters.dateFrom} - ${analyticsData.filters.dateTo}`],
       ['Aviokompanija:', analyticsData.filters.airline],
+      ['Ruta filter:', analyticsData.filters.route || 'SVE'],
+      ['Tip saobraćaja:', operationTypeLabel],
       [],
       ['SAŽETAK'],
       ['Ukupno letova:', analyticsData.summary.totalFlights],
@@ -162,16 +266,33 @@ export default function PunctualityPage() {
   ] : [];
 
   const filteredDailyTrend = analyticsData?.dailyTrend.filter((d) => d.flights > 0) ?? [];
+  const selectedAirlineName =
+    selectedAirline === 'ALL'
+      ? ''
+      : airlines.find((airline) => airline.icaoCode === selectedAirline)?.name || selectedAirline;
+  const selectedOperationTypeName =
+    selectedOperationType === 'ALL'
+      ? ''
+      : operationTypes.find((type) => type.id === selectedOperationType)?.name || selectedOperationType;
+  const showActiveFilters =
+    selectedAirline !== 'ALL' || routeFilter.trim() || selectedOperationType !== 'ALL';
+
+  const handleResetFilters = () => {
+    setSelectedAirline('ALL');
+    setRouteFilter('');
+    setSelectedOperationType('ALL');
+    setAirlineSearch('');
+  };
 
   return (
     <MainLayout>
       <div className="p-8 space-y-8">
         {/* Filters - Dashboard stil */}
-        <div className="bg-white rounded-3xl shadow-soft p-8 relative overflow-hidden border-[6px] border-white">
+        <div className="bg-white rounded-3xl shadow-soft p-8 relative overflow-visible border-[6px] border-white">
           <div className="absolute inset-0 bg-gradient-to-br from-primary-50/60 via-white/70 to-blue-100/50 opacity-70"></div>
           <div className="relative z-10">
             <h3 className="text-xl font-bold text-dark-900 mb-6">Filteri</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="dateFrom">Datum od</Label>
               <Input
@@ -194,16 +315,65 @@ export default function PunctualityPage() {
             </div>
             <div>
               <Label htmlFor="airline">Aviokompanija</Label>
-              <select
-                id="airline"
+              <SearchableSelect
+                options={[
+                  { value: 'ALL', label: 'Sve aviokompanije' },
+                  ...airlines.map((airline) => ({
+                    value: airline.icaoCode,
+                    label: `${airline.icaoCode} - ${airline.name}`,
+                    subtitle: airline.name,
+                  })),
+                ]}
                 value={selectedAirline}
-                onChange={(e) => setSelectedAirline(e.target.value)}
+                onChange={(value) => {
+                  setSelectedAirline(value);
+                  setRouteFilter('');
+                }}
+                onSearchChange={setAirlineSearch}
+                placeholder="Izaberite aviokompaniju"
+                searchPlaceholder="Pretraga aviokompanija..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="routeFilter">Ruta</Label>
+              {selectedAirline !== 'ALL' && airlineRoutes.length > 0 ? (
+                <SearchableSelect
+                  options={[
+                    { value: '', label: 'Sve rute' },
+                    ...airlineRoutes.map((route) => ({
+                      value: route.route,
+                      label: route.route,
+                      subtitle: `${route.destination}, ${route.country}`,
+                    })),
+                  ]}
+                  value={routeFilter}
+                  onChange={setRouteFilter}
+                  placeholder="Izaberite rutu"
+                  searchPlaceholder="Pretraga ruta..."
+                />
+              ) : (
+                <Input
+                  id="routeFilter"
+                  type="text"
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value)}
+                  className="mt-1"
+                  placeholder="npr. TZL-VIE"
+                />
+              )}
+            </div>
+            <div>
+              <Label htmlFor="operationType">Tip saobraćaja</Label>
+              <select
+                id="operationType"
+                value={selectedOperationType}
+                onChange={(e) => setSelectedOperationType(e.target.value)}
                 className="w-full mt-1 flex h-10 rounded-xl border border-dark-100 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
               >
-                <option value="ALL">Sve aviokompanije</option>
-                {airlines.map((airline) => (
-                  <option key={airline.icaoCode} value={airline.icaoCode}>
-                    {airline.icaoCode} - {airline.name}
+                <option value="ALL">Svi tipovi saobraćaja</option>
+                {operationTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name} ({type.code})
                   </option>
                 ))}
               </select>
@@ -217,12 +387,39 @@ export default function PunctualityPage() {
             >
               {isLoading ? 'Učitavam...' : 'Prikaži analizu'}
             </Button>
+            <Button
+              onClick={handleResetFilters}
+              type="button"
+              variant="outline"
+              className="bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-soft"
+            >
+              Resetuj filtere
+            </Button>
             {analyticsData && (
               <Button onClick={handleExportToExcel} className="bg-white border-2 border-dark-200 text-dark-900 hover:bg-dark-50 hover:border-dark-300 shadow-soft">
                 Exportuj u Excel
               </Button>
             )}
           </div>
+          {showActiveFilters && (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+              {selectedAirline !== 'ALL' && (
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                  Kompanija: {selectedAirline} {selectedAirlineName ? `(${selectedAirlineName})` : ''}
+                </span>
+              )}
+              {routeFilter.trim() && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                  Ruta: {routeFilter.trim()}
+                </span>
+              )}
+              {selectedOperationType !== 'ALL' && (
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                  Saobraćaj: {selectedOperationTypeName}
+                </span>
+              )}
+            </div>
+          )}
           </div>
         </div>
 

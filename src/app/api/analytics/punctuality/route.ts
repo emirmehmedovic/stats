@@ -5,13 +5,15 @@ import { eachDayOfInterval } from 'date-fns';
 import { endOfDayUtc, formatDateDisplay, getDateStringInTimeZone, startOfDayUtc, TIME_ZONE_SARAJEVO } from '@/lib/dates';
 import { cache, CacheTTL } from '@/lib/cache';
 
-// GET /api/analytics/punctuality?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO
+// GET /api/analytics/punctuality?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&airline=ICAO&route=TEXT&operationTypeId=ID
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const dateFromParam = searchParams.get('dateFrom');
     const dateToParam = searchParams.get('dateTo');
     const airlineParam = searchParams.get('airline');
+    const routeParam = searchParams.get('route');
+    const operationTypeParam = searchParams.get('operationTypeId');
 
     if (!dateFromParam || !dateToParam) {
       return NextResponse.json(
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `analytics:punctuality:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}`;
+    const cacheKey = `analytics:punctuality:${dateFromParam}:${dateToParam}:${airlineParam || 'ALL'}:${routeParam || 'ALL'}:${operationTypeParam || 'ALL'}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       return NextResponse.json({
@@ -59,6 +61,14 @@ export async function GET(request: NextRequest) {
       if (airline) {
         whereSql.push(Prisma.sql`f."airlineId" = ${airline.id}`);
       }
+    }
+
+    if (routeParam) {
+      whereSql.push(Prisma.sql`f."route" ILIKE ${`%${routeParam}%`}`);
+    }
+
+    if (operationTypeParam) {
+      whereSql.push(Prisma.sql`f."operationTypeId" = ${operationTypeParam}`);
     }
 
     const whereClauseSql = Prisma.join(whereSql, ' AND ');
@@ -355,6 +365,8 @@ export async function GET(request: NextRequest) {
         dateFrom: dateFromParam,
         dateTo: dateToParam,
         airline: airlineParam || 'ALL',
+        route: routeParam || '',
+        operationTypeId: operationTypeParam || 'ALL',
       },
       summary: {
         totalFlights: summaryRow.total_flights || 0,

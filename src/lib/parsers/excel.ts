@@ -134,35 +134,74 @@ export async function parseExcelFile(
       // Try to extract date from sheet name if not present in data
       const sheetDate = parseDateFromSheetName(sheetName);
 
+      const normalizeKey = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
+      const canonicalKey = (value: string) =>
+        normalizeKey(value).replace(/[\s().]/g, '');
+      const hasNumericSuffix = (value: string) =>
+        /(_\d+|\.\d+|\(\d+\))$/.test(value.trim().toLowerCase());
+
       // Helper function to find column value by multiple possible names (case-insensitive)
-      const findColumn = (possibleNames: string[], rowData: any): any => {
+      const findColumn = (
+        possibleNames: string[],
+        rowData: any,
+        options?: { allowNumericSuffix?: boolean }
+      ): any => {
         // First, try direct matches
         for (const name of possibleNames) {
           if (rowData[name] !== undefined && rowData[name] !== null && rowData[name] !== '') {
             return rowData[name];
           }
         }
-        
-        // Then try case-insensitive matches
+
+        // Then try normalized exact matches
         for (const name of possibleNames) {
-          const lowerName = name.toLowerCase().trim();
+          const normalizedName = normalizeKey(name);
           for (const key in rowData) {
-            const keyLower = String(key).toLowerCase().trim();
-            // Exact match (case-insensitive)
-            if (keyLower === lowerName) {
-              if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
-                return rowData[key];
-              }
-            }
-            // Partial match (contains)
-            if (keyLower.includes(lowerName) || lowerName.includes(keyLower)) {
+            const normalizedKey = normalizeKey(String(key));
+            if (normalizedKey === normalizedName) {
               if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
                 return rowData[key];
               }
             }
           }
         }
-        
+
+        // Try canonical exact matches (ignore whitespace/punctuation)
+        for (const name of possibleNames) {
+          const normalizedName = canonicalKey(name);
+          for (const key in rowData) {
+            const normalizedKey = canonicalKey(String(key));
+            if (normalizedKey === normalizedName) {
+              if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
+                return rowData[key];
+              }
+            }
+          }
+        }
+
+        // Finally, try partial matches but avoid numeric suffix mismatches
+        for (const name of possibleNames) {
+          const normalizedName = canonicalKey(name);
+          const nameHasSuffix = hasNumericSuffix(name);
+          for (const key in rowData) {
+            const normalizedKey = canonicalKey(String(key));
+            const keyHasSuffix = hasNumericSuffix(String(key));
+
+            if (!options?.allowNumericSuffix && keyHasSuffix !== nameHasSuffix) {
+              continue;
+            }
+
+            if (
+              normalizedKey.includes(normalizedName) ||
+              normalizedName.includes(normalizedKey)
+            ) {
+              if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
+                return rowData[key];
+              }
+            }
+          }
+        }
+
         return null;
       };
 
@@ -217,7 +256,13 @@ export async function parseExcelFile(
 
       try {
         // Parse date - try from row data first, then from sheet name
-        parsedRow.data.date = parseDate(findColumn(['Datum', 'datum', 'Date', 'date'], row)) || sheetDate;
+        parsedRow.data.date =
+          parseDate(
+            findColumn(
+              ['Datum', 'datum', 'Date', 'date', 'DATUM', 'Datum leta', 'DATUM LETA'],
+              row
+            )
+          ) || sheetDate;
         
         // If we still don't have a date, try to extract from arrival or departure times
         if (!parsedRow.data.date) {
@@ -238,22 +283,36 @@ export async function parseExcelFile(
         }
 
         // Parse airline
-        parsedRow.data.airline = parseString(row['Kompanija'] || row['kompanija']);
-        parsedRow.data.icaoCode = parseString(row['ICAO kod'] || row['icao kod']);
+        parsedRow.data.airline = parseString(
+          findColumn(['Kompanija', 'kompanija', 'Avio kompanija', 'Avio Kompanija'], row)
+        );
+        parsedRow.data.icaoCode = parseString(
+          findColumn(['ICAO kod', 'icao kod', 'ICAO', 'ICAO code', 'IATA kod', 'IATA'], row)
+        );
 
         // Parse route
-        parsedRow.data.route = parseString(row['Ruta'] || row['ruta']);
+        parsedRow.data.route = parseString(
+          findColumn(['Ruta', 'ruta', 'RUTA', 'Route', 'Relacija'], row)
+        );
         if (!parsedRow.data.route) {
           parsedRow.errors.push('Ruta je obavezna');
         }
 
         // Parse aircraft type
-        parsedRow.data.aircraftType = parseString(row['Tip a/c'] || row['tip a/c']);
-        parsedRow.data.availableSeats = parseNumber(row['Rasp. mjesta'] || row['rasp. mjesta']);
-        parsedRow.data.registration = parseString(row['Reg'] || row['reg']);
+        parsedRow.data.aircraftType = parseString(
+          findColumn(['Tip a/c', 'tip a/c', 'Tip A/C', 'Aircraft', 'A/C'], row)
+        );
+        parsedRow.data.availableSeats = parseNumber(
+          findColumn(['Rasp. mjesta', 'rasp. mjesta', 'Rasp mjesta', 'Seats', 'Broj mjesta'], row)
+        );
+        parsedRow.data.registration = parseString(
+          findColumn(['Reg', 'reg', 'Registracija', 'Registration'], row)
+        );
 
         // Parse operation type
-        const operationType = parseString(row['Tip OPER'] || row['tip oper']);
+        const operationType = parseString(
+          findColumn(['Tip OPER', 'tip oper', 'Tip operacije', 'Operacija'], row)
+        );
         if (operationType) {
           const upperType = operationType.toUpperCase();
           if (upperType.includes('SCHED')) {
@@ -267,7 +326,9 @@ export async function parseExcelFile(
           }
         }
 
-        parsedRow.data.mtow = parseNumber(row['MTOW(kg)'] || row['mtow(kg)']);
+        parsedRow.data.mtow = parseNumber(
+          findColumn(['MTOW(kg)', 'mtow(kg)', 'MTOW', 'MTOW (kg)'], row)
+        );
 
         // Arrival data - try multiple column name variations
         parsedRow.data.arrivalFlightNumber = parseString(
@@ -307,8 +368,10 @@ export async function parseExcelFile(
         );
         parsedRow.data.departurePassengers = parseNumber(
           findColumn([
-            'Putnici u avionu.1', 
-            'putnici u avionu.1', 
+            'Putnici u avionu.1',
+            'putnici u avionu.1',
+            'Putnici u avionu_1',
+            'putnici u avionu_1',
             'Putnici u avionu (odl)', 
             'putnici u avionu (odl)',
             'Putnici u avionu (odlazak)',
@@ -318,8 +381,10 @@ export async function parseExcelFile(
         );
         parsedRow.data.departureInfants = parseNumber(
           findColumn([
-            'Bebe u naručju.1', 
-            'bebe u naručju.1', 
+            'Bebe u naručju.1',
+            'bebe u naručju.1',
+            'Bebe u naručju_1',
+            'bebe u naručju_1',
             'Bebe u naručju (odl)', 
             'bebe u naručju (odl)',
             'Bebe u naručju (odlazak)',
@@ -355,7 +420,9 @@ export async function parseExcelFile(
             'Pošta odlazak (kg)',
             'pošta odl(kg)',
             'Pošta odl(kg)',
-            'pošta dol (kg)' // Sometimes might be labeled incorrectly
+            'pošta dol (kg)',
+            'pošta dol (kg)_1',
+            'Pošta dol (kg)_1'
           ], row)
         );
 
@@ -414,6 +481,11 @@ function parseString(value: any): string | null {
 
 function parseNumber(value: any): number | null {
   if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[,\s]/g, '');
+    const num = Number(cleaned);
+    return isNaN(num) ? null : num;
+  }
   const num = Number(value);
   return isNaN(num) ? null : num;
 }
@@ -442,6 +514,20 @@ function parseDate(value: any): Date | null {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       const date = dateOnlyToUtc(dateStr);
       return isNaN(date.getTime()) ? null : date;
+    }
+    // Format: M/D/YY or M/D/YYYY (Excel default for some locales)
+    const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (slashMatch) {
+      const partA = parseInt(slashMatch[1], 10);
+      const partB = parseInt(slashMatch[2], 10);
+      const yearPart = parseInt(slashMatch[3], 10);
+      const year = slashMatch[3].length === 2 ? 2000 + yearPart : yearPart;
+      const month = partA > 12 ? partB : partA;
+      const day = partA > 12 ? partA : partB;
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
     }
     // Format: DD.MM.YYYY or DD/MM/YYYY
     const dateMatch = dateStr.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);

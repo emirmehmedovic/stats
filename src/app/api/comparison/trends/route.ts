@@ -69,10 +69,27 @@ export async function GET(request: NextRequest) {
           CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
         )::int AS total_passengers,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END)::int AS arrival_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END)::int AS departure_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departureNoShow", 0) END)::int AS departure_no_show,
+        SUM(COALESCE(f."arrivalBaggageCount", 0) + COALESCE(f."departureBaggageCount", 0))::int AS total_baggage_count,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 1 ELSE 0 END)::int AS arrival_ferry_legs,
+        SUM(CASE WHEN f."departureFerryOut" THEN 1 ELSE 0 END)::int AS departure_ferry_legs,
         SUM(
           CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
           CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
         )::int AS total_seats
+      FROM "Flight" f
+      LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+      WHERE ${whereSql};
+    `;
+
+    const loadFactorSplitQuery = Prisma.sql`
+      SELECT
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END)::int AS arrival_passengers,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END)::int AS arrival_seats,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END)::int AS departure_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END)::int AS departure_seats
       FROM "Flight" f
       LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
       WHERE ${whereSql};
@@ -145,9 +162,18 @@ export async function GET(request: NextRequest) {
       SELECT
         ot.name AS name,
         ot.code AS code,
-        COUNT(*)::int AS flights
+        COUNT(*)::int AS flights,
+        SUM(
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+        )::int AS passengers,
+        SUM(
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+        )::int AS seats
       FROM "Flight" f
       INNER JOIN "OperationType" ot ON ot.id = f."operationTypeId"
+      LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
       WHERE ${whereSql}
       GROUP BY ot.id
       ORDER BY flights DESC;
@@ -164,31 +190,134 @@ export async function GET(request: NextRequest) {
       LIMIT 10;
     `;
 
+    const routePassengersQuery = Prisma.sql`
+      SELECT
+        f.route AS route,
+        SUM(
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+        )::int AS passengers
+      FROM "Flight" f
+      WHERE ${whereSql} AND f.route IS NOT NULL
+      GROUP BY f.route
+      ORDER BY passengers DESC
+      LIMIT 5;
+    `;
+
+    const routeLoadFactorQuery = Prisma.sql`
+      SELECT
+        f.route AS route,
+        SUM(
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+        )::int AS passengers,
+        SUM(
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+        )::int AS seats
+      FROM "Flight" f
+      LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+      WHERE ${whereSql} AND f.route IS NOT NULL
+      GROUP BY f.route
+      HAVING SUM(
+        CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+        CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+      ) > 0
+      ORDER BY (SUM(
+        CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
+        CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+      )::float / NULLIF(SUM(
+        CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
+        CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
+      ), 0)) DESC
+      LIMIT 5;
+    `;
+
+    const routeCountQuery = Prisma.sql`
+      SELECT COUNT(DISTINCT f.route)::int AS route_count
+      FROM "Flight" f
+      WHERE ${whereSql} AND f.route IS NOT NULL;
+    `;
+
     const [
       summaryRows,
       delayRows,
+      loadFactorRows,
       dailyRows,
       airlineRows,
       operationRows,
       routeRows,
+      routePassengerRows,
+      routeLoadFactorRows,
+      routeCountRows,
     ] = await Promise.all([
       prisma.$queryRaw<any[]>(summaryQuery),
       prisma.$queryRaw<any[]>(delaysQuery),
+      prisma.$queryRaw<any[]>(loadFactorSplitQuery),
       prisma.$queryRaw<any[]>(dailyQuery),
       prisma.$queryRaw<any[]>(airlineQuery),
       prisma.$queryRaw<any[]>(operationTypeQuery),
       prisma.$queryRaw<any[]>(routeQuery),
+      prisma.$queryRaw<any[]>(routePassengersQuery),
+      prisma.$queryRaw<any[]>(routeLoadFactorQuery),
+      prisma.$queryRaw<any[]>(routeCountQuery),
     ]);
 
-    const summaryRow = summaryRows[0] || { total_flights: 0, total_passengers: 0, total_seats: 0 };
+    const summaryRow = summaryRows[0] || {
+      total_flights: 0,
+      total_passengers: 0,
+      arrival_passengers: 0,
+      departure_passengers: 0,
+      departure_no_show: 0,
+      total_baggage_count: 0,
+      arrival_ferry_legs: 0,
+      departure_ferry_legs: 0,
+      total_seats: 0,
+    };
     const delayRow = delayRows[0] || { delay_flights: 0, total_delay_minutes: 0 };
+    const loadFactorRow = loadFactorRows[0] || {
+      arrival_passengers: 0,
+      arrival_seats: 0,
+      departure_passengers: 0,
+      departure_seats: 0,
+    };
 
     const totalFlights = summaryRow.total_flights || 0;
     const totalPassengers = summaryRow.total_passengers || 0;
+    const arrivalPassengers = summaryRow.arrival_passengers || 0;
+    const departurePassengers = summaryRow.departure_passengers || 0;
+    const departureNoShow = summaryRow.departure_no_show || 0;
+    const totalBaggageCount = summaryRow.total_baggage_count || 0;
     const totalSeats = summaryRow.total_seats || 0;
+    const arrivalFerryLegs = summaryRow.arrival_ferry_legs || 0;
+    const departureFerryLegs = summaryRow.departure_ferry_legs || 0;
+    const totalFerryLegs = arrivalFerryLegs + departureFerryLegs;
     const loadFactor = totalSeats > 0 ? (totalPassengers / totalSeats) * 100 : 0;
     const delays = delayRow.delay_flights || 0;
-    const avgDelayMinutes = delays > 0 ? (delayRow.total_delay_minutes || 0) / delays : 0;
+    const totalDelayMinutes = delayRow.total_delay_minutes || 0;
+    const avgDelayMinutes = delays > 0 ? totalDelayMinutes / delays : 0;
+    const operations = totalFlights * 2;
+    const noShowPercent = departurePassengers > 0 ? (departureNoShow / departurePassengers) * 100 : 0;
+    const avgBaggageCount = operations > 0 ? totalBaggageCount / operations : 0;
+    const avgPassengersPerOperation = operations > 0 ? totalPassengers / operations : 0;
+    const avgSeatsPerOperation = operations > 0 ? totalSeats / operations : 0;
+    const avgSeatsPerFlight = totalFlights > 0 ? totalSeats / totalFlights : 0;
+    const baggagePerPassenger = totalPassengers > 0 ? totalBaggageCount / totalPassengers : 0;
+    const arrivalLoadFactor =
+      loadFactorRow.arrival_seats > 0
+        ? (loadFactorRow.arrival_passengers / loadFactorRow.arrival_seats) * 100
+        : 0;
+    const departureLoadFactor =
+      loadFactorRow.departure_seats > 0
+        ? (loadFactorRow.departure_passengers / loadFactorRow.departure_seats) * 100
+        : 0;
+    const daysInPeriod = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    const avgFlightsPerDay = totalFlights / daysInPeriod;
+    const avgPassengersPerDay = totalPassengers / daysInPeriod;
+    const delayRatePercent = totalFlights > 0 ? (delays / totalFlights) * 100 : 0;
+    const avgDelayMinutesAllFlights = totalFlights > 0 ? totalDelayMinutes / totalFlights : 0;
+    const distinctRoutes = routeCountRows[0]?.route_count || 0;
+    const avgFlightsPerRoute = distinctRoutes > 0 ? totalFlights / distinctRoutes : 0;
 
     const dailyMap = new Map<string, any>();
     dailyRows.forEach((row) => {
@@ -229,15 +358,32 @@ export async function GET(request: NextRequest) {
       passengers: row.passengers || 0,
     }));
 
-    const operationTypeBreakdown = operationRows.map((row) => ({
-      name: row.name || 'Unknown',
-      code: row.code || '',
-      flights: row.flights || 0,
-    }));
+    const operationTypeBreakdown = operationRows.map((row) => {
+      const seats = row.seats || 0;
+      const passengers = row.passengers || 0;
+      return {
+        name: row.name || 'Unknown',
+        code: row.code || '',
+        flights: row.flights || 0,
+        avgLoadFactor: seats > 0 ? (passengers / seats) * 100 : 0,
+        passengers,
+        seats,
+      };
+    });
 
     const routeBreakdown = routeRows.map((row) => ({
       route: row.route,
       flights: row.flights || 0,
+    }));
+
+    const routePassengersBreakdown = routePassengerRows.map((row) => ({
+      route: row.route,
+      passengers: row.passengers || 0,
+    }));
+
+    const routeLoadFactorBreakdown = routeLoadFactorRows.map((row) => ({
+      route: row.route,
+      loadFactor: row.seats > 0 ? (row.passengers / row.seats) * 100 : 0,
     }));
 
     const responseData = {
@@ -247,6 +393,27 @@ export async function GET(request: NextRequest) {
       summary: {
         flights: totalFlights,
         passengers: totalPassengers,
+        arrivalPassengers,
+        departurePassengers,
+        operations,
+        noShowPercent,
+        avgBaggageCount,
+        avgPassengersPerOperation,
+        arrivalLoadFactor,
+        departureLoadFactor,
+        avgSeatsPerOperation,
+        avgSeatsPerFlight,
+        baggagePerPassenger,
+        totalSeats,
+        totalDelayMinutes,
+        delayRatePercent,
+        avgDelayMinutesAllFlights,
+        noShowCount: departureNoShow,
+        totalFerryLegs,
+        avgFlightsPerDay,
+        avgPassengersPerDay,
+        distinctRoutes,
+        avgFlightsPerRoute,
         loadFactor,
         delays,
         avgDelayMinutes,
@@ -255,6 +422,8 @@ export async function GET(request: NextRequest) {
       airlineBreakdown,
       operationTypeBreakdown,
       routeBreakdown,
+      routePassengersBreakdown,
+      routeLoadFactorBreakdown,
     };
 
     cache.set(cacheKey, responseData, CacheTTL.TEN_MINUTES);
