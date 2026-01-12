@@ -52,22 +52,19 @@ export async function POST(request: NextRequest) {
     const boarded = manifest.passengers.filter(p => p.boardingStatus === 'BOARDED');
     const noShow = manifest.passengers.filter(p => p.boardingStatus === 'NO_SHOW');
 
-    // Calculate demographics for boarded passengers only
+    // Calculate demographics for boarded passengers only (for display purposes)
     const male = boarded.filter(p => p.title === 'MR' || p.title === 'MSTR').length;
     const female = boarded.filter(p => ['MS', 'MRS', 'MISS'].includes(p.title)).length;
     const children = boarded.filter(p => p.title === 'CHD').length;
     const infants = boarded.filter(p => p.isInfant).length;
     const totalBoarded = boarded.length;
 
-    // Update Flight record with aggregated data
+    // Update Flight record with No Show count ONLY
+    // All other passenger data comes from LDM message in daily-operations
     await prisma.flight.update({
       where: { id: manifest.flightId },
       data: {
-        departurePassengers: totalBoarded,
-        departureMalePassengers: male,
-        departureFemalePassengers: female,
-        departureChildren: children,
-        departureInfants: infants
+        departureNoShow: noShow.length
       }
     });
 

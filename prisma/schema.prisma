@@ -206,6 +206,7 @@ model Flight {
   arrivalInfants          Int? // Bebe (NE spadaju u arrivalPassengers)
   arrivalLoadFactor       Float? // Load factor u % (putnici / kapacitet * 100)
   arrivalBaggage          Int? // kg
+  arrivalBaggageCount     Int? // broj komada prtljaga
   arrivalCargo            Int? // kg
   arrivalMail             Int? // kg
   arrivalStatus           FlightStatus @default(OPERATED)
@@ -222,8 +223,10 @@ model Flight {
   departureFemalePassengers Int? // Ženski putnici
   departureChildren         Int? // Djeca (spadaju u departurePassengers)
   departureInfants          Int? // Bebe (NE spadaju u departurePassengers)
+  departureNoShow           Int? // Broj putnika koji se nisu pojavili (No Show)
   departureLoadFactor       Float? // Load factor u % (putnici / kapacitet * 100)
   departureBaggage          Int? // kg
+  departureBaggageCount     Int? // broj komada prtljaga
   departureCargo            Int? // kg
   departureMail             Int? // kg
   departureStatus           FlightStatus @default(OPERATED)
