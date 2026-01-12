@@ -92,15 +92,17 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
       }
     }
 
-    // Pronađi liniju sa passenger info (obično linija koja počinje sa '-MST')
-    const passengerInfoLine = lines.find(line => line.includes('-MST') || line.match(/\d+\/\d+\/\d+\/\d+/));
+    // Pronađi liniju sa passenger info (obično linija koja počinje sa '-XXX')
+    const passengerInfoLine = lines.find(line =>
+      /-?[A-Z]{3}\.\d+\/\d+\/\d+\/\d+/.test(line)
+    );
 
     if (passengerInfoLine) {
-      // Parse passenger breakdown: -MST.128/70/19/9.T1051...
-      // Pattern: -MST.<MALE>/<FEMALE>/<CHILDREN>/<INFANTS>.T<TOTAL>...PAX/<TOTAL_PAX>
+      // Parse passenger breakdown: -TZL.14/20/3/0.T173...PAX/37
+      // Pattern: -XXX.<MALE>/<FEMALE>/<CHILDREN>/<INFANTS>...PAX/<TOTAL_PAX>
 
       // Extract breakdown: 128/70/19/9
-      const breakdownMatch = passengerInfoLine.match(/MST\.(\d+)\/(\d+)\/(\d+)\/(\d+)/);
+      const breakdownMatch = passengerInfoLine.match(/[A-Z]{3}\.(\d+)\/(\d+)\/(\d+)\/(\d+)/);
       if (breakdownMatch) {
         result.male = parseInt(breakdownMatch[1], 10);
         result.female = parseInt(breakdownMatch[2], 10);
