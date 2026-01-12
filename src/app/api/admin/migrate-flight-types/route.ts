@@ -77,6 +77,57 @@ const buildUpdateWhere = (
   };
 };
 
+const resolveMappings = (
+  operationMap: Map<string, { id: string; code: string; name: string }>,
+  flightTypeMap: Map<string, { id: string; code: string; name: string }>
+) => {
+  const activeMappings: Array<{
+    mapping: MigrationMapping;
+    sourceOperation: { id: string; code: string; name: string };
+    targetOperation: { id: string; code: string; name: string };
+    targetFlightType: { id: string; code: string; name: string };
+  }> = [];
+  const skippedMappings: Array<{ key: string; label: string; reason: string }> = [];
+  const missingTargets: { operationTypes: string[]; flightTypes: string[] } = {
+    operationTypes: [],
+    flightTypes: [],
+  };
+
+  for (const mapping of MIGRATION_MAPPINGS) {
+    const sourceOperation = operationMap.get(mapping.sourceOperationCode);
+    const targetOperation = operationMap.get(mapping.targetOperationCode);
+    const targetFlightType = flightTypeMap.get(mapping.targetFlightTypeCode);
+
+    if (!sourceOperation) {
+      skippedMappings.push({
+        key: mapping.key,
+        label: mapping.label,
+        reason: `Nedostaje izvorni tip operacije: ${mapping.sourceOperationCode}`,
+      });
+      continue;
+    }
+
+    if (!targetOperation) {
+      missingTargets.operationTypes.push(mapping.targetOperationCode);
+      continue;
+    }
+
+    if (!targetFlightType) {
+      missingTargets.flightTypes.push(mapping.targetFlightTypeCode);
+      continue;
+    }
+
+    activeMappings.push({
+      mapping,
+      sourceOperation,
+      targetOperation,
+      targetFlightType,
+    });
+  }
+
+  return { activeMappings, skippedMappings, missingTargets };
+};
+
 export async function GET(request: Request) {
   const adminCheck = await requireAdmin(request);
   if ('error' in adminCheck) return adminCheck.error;
@@ -107,17 +158,19 @@ export async function GET(request: Request) {
   const operationMap = new Map(operationTypes.map((op) => [op.code, op]));
   const flightTypeMap = new Map(flightTypes.map((ft) => [ft.code, ft]));
 
-  const missingOperationCodes = operationCodes.filter((code) => !operationMap.has(code));
-  const missingFlightTypeCodes = flightTypeCodes.filter((code) => !flightTypeMap.has(code));
+  const { activeMappings, skippedMappings, missingTargets } = resolveMappings(
+    operationMap,
+    flightTypeMap
+  );
 
-  if (missingOperationCodes.length || missingFlightTypeCodes.length) {
+  if (missingTargets.operationTypes.length || missingTargets.flightTypes.length) {
     return NextResponse.json(
       {
         success: false,
         error: 'Nedostaju definicije tipova operacije ili tipova leta.',
         missing: {
-          operationTypes: missingOperationCodes,
-          flightTypes: missingFlightTypeCodes,
+          operationTypes: missingTargets.operationTypes,
+          flightTypes: missingTargets.flightTypes,
         },
       },
       { status: 400 }
@@ -125,24 +178,20 @@ export async function GET(request: Request) {
   }
 
   const preview = await Promise.all(
-    MIGRATION_MAPPINGS.map(async (mapping) => {
-      const sourceOp = operationMap.get(mapping.sourceOperationCode)!;
-      const targetOp = operationMap.get(mapping.targetOperationCode)!;
-      const targetFlightType = flightTypeMap.get(mapping.targetFlightTypeCode)!;
-
+    activeMappings.map(async ({ mapping, sourceOperation, targetOperation, targetFlightType }) => {
       const totalFlights = await prisma.flight.count({
-        where: { operationTypeId: sourceOp.id },
+        where: { operationTypeId: sourceOperation.id },
       });
 
       const willUpdate = await prisma.flight.count({
-        where: buildUpdateWhere(sourceOp.id, targetOp.id, targetFlightType.id),
+        where: buildUpdateWhere(sourceOperation.id, targetOperation.id, targetFlightType.id),
       });
 
       return {
         key: mapping.key,
         label: mapping.label,
-        sourceOperation: sourceOp,
-        targetOperation: targetOp,
+        sourceOperation,
+        targetOperation,
         targetFlightType,
         totalFlights,
         willUpdate,
@@ -153,6 +202,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     success: true,
     preview,
+    skippedMappings,
   });
 }
 
@@ -186,17 +236,19 @@ export async function POST(request: Request) {
   const operationMap = new Map(operationTypes.map((op) => [op.code, op]));
   const flightTypeMap = new Map(flightTypes.map((ft) => [ft.code, ft]));
 
-  const missingOperationCodes = operationCodes.filter((code) => !operationMap.has(code));
-  const missingFlightTypeCodes = flightTypeCodes.filter((code) => !flightTypeMap.has(code));
+  const { activeMappings, skippedMappings, missingTargets } = resolveMappings(
+    operationMap,
+    flightTypeMap
+  );
 
-  if (missingOperationCodes.length || missingFlightTypeCodes.length) {
+  if (missingTargets.operationTypes.length || missingTargets.flightTypes.length) {
     return NextResponse.json(
       {
         success: false,
         error: 'Nedostaju definicije tipova operacije ili tipova leta.',
         missing: {
-          operationTypes: missingOperationCodes,
-          flightTypes: missingFlightTypeCodes,
+          operationTypes: missingTargets.operationTypes,
+          flightTypes: missingTargets.flightTypes,
         },
       },
       { status: 400 }
@@ -213,19 +265,15 @@ export async function POST(request: Request) {
     updatedFlights: number;
   }> = [];
 
-  for (const mapping of MIGRATION_MAPPINGS) {
-    const sourceOp = operationMap.get(mapping.sourceOperationCode)!;
-    const targetOp = operationMap.get(mapping.targetOperationCode)!;
-    const targetFlightType = flightTypeMap.get(mapping.targetFlightTypeCode)!;
-
+  for (const { mapping, sourceOperation, targetOperation, targetFlightType } of activeMappings) {
     const totalFlights = await prisma.flight.count({
-      where: { operationTypeId: sourceOp.id },
+      where: { operationTypeId: sourceOperation.id },
     });
 
     const updateResult = await prisma.flight.updateMany({
-      where: buildUpdateWhere(sourceOp.id, targetOp.id, targetFlightType.id),
+      where: buildUpdateWhere(sourceOperation.id, targetOperation.id, targetFlightType.id),
       data: {
-        operationTypeId: targetOp.id,
+        operationTypeId: targetOperation.id,
         flightTypeId: targetFlightType.id,
       },
     });
@@ -247,5 +295,6 @@ export async function POST(request: Request) {
     success: true,
     results,
     updatedTotal,
+    skippedMappings,
   });
 }

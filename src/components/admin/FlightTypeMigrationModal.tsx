@@ -30,17 +30,25 @@ type ResultsItem = {
   updatedFlights: number;
 };
 
+type SkippedMapping = {
+  key: string;
+  label: string;
+  reason: string;
+};
+
 export function FlightTypeMigrationModal({ isOpen, onClose }: Props) {
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [preview, setPreview] = useState<PreviewItem[]>([]);
   const [migrationResults, setMigrationResults] = useState<ResultsItem[] | null>(null);
   const [missingInfo, setMissingInfo] = useState<{ operationTypes?: string[]; flightTypes?: string[] } | null>(null);
+  const [skippedMappings, setSkippedMappings] = useState<SkippedMapping[]>([]);
 
   const handlePreview = async () => {
     setIsLoadingPreview(true);
     setMissingInfo(null);
     setMigrationResults(null);
+    setSkippedMappings([]);
 
     try {
       const response = await fetch('/api/admin/migrate-flight-types');
@@ -48,6 +56,7 @@ export function FlightTypeMigrationModal({ isOpen, onClose }: Props) {
 
       if (result.success) {
         setPreview(result.preview || []);
+        setSkippedMappings(result.skippedMappings || []);
       } else {
         setMissingInfo(result.missing || null);
         showToast(result.error || 'Greška pri pregledu migracije', 'error');
@@ -73,6 +82,7 @@ export function FlightTypeMigrationModal({ isOpen, onClose }: Props) {
 
       if (result.success) {
         setMigrationResults(result.results || []);
+        setSkippedMappings(result.skippedMappings || []);
         showToast('Migracija tipova leta završena!', 'success');
       } else {
         setMissingInfo(result.missing || null);
@@ -174,6 +184,25 @@ export function FlightTypeMigrationModal({ isOpen, onClose }: Props) {
                   Tipovi leta: {missingInfo.flightTypes.join(', ')}
                 </p>
               ) : null}
+            </div>
+          )}
+
+          {skippedMappings.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-5 h-5 text-slate-500" />
+                <h4 className="font-semibold text-slate-700">Preskočene mapiranja</h4>
+              </div>
+              <div className="space-y-2 text-sm text-slate-600">
+                {skippedMappings.map((item) => (
+                  <div key={item.key} className="flex items-start justify-between gap-3 bg-white rounded-lg border border-slate-200 p-3">
+                    <div>
+                      <p className="font-semibold text-slate-800">{item.label}</p>
+                      <p>{item.reason}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
