@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -89,7 +89,7 @@ type TrendData = {
   }>;
 };
 
-const COLORS = ['#3392C5', '#16A34A', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#10B981', '#F97316'];
+const COLORS = ['#64748b', '#94a3b8', '#a1a1aa', '#78716c', '#9ca3af', '#6b7280', '#a8a29e', '#52525b'];
 
 const InfoTip = ({ text }: { text: string }) => (
   <span className="relative inline-flex items-center group">
@@ -104,6 +104,7 @@ export default function YearlyTrendPage() {
   const [data, setData] = useState<TrendData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [trendGranularity, setTrendGranularity] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
 
   useEffect(() => {
     fetchTrendData();
@@ -129,6 +130,93 @@ export default function YearlyTrendPage() {
     }
   };
 
+  const trendGranularityLabel = {
+    daily: 'Dnevno',
+    weekly: 'Sedmično',
+    monthly: 'Mjesečno',
+  }[trendGranularity];
+
+  const getIsoWeek = (date: Date) => {
+    // ISO week number based on nearest Thursday.
+    const dateCopy = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = dateCopy.getUTCDay() || 7;
+    dateCopy.setUTCDate(dateCopy.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(dateCopy.getUTCFullYear(), 0, 1));
+    const weekNumber = Math.ceil((((dateCopy.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNumber;
+  };
+
+  const aggregatedTrendData = useMemo(() => {
+    if (!data) return [];
+    if (trendGranularity === 'daily') {
+      return data.dailyData;
+    }
+
+    const groupMap = new Map<string, {
+      date: string;
+      label: string;
+      flights: number;
+      passengers: number;
+      delays: number;
+      loadFactorSum: number;
+      loadFactorCount: number;
+    }>();
+
+    data.dailyData.forEach((item) => {
+      const parsedDate = new Date(item.date);
+      if (Number.isNaN(parsedDate.getTime())) return;
+
+      let key = '';
+      let label = '';
+      let groupDate = new Date(parsedDate);
+
+      if (trendGranularity === 'weekly') {
+        const day = (groupDate.getDay() + 6) % 7;
+        groupDate.setDate(groupDate.getDate() - day);
+        groupDate.setHours(0, 0, 0, 0);
+        key = groupDate.toISOString().slice(0, 10);
+        label = `W${getIsoWeek(groupDate)} ${groupDate.toLocaleDateString('bs-BA', {
+          day: '2-digit',
+          month: '2-digit',
+        })}`;
+      } else {
+        groupDate = new Date(groupDate.getFullYear(), groupDate.getMonth(), 1);
+        key = `${groupDate.getFullYear()}-${String(groupDate.getMonth() + 1).padStart(2, '0')}`;
+        label = groupDate.toLocaleDateString('bs-BA', { month: 'short', year: 'numeric' });
+      }
+
+      const existing = groupMap.get(key);
+      if (existing) {
+        existing.flights += item.flights;
+        existing.passengers += item.passengers;
+        existing.delays += item.delays;
+        existing.loadFactorSum += item.loadFactor;
+        existing.loadFactorCount += 1;
+      } else {
+        groupMap.set(key, {
+          date: key,
+          label,
+          flights: item.flights,
+          passengers: item.passengers,
+          delays: item.delays,
+          loadFactorSum: item.loadFactor,
+          loadFactorCount: 1,
+        });
+      }
+    });
+
+    return Array.from(groupMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, value]) => ({
+        date: value.date,
+        label: value.label,
+        flights: value.flights,
+        passengers: value.passengers,
+        delays: value.delays,
+        loadFactor: value.loadFactorCount > 0 ? value.loadFactorSum / value.loadFactorCount : 0,
+      }));
+  }, [data, trendGranularity]);
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -138,7 +226,7 @@ export default function YearlyTrendPage() {
         </div>
       </div>
       </MainLayout>
-  );
+    );
   }
 
   if (error) {
@@ -148,7 +236,7 @@ export default function YearlyTrendPage() {
         <ErrorDisplay error={error} onRetry={fetchTrendData} />
       </div>
       </MainLayout>
-  );
+    );
   }
 
   if (!data) return null;
@@ -159,7 +247,7 @@ export default function YearlyTrendPage() {
         {/* Header */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 to-dark-800 px-6 py-6 text-white shadow-soft-xl">
           <div className="absolute top-0 right-0 h-48 w-48 rounded-full bg-white/10 blur-3xl -mr-12 -mt-12"></div>
-          <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-primary-500/20 blur-3xl -ml-10 -mb-10"></div>
+          <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-slate-500/20 blur-3xl -ml-10 -mb-10"></div>
           <div className="relative z-10 flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
               <Calendar className="w-6 h-6 text-white" />
@@ -175,7 +263,7 @@ export default function YearlyTrendPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 xl:col-span-4 bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl p-8 text-white shadow-soft-xl relative overflow-hidden flex flex-col justify-between min-h-[340px]">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-12 -mb-12"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-400/20 rounded-full blur-3xl -ml-12 -mb-12"></div>
 
             <div className="relative z-10 space-y-6">
               <div className="flex items-start justify-between">
@@ -191,9 +279,9 @@ export default function YearlyTrendPage() {
 
               <div className="grid grid-cols-3 gap-4 text-sm">
                 {[
-                  { label: 'Letova ukupno', value: data.summary.flights, accent: 'text-primary-200' },
-                  { label: 'Pros. popunjenost', value: `${data.summary.loadFactor.toFixed(1)}%`, accent: 'text-blue-200' },
-                  { label: 'Operacija', value: data.summary.operations, accent: 'text-amber-200' },
+                  { label: 'Letova ukupno', value: data.summary.flights, accent: 'text-slate-200' },
+                  { label: 'Pros. popunjenost', value: `${data.summary.loadFactor.toFixed(1)}%`, accent: 'text-stone-200' },
+                  { label: 'Operacija', value: data.summary.operations, accent: 'text-zinc-200' },
                 ].map((item) => (
                   <div key={item.label} className="p-3 rounded-2xl bg-white/5 border border-white/10">
                     <p className="text-[11px] uppercase tracking-wide text-dark-200 font-semibold">{item.label}</p>
@@ -225,8 +313,9 @@ export default function YearlyTrendPage() {
               icon: Plane,
               badge: 'Period',
               trend: 'Godišnji trend',
-              color: 'text-blue-600',
-              bgColor: 'bg-blue-50',
+              color: 'text-slate-700',
+              bgColor: 'bg-slate-100',
+              surface: 'bg-gradient-to-br from-slate-50 via-white to-sky-50',
               span: 'md:col-span-1',
             },
             {
@@ -235,8 +324,9 @@ export default function YearlyTrendPage() {
               icon: Users,
               badge: 'Dolazak + odlazak',
               trend: 'Godišnji trend',
-              color: 'text-blue-600',
-              bgColor: 'bg-blue-50',
+              color: 'text-stone-700',
+              bgColor: 'bg-stone-100',
+              surface: 'bg-gradient-to-br from-stone-50 via-white to-neutral-50',
               span: 'md:col-span-1',
             },
             {
@@ -245,8 +335,9 @@ export default function YearlyTrendPage() {
               icon: TrendingUp,
               badge: 'Današnji letovi',
               trend: 'Stabilno',
-              color: 'text-indigo-600',
-              bgColor: 'bg-indigo-50',
+              color: 'text-zinc-700',
+              bgColor: 'bg-zinc-100',
+              surface: 'bg-gradient-to-br from-zinc-50 via-white to-sky-50',
               span: 'md:col-span-2 xl:col-span-1',
             },
             {
@@ -255,8 +346,9 @@ export default function YearlyTrendPage() {
               icon: Plane,
               badge: 'Polasci',
               trend: 'Danas',
-              color: 'text-orange-600',
-              bgColor: 'bg-orange-50',
+              color: 'text-neutral-700',
+              bgColor: 'bg-neutral-100',
+              surface: 'bg-gradient-to-br from-neutral-50 via-white to-stone-50',
               span: 'md:col-span-1',
             },
             {
@@ -265,8 +357,9 @@ export default function YearlyTrendPage() {
               icon: Plane,
               badge: 'Dolazak',
               trend: 'Danas',
-              color: 'text-amber-600',
-              bgColor: 'bg-amber-50',
+              color: 'text-gray-700',
+              bgColor: 'bg-gray-100',
+              surface: 'bg-white',
               span: 'md:col-span-1',
             },
             {
@@ -275,8 +368,9 @@ export default function YearlyTrendPage() {
               icon: TrendingUp,
               badge: 'ARR',
               trend: 'Prosjek',
-              color: 'text-sky-600',
-              bgColor: 'bg-sky-50',
+              color: 'text-stone-700',
+              bgColor: 'bg-stone-100',
+              surface: 'bg-gradient-to-br from-stone-50 via-white to-zinc-50',
               tip: 'Prosječna popunjenost za dolazne letove (putnici / raspoloživa sjedišta).',
               span: 'md:col-span-1',
             },
@@ -286,8 +380,9 @@ export default function YearlyTrendPage() {
               icon: TrendingUp,
               badge: 'DEP',
               trend: 'Prosjek',
-              color: 'text-cyan-600',
-              bgColor: 'bg-cyan-50',
+              color: 'text-zinc-700',
+              bgColor: 'bg-zinc-100',
+              surface: 'bg-gradient-to-br from-zinc-50 via-white to-neutral-50',
               tip: 'Prosječna popunjenost za odlazne letove (putnici / raspoloživa sjedišta).',
               span: 'md:col-span-1',
             },
@@ -297,8 +392,9 @@ export default function YearlyTrendPage() {
               icon: Users,
               badge: 'Odlazak',
               trend: 'Udio',
-              color: 'text-amber-600',
-              bgColor: 'bg-amber-50',
+              color: 'text-neutral-700',
+              bgColor: 'bg-neutral-100',
+              surface: 'bg-gradient-to-br from-neutral-50 via-white to-stone-50',
               tip: 'Procenat putnika koji se nisu pojavili na odlasku (no show / odlazni putnici).',
               span: 'md:col-span-1',
             },
@@ -308,8 +404,9 @@ export default function YearlyTrendPage() {
               icon: Package,
               badge: 'Komada',
               trend: 'Prosjek',
-              color: 'text-rose-600',
-              bgColor: 'bg-rose-50',
+              color: 'text-gray-700',
+              bgColor: 'bg-gray-100',
+              surface: 'bg-gradient-to-br from-gray-50 via-white to-zinc-50',
               tip: 'Prosječan broj komada prtljaga po operaciji (ARR + DEP).',
               span: 'md:col-span-1',
             },
@@ -319,8 +416,9 @@ export default function YearlyTrendPage() {
               icon: Users,
               badge: 'Prosjek',
               trend: 'Operacije',
-              color: 'text-teal-600',
-              bgColor: 'bg-teal-50',
+              color: 'text-stone-700',
+              bgColor: 'bg-stone-100',
+              surface: 'bg-gradient-to-br from-stone-50 via-white to-slate-50',
               tip: 'Prosječan broj putnika po operaciji (dolazak + odlazak).',
               span: 'md:col-span-1',
             },
@@ -330,8 +428,9 @@ export default function YearlyTrendPage() {
               icon: AlertCircle,
               badge: 'Letovi',
               trend: 'Udio',
-              color: 'text-red-600',
-              bgColor: 'bg-red-50',
+              color: 'text-slate-700',
+              bgColor: 'bg-slate-100',
+              surface: 'bg-gradient-to-br from-slate-50 via-white to-blue-50',
               span: 'md:col-span-1',
             },
             {
@@ -340,14 +439,15 @@ export default function YearlyTrendPage() {
               icon: Clock,
               badge: 'Delay',
               trend: 'Prosjek',
-              color: 'text-orange-600',
-              bgColor: 'bg-orange-50',
+              color: 'text-zinc-700',
+              bgColor: 'bg-zinc-100',
+              surface: 'bg-gradient-to-br from-zinc-50 via-white to-stone-50',
               span: 'md:col-span-1',
             },
           ].map((card) => {
             const Icon = card.icon;
             return (
-              <div key={card.title} className={`bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/70 hover:shadow-soft-lg transition-shadow ${card.span}`}>
+              <div key={card.title} className={`${card.surface} rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white hover:shadow-soft-lg transition-shadow ${card.span}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${card.bgColor} ${card.color}`}>
@@ -371,7 +471,7 @@ export default function YearlyTrendPage() {
         </div>
 
         {/* Additional KPIs */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Dodatni KPI</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 auto-rows-fr">
             {[
@@ -381,8 +481,9 @@ export default function YearlyTrendPage() {
                 icon: Calendar,
                 badge: 'Dnevno',
                 trend: 'Prosjek',
-                color: 'text-blue-600',
-                bgColor: 'bg-blue-50',
+                color: 'text-slate-700',
+                bgColor: 'bg-slate-100',
+                surface: 'bg-gradient-to-br from-slate-50 via-white to-sky-50',
                 tip: 'Prosječan broj letova po danu u odabranom periodu.',
                 span: 'xl:col-span-1',
               },
@@ -392,8 +493,9 @@ export default function YearlyTrendPage() {
                 icon: Users,
                 badge: 'Dnevno',
                 trend: 'Prosjek',
-                color: 'text-emerald-600',
-                bgColor: 'bg-emerald-50',
+                color: 'text-stone-700',
+                bgColor: 'bg-stone-100',
+                surface: 'bg-gradient-to-br from-stone-50 via-white to-neutral-50',
                 tip: 'Prosječan broj putnika po danu u odabranom periodu.',
                 span: 'xl:col-span-1',
               },
@@ -403,8 +505,9 @@ export default function YearlyTrendPage() {
                 icon: Layers,
                 badge: 'Kapacitet',
                 trend: 'Ukupno',
-                color: 'text-slate-600',
-                bgColor: 'bg-slate-50',
+                color: 'text-zinc-700',
+                bgColor: 'bg-zinc-100',
+                surface: 'bg-white',
                 tip: 'Ukupan kapacitet sjedišta za sve operacije u periodu.',
                 span: 'xl:col-span-1',
               },
@@ -414,8 +517,9 @@ export default function YearlyTrendPage() {
                 icon: Layers,
                 badge: 'Prosjek',
                 trend: 'Letovi',
-                color: 'text-indigo-600',
-                bgColor: 'bg-indigo-50',
+                color: 'text-neutral-700',
+                bgColor: 'bg-neutral-100',
+                surface: 'bg-gradient-to-br from-neutral-50 via-white to-stone-50',
                 tip: 'Prosječan broj raspoloživih sjedišta po letu.',
                 span: 'xl:col-span-1',
               },
@@ -425,8 +529,9 @@ export default function YearlyTrendPage() {
                 icon: Layers,
                 badge: 'Prosjek',
                 trend: 'Operacije',
-                color: 'text-cyan-600',
-                bgColor: 'bg-cyan-50',
+                color: 'text-gray-700',
+                bgColor: 'bg-gray-100',
+                surface: 'bg-gradient-to-br from-gray-50 via-white to-slate-50',
                 tip: 'Prosječan broj raspoloživih sjedišta po operaciji.',
                 span: 'xl:col-span-1',
               },
@@ -436,8 +541,9 @@ export default function YearlyTrendPage() {
                 icon: Percent,
                 badge: 'Letovi',
                 trend: 'Udio',
-                color: 'text-amber-600',
-                bgColor: 'bg-amber-50',
+                color: 'text-slate-700',
+                bgColor: 'bg-slate-100',
+                surface: 'bg-gradient-to-br from-slate-50 via-white to-neutral-50',
                 tip: 'Procenat letova sa najmanje jednim kašnjenjem.',
                 span: 'xl:col-span-1',
               },
@@ -447,8 +553,9 @@ export default function YearlyTrendPage() {
                 icon: Clock,
                 badge: 'Minute',
                 trend: 'Ukupno',
-                color: 'text-orange-600',
-                bgColor: 'bg-orange-50',
+                color: 'text-stone-700',
+                bgColor: 'bg-stone-100',
+                surface: 'bg-gradient-to-br from-stone-50 via-white to-blue-50',
                 tip: 'Ukupan broj minuta kašnjenja za sve letove u periodu.',
                 span: 'xl:col-span-1',
               },
@@ -458,8 +565,9 @@ export default function YearlyTrendPage() {
                 icon: Clock,
                 badge: 'Prosjek',
                 trend: 'Letovi',
-                color: 'text-red-600',
-                bgColor: 'bg-red-50',
+                color: 'text-zinc-700',
+                bgColor: 'bg-zinc-100',
+                surface: 'bg-white',
                 tip: 'Prosječno kašnjenje kada se raspodijeli na sve letove.',
                 span: 'xl:col-span-1',
               },
@@ -469,8 +577,9 @@ export default function YearlyTrendPage() {
                 icon: AlertCircle,
                 badge: 'Odlazak',
                 trend: 'Ukupno',
-                color: 'text-rose-600',
-                bgColor: 'bg-rose-50',
+                color: 'text-neutral-700',
+                bgColor: 'bg-neutral-100',
+                surface: 'bg-gradient-to-br from-neutral-50 via-white to-stone-50',
                 tip: 'Ukupan broj no show putnika na odlasku.',
                 span: 'xl:col-span-1',
               },
@@ -480,8 +589,9 @@ export default function YearlyTrendPage() {
                 icon: Package,
                 badge: 'Komada',
                 trend: 'Prosjek',
-                color: 'text-teal-600',
-                bgColor: 'bg-teal-50',
+                color: 'text-gray-700',
+                bgColor: 'bg-gray-100',
+                surface: 'bg-gradient-to-br from-gray-50 via-white to-slate-50',
                 tip: 'Prosječan broj komada prtljaga po putniku.',
                 span: 'xl:col-span-1',
               },
@@ -491,8 +601,9 @@ export default function YearlyTrendPage() {
                 icon: Plane,
                 badge: 'Prazni',
                 trend: 'Operacije',
-                color: 'text-slate-600',
-                bgColor: 'bg-slate-50',
+                color: 'text-slate-700',
+                bgColor: 'bg-slate-100',
+                surface: 'bg-gradient-to-br from-slate-50 via-white to-stone-50',
                 tip: 'Broj operacija bez putnika (ferry).',
                 span: 'xl:col-span-1',
               },
@@ -502,8 +613,9 @@ export default function YearlyTrendPage() {
                 icon: Plane,
                 badge: 'Rute',
                 trend: 'Ukupno',
-                color: 'text-blue-600',
-                bgColor: 'bg-blue-50',
+                color: 'text-stone-700',
+                bgColor: 'bg-stone-100',
+                surface: 'bg-gradient-to-br from-stone-50 via-white to-neutral-50',
                 tip: 'Broj različitih ruta u periodu.',
                 span: 'xl:col-span-1',
               },
@@ -513,15 +625,16 @@ export default function YearlyTrendPage() {
                 icon: Plane,
                 badge: 'Prosjek',
                 trend: 'Rute',
-                color: 'text-indigo-600',
-                bgColor: 'bg-indigo-50',
+                color: 'text-zinc-700',
+                bgColor: 'bg-zinc-100',
+                surface: 'bg-gradient-to-br from-zinc-50 via-white to-slate-50',
                 tip: 'Prosječan broj letova po ruti.',
                 span: 'xl:col-span-1',
               },
             ].map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.title} className={`bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/70 hover:shadow-soft-lg transition-shadow ${card.span}`}>
+                <div key={card.title} className={`${card.surface} rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white hover:shadow-soft-lg transition-shadow ${card.span}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${card.bgColor} ${card.color}`}>
@@ -544,11 +657,35 @@ export default function YearlyTrendPage() {
           </div>
         </div>
 
-        {/* Daily Flights Chart */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
-          <h3 className="text-lg font-semibold text-dark-900 mb-4">Dnevni letovi</h3>
+        {/* Flights Chart */}
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 className="text-lg font-semibold text-dark-900">
+              Letovi ({trendGranularityLabel.toLowerCase()})
+            </h3>
+            <div className="flex items-center rounded-full bg-slate-100 p-1 border border-slate-200">
+              {[
+                { value: 'daily', label: 'Dnevno' },
+                { value: 'weekly', label: 'Sedmično' },
+                { value: 'monthly', label: 'Mjesečno' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTrendGranularity(option.value as 'daily' | 'weekly' | 'monthly')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                    trendGranularity === option.value
+                      ? 'bg-white text-dark-900 shadow-sm'
+                      : 'text-dark-600 hover:text-dark-900'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={500}>
-            <LineChart data={data.dailyData}>
+            <LineChart data={aggregatedTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E2E4" />
               <XAxis 
                 dataKey="label" 
@@ -570,7 +707,7 @@ export default function YearlyTrendPage() {
               <Line
                 type="monotone"
                 dataKey="flights"
-                stroke="#3392C5"
+                stroke="#64748b"
                 strokeWidth={2}
                 name="Letovi"
               />
@@ -578,11 +715,13 @@ export default function YearlyTrendPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Daily Passengers Chart */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
-          <h3 className="text-lg font-semibold text-dark-900 mb-4">Dnevni putnici</h3>
+        {/* Passengers Chart */}
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
+          <h3 className="text-lg font-semibold text-dark-900 mb-4">
+            Putnici ({trendGranularityLabel.toLowerCase()})
+          </h3>
           <ResponsiveContainer width="100%" height={500}>
-            <BarChart data={data.dailyData}>
+            <BarChart data={aggregatedTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E2E4" />
               <XAxis 
                 dataKey="label" 
@@ -601,16 +740,18 @@ export default function YearlyTrendPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="passengers" fill="#16A34A" name="Putnici" />
+              <Bar dataKey="passengers" fill="#94a3b8" name="Putnici" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Load Factor Chart */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
-          <h3 className="text-lg font-semibold text-dark-900 mb-4">Load Factor po danu</h3>
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
+          <h3 className="text-lg font-semibold text-dark-900 mb-4">
+            Load Factor ({trendGranularityLabel.toLowerCase()})
+          </h3>
           <ResponsiveContainer width="100%" height={500}>
-            <LineChart data={data.dailyData}>
+            <LineChart data={aggregatedTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E2E4" />
               <XAxis 
                 dataKey="label" 
@@ -632,7 +773,7 @@ export default function YearlyTrendPage() {
               <Line
                 type="monotone"
                 dataKey="loadFactor"
-                stroke="#8B5CF6"
+                stroke="#78716c"
                 strokeWidth={2}
                 name="Load Factor (%)"
               />
@@ -643,7 +784,7 @@ export default function YearlyTrendPage() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Airlines Breakdown */}
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
             <h3 className="text-lg font-semibold text-dark-900 mb-4">Po kompanijama</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -666,7 +807,7 @@ export default function YearlyTrendPage() {
           </div>
 
           {/* Operation Types Breakdown */}
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
             <h3 className="text-lg font-semibold text-dark-900 mb-4">Po tipovima operacije</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -689,7 +830,7 @@ export default function YearlyTrendPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Load Factor po tipu operacije</h3>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={data.operationTypeBreakdown} layout="vertical">
@@ -706,13 +847,13 @@ export default function YearlyTrendPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="avgLoadFactor" fill="#8B5CF6" name="Load Factor (%)" />
+              <Bar dataKey="avgLoadFactor" fill="#78716c" name="Load Factor (%)" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Top Routes */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Top 10 ruta</h3>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={data.routeBreakdown} layout="vertical">
@@ -728,13 +869,13 @@ export default function YearlyTrendPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="flights" fill="#3392C5" name="Letovi" />
+              <Bar dataKey="flights" fill="#64748b" name="Letovi" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Top Routes by Passengers */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Top 5 ruta po putnicima</h3>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={data.routePassengersBreakdown} layout="vertical">
@@ -750,12 +891,12 @@ export default function YearlyTrendPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="passengers" fill="#16A34A" name="Putnici" />
+              <Bar dataKey="passengers" fill="#94a3b8" name="Putnici" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-slate-200/60">
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Top 5 ruta po load factoru</h3>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={data.routeLoadFactorBreakdown} layout="vertical">
@@ -772,7 +913,7 @@ export default function YearlyTrendPage() {
                 }}
               />
               <Legend />
-              <Bar dataKey="loadFactor" fill="#0EA5E9" name="Load Factor (%)" />
+              <Bar dataKey="loadFactor" fill="#a1a1aa" name="Load Factor (%)" />
             </BarChart>
           </ResponsiveContainer>
         </div>

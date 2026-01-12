@@ -2,7 +2,21 @@
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Calendar, Plane, Clock, Edit, Users, Sparkles, Lock, AlertCircle, DoorClosed } from 'lucide-react';
+import {
+  Calendar,
+  Plane,
+  PlaneLanding,
+  PlaneTakeoff,
+  Briefcase,
+  Gauge,
+  Timer,
+  Edit,
+  Users,
+  Sparkles,
+  Lock,
+  AlertCircle,
+  DoorClosed,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading';
@@ -36,13 +50,19 @@ type Flight = {
     model: string;
   } | null;
   arrivalScheduledTime: string | null;
+  arrivalActualTime: string | null;
   departureScheduledTime: string | null;
+  departureActualTime: string | null;
   arrivalPassengers: number | null;
   arrivalFerryIn: boolean;
   departurePassengers: number | null;
   departureFerryOut: boolean;
+  arrivalLoadFactor: number | null;
+  departureLoadFactor: number | null;
   arrivalBaggage: number | null;
   departureBaggage: number | null;
+  arrivalBaggageCount: number | null;
+  departureBaggageCount: number | null;
   arrivalCargo: number | null;
   departureCargo: number | null;
   arrivalMail: number | null;
@@ -178,6 +198,28 @@ function DailyOperationsContent() {
     );
   };
 
+  const sortTimeValue = (time: string | null) => {
+    if (!time) return Number.POSITIVE_INFINITY;
+    const parsed = new Date(time).getTime();
+    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+  };
+
+  const getLoadFactor = (flight: Flight) => {
+    const values = [flight.arrivalLoadFactor, flight.departureLoadFactor].filter(
+      (value): value is number => value !== null && !Number.isNaN(value)
+    );
+    if (!values.length) return null;
+    const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Math.round(avg);
+  };
+
+  const getDelayMinutes = (scheduled: string | null, actual: string | null) => {
+    if (!scheduled || !actual) return null;
+    const delay = new Date(actual).getTime() - new Date(scheduled).getTime();
+    if (Number.isNaN(delay)) return null;
+    return Math.max(0, Math.round(delay / 60000));
+  };
+
   const filteredFlights = flights.filter(flight => {
     // Search filter
     if (searchTerm) {
@@ -202,6 +244,12 @@ function DailyOperationsContent() {
 
     return true;
   });
+
+  const sortedFlights = useMemo(() => {
+    return [...filteredFlights].sort((a, b) => {
+      return sortTimeValue(a.departureScheduledTime) - sortTimeValue(b.departureScheduledTime);
+    });
+  }, [filteredFlights]);
 
   const summary = useMemo(() => {
     const totalFlights = filteredFlights.length;
@@ -485,7 +533,7 @@ function DailyOperationsContent() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {filteredFlights.map((flight) => (
+                {sortedFlights.map((flight) => (
                   <div
                     key={flight.id}
                     className="p-6 relative overflow-hidden group"
@@ -554,53 +602,103 @@ function DailyOperationsContent() {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="p-3 rounded-2xl bg-white/80 border border-dark-100 shadow-md shadow-slate-200/60">
-                            <div className="flex items-center gap-1 text-dark-500 mb-1">
-                              <Clock className="w-4 h-4" />
-                              <span>Dolazak</span>
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 text-sm">
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50/70 via-white/80 to-slate-100/70 opacity-80"></div>
+                            <div className="relative z-10 flex items-center justify-between text-dark-500 mb-2">
+                              <div className="flex items-center gap-2 text-xs uppercase tracking-wide">
+                                <span className="w-7 h-7 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                                  <PlaneLanding className="w-4 h-4" />
+                                </span>
+                                <span>Dolazak</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">ARR</span>
                             </div>
-                            <p className="font-semibold text-dark-900">
+                            <p className="relative z-10 font-semibold text-dark-900">
                               {formatTime(flight.arrivalScheduledTime)}
                             </p>
                             {flight.arrivalPassengers !== null && (
-                              <p className="text-xs text-dark-500">
+                              <p className="relative z-10 text-xs text-dark-500">
                                 {flight.arrivalPassengers} putnika
                               </p>
                             )}
                           </div>
 
-                          <div className="p-3 rounded-2xl bg-white/80 border border-dark-100 shadow-md shadow-slate-200/60">
-                            <div className="flex items-center gap-1 text-dark-500 mb-1">
-                              <Clock className="w-4 h-4" />
-                              <span>Odlazak</span>
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-stone-50/70 via-white/80 to-stone-100/70 opacity-80"></div>
+                            <div className="relative z-10 flex items-center justify-between text-dark-500 mb-2">
+                              <div className="flex items-center gap-2 text-xs uppercase tracking-wide">
+                                <span className="w-7 h-7 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center">
+                                  <PlaneTakeoff className="w-4 h-4" />
+                                </span>
+                                <span>Odlazak</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[10px] font-semibold">DEP</span>
                             </div>
-                            <p className="font-semibold text-dark-900">
+                            <p className="relative z-10 font-semibold text-dark-900">
                               {formatTime(flight.departureScheduledTime)}
                             </p>
                             {flight.departurePassengers !== null && (
-                              <p className="text-xs text-dark-500">
+                              <p className="relative z-10 text-xs text-dark-500">
                                 {flight.departurePassengers} putnika
                               </p>
                             )}
                           </div>
 
-                          <div className="p-3 rounded-2xl bg-white/80 border border-dark-100 shadow-md shadow-slate-200/60">
-                            <div className="text-dark-500 mb-1 text-xs uppercase tracking-wide">Prtljag</div>
-                            <p className="font-semibold text-dark-900">
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50/70 via-white/80 to-slate-100/70 opacity-80"></div>
+                            <div className="relative z-10 text-dark-500 mb-1 text-xs uppercase tracking-wide">Prtljag</div>
+                            <p className="relative z-10 font-semibold text-dark-900">
                               {flight.arrivalBaggage || flight.departureBaggage
                                 ? `${(flight.arrivalBaggage || 0) + (flight.departureBaggage || 0)} kg`
                                 : '-'}
                             </p>
                           </div>
 
-                          <div className="p-3 rounded-2xl bg-white/80 border border-dark-100 shadow-md shadow-slate-200/60">
-                            <div className="text-dark-500 mb-1 text-xs uppercase tracking-wide">Cargo</div>
-                            <p className="font-semibold text-dark-900">
-                              {flight.arrivalCargo || flight.departureCargo
-                                ? `${(flight.arrivalCargo || 0) + (flight.departureCargo || 0)} kg`
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-stone-50/70 via-white/80 to-stone-100/70 opacity-80"></div>
+                            <div className="relative z-10 flex items-center justify-between text-dark-500 mb-1">
+                              <span className="text-xs uppercase tracking-wide">Koferi</span>
+                              <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-600 flex items-center justify-center">
+                                <Briefcase className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                            <p className="relative z-10 font-semibold text-dark-900">
+                              {flight.arrivalBaggageCount || flight.departureBaggageCount
+                                ? `${(flight.arrivalBaggageCount || 0) + (flight.departureBaggageCount || 0)}`
                                 : '-'}
                             </p>
+                          </div>
+
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50/70 via-white/80 to-slate-100/70 opacity-80"></div>
+                            <div className="relative z-10 flex items-center justify-between text-dark-500 mb-1">
+                              <span className="text-xs uppercase tracking-wide">Load factor</span>
+                              <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                                <Gauge className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                            <p className="relative z-10 font-semibold text-dark-900">
+                              {getLoadFactor(flight) !== null ? `${getLoadFactor(flight)}%` : '-'}
+                            </p>
+                          </div>
+
+                          <div className="relative p-3.5 rounded-2xl border-[6px] border-white bg-white/90 shadow-soft overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-stone-50/70 via-white/80 to-stone-100/70 opacity-80"></div>
+                            <div className="relative z-10 flex items-center justify-between text-dark-500 mb-1">
+                              <span className="text-xs uppercase tracking-wide">Tačnost</span>
+                              <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-600 flex items-center justify-center">
+                                <Timer className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                            <div className="relative z-10 space-y-1 text-xs text-dark-600">
+                              <p>
+                                Dolazak {getDelayMinutes(flight.arrivalScheduledTime, flight.arrivalActualTime) ?? '-'} min kašnjenja
+                              </p>
+                              <p>
+                                Odlazak {getDelayMinutes(flight.departureScheduledTime, flight.departureActualTime) ?? '-'} min kašnjenja
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
