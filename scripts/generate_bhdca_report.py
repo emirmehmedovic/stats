@@ -435,9 +435,27 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
 
     end_row = remarks_row - 1
 
-    # Safely clear merged cells in the data range
-    # Columns: 4 (From), 5 (To), 9 (Passengers), 14 (Freight), 15 (Mail)
-    clear_merged_cell_range(ws, start_row, end_row, [4, 5, 9, 14, 15])
+    # AGGRESSIVE: Unmerge ALL merged cells in the entire data range first
+    # This prevents MergedCell read-only errors
+    print(f"[DEBUG] Unmerging cells in range rows {start_row}-{end_row}...")
+    merged_ranges_to_remove = []
+    for merged_range in list(ws.merged_cells.ranges):
+        # If any part of this merged range is in our data rows, unmerge it
+        if (merged_range.min_row >= start_row and merged_range.min_row <= end_row) or \
+           (merged_range.max_row >= start_row and merged_range.max_row <= end_row):
+            merged_ranges_to_remove.append(str(merged_range))
+
+    for range_str in merged_ranges_to_remove:
+        try:
+            ws.unmerge_cells(range_str)
+            print(f"[DEBUG] Unmerged: {range_str}")
+        except Exception as e:
+            print(f"[WARNING] Could not unmerge {range_str}: {e}")
+
+    # Clear values in data columns
+    for row in range(start_row, end_row + 1):
+        for col in [4, 5, 9, 14, 15]:
+            ws.cell(row=row, column=col).value = None
 
     # Write new data
     row_num = start_row
