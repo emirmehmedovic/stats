@@ -9,12 +9,14 @@ Times are exported as stored in flight records (no timezone conversion).
 import sys
 import os
 import re
+import pytz
 import calendar
 from pathlib import Path
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import openpyxl
+from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 # Putanja
@@ -71,7 +73,21 @@ def sanitize_text(value):
         return None
     if not isinstance(value, str):
         return value
+    value = ILLEGAL_CHARACTERS_RE.sub('', value)
     return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+
+SARAJEVO_TZ = pytz.timezone('Europe/Sarajevo')
+UTC_TZ = pytz.utc
+
+def to_local_datetime(dt):
+    """Convert aware datetimes to Europe/Sarajevo; keep naive datetimes unchanged."""
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            return UTC_TZ.localize(dt).astimezone(SARAJEVO_TZ)
+        return dt.astimezone(SARAJEVO_TZ)
+    return dt
 
 
 def format_time_local(dt):
@@ -198,8 +214,13 @@ def parse_route(route_str):
     if not route_str or '-' not in route_str:
         return None
 
-    parts = route_str.strip().split('-')
-    return parts[0].strip() if parts[0] else None
+    parts = [p.strip().upper() for p in route_str.strip().split('-') if p.strip()]
+    if not parts:
+        return None
+    for part in parts:
+        if part != 'TZL':
+            return part
+    return parts[0]
 
 
 def generate_wizzair_performance(year: int, month: int, day: int = None, output_path: Path = None):
@@ -299,12 +320,12 @@ def generate_wizzair_performance(year: int, month: int, day: int = None, output_
             # Parse route
             desk = sanitize_text(parse_route(flight['route']) or '')
 
-            # Use stored times as-is (no timezone conversion)
-            sta_local = flight.get('arrivalScheduledTime')
-            ata_local = flight.get('arrivalActualTime')
-            std_local = flight.get('departureScheduledTime')
-            dct_local = flight.get('departureDoorClosingTime')
-            atd_local = flight.get('departureActualTime')
+            # Use stored times converted to local time (if timezone-aware)
+            sta_local = to_local_datetime(flight.get('arrivalScheduledTime'))
+            ata_local = to_local_datetime(flight.get('arrivalActualTime'))
+            std_local = to_local_datetime(flight.get('departureScheduledTime'))
+            dct_local = to_local_datetime(flight.get('departureDoorClosingTime'))
+            atd_local = to_local_datetime(flight.get('departureActualTime'))
 
             # Calculate total delay based on door close time
             total_delay_minutes = calculate_delay_minutes(std_local, dct_local)
@@ -323,20 +344,20 @@ def generate_wizzair_performance(year: int, month: int, day: int = None, output_
             )  # Flight Nr
             ws.cell(row=row_idx, column=4).value = desk  # Desk
             ws.cell(row=row_idx, column=5).value = sanitize_text(flight.get('registration') or '')  # A/C Reg
-            ws.cell(row=row_idx, column=6).value = format_time_local(sta_local)  # STA
-            ws.cell(row=row_idx, column=7).value = format_time_local(ata_local)  # ATA
-            ws.cell(row=row_idx, column=8).value = format_time_local(std_local)  # STD
-            ws.cell(row=row_idx, column=9).value = format_time_local(dct_local)  # DCT
-            ws.cell(row=row_idx, column=10).value = format_time_local(atd_local)  # ATD
+            ws.cell(row=row_idx, column=6).value = sanitize_text(format_time_local(sta_local))  # STA
+            ws.cell(row=row_idx, column=7).value = sanitize_text(format_time_local(ata_local))  # ATA
+            ws.cell(row=row_idx, column=8).value = sanitize_text(format_time_local(std_local))  # STD
+            ws.cell(row=row_idx, column=9).value = sanitize_text(format_time_local(dct_local))  # DCT
+            ws.cell(row=row_idx, column=10).value = sanitize_text(format_time_local(atd_local))  # ATD
 
             # Total delay
             if total_delay_minutes and total_delay_minutes > 0:
                 # Format as H:MM
                 hours = total_delay_minutes // 60
                 mins = total_delay_minutes % 60
-                ws.cell(row=row_idx, column=11).value = f"{hours}:{mins:02d}"
+                ws.cell(row=row_idx, column=11).value = sanitize_text(f"{hours}:{mins:02d}")
             else:
-                ws.cell(row=row_idx, column=11).value = "No Delay"
+                ws.cell(row=row_idx, column=11).value = sanitize_text("No Delay")
 
             # Delay codes (up to 3)
             for i, delay in enumerate(dep_delays[:3]):
@@ -349,7 +370,7 @@ def generate_wizzair_performance(year: int, month: int, day: int = None, output_
 
             # PAX
             pax = flight.get('departurePassengers') or flight.get('arrivalPassengers') or ''
-            ws.cell(row=row_idx, column=21).value = pax  # PAX
+            ws.cell(row=row_idx, column=21).value = sanitize_text(pax)  # PAX
 
             # Apply styles
             for col in range(1, 22):
