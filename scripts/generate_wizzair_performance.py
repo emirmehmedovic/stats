@@ -420,7 +420,9 @@ def generate_wizzair_performance(year: int, month: int, day: int = None, output_
             output_path = OUTPUT_DIR / f"Wizz_Air_Performance_{MONTH_NAMES[month]}_{year}.xlsx"
 
     print(f"Čuvam izvještaj u: {output_path}")
+    wb.iso_dates = True
     wb.save(output_path)
+    wb.close()
     print(f"✅ Wizz Air Performance izvještaj uspješno generisan!")
 
     return str(output_path)

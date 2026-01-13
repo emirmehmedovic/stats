@@ -735,7 +735,9 @@ def main():
         filename = f"Custom_izvjestaj_{timestamp}.xlsx"
         output_path = OUTPUT_DIR / filename
 
+        wb.iso_dates = True
         wb.save(output_path)
+        wb.close()
 
         print(json.dumps({
             "success": True,

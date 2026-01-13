@@ -415,7 +415,9 @@ def generate_customs_stats(year: int, month: int, output_path: Path = None):
         output_path = OUTPUT_DIR / f"Statistika_za_carinu_{MONTH_NAMES[month]}_{year}.xlsx"
 
     print(f"Čuvam izvještaj u: {output_path}")
+    wb.iso_dates = True
     wb.save(output_path)
+    wb.close()
     print(f"✅ Statistika za carinu uspješno generisana!")
 
     return str(output_path)

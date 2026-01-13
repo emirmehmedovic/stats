@@ -103,6 +103,7 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
 def clear_merged_cell_range(ws, start_row, end_row, columns):
     """
     Safely clear values in a range that may contain merged cells.
+    Only clears the TOP-LEFT cell of each merged range, which is the only writable cell.
 
     Args:
         ws: Worksheet object
@@ -110,31 +111,32 @@ def clear_merged_cell_range(ws, start_row, end_row, columns):
         end_row: Last row to clear
         columns: List of column numbers to clear
     """
-    # Step 1: Unmerge all cells in the range
-    merged_ranges_to_unmerge = []
+    # Identify all merged cell top-left positions in our target range
+    merged_top_left_cells = set()
     for merged_range in list(ws.merged_cells.ranges):
         # Check if this merged range intersects with our target range
         if (merged_range.min_row >= start_row and merged_range.max_row <= end_row):
             # Check if any of the columns intersect
             for col in columns:
                 if col >= merged_range.min_col and col <= merged_range.max_col:
-                    merged_ranges_to_unmerge.append(str(merged_range))
+                    # Store top-left cell position
+                    merged_top_left_cells.add((merged_range.min_row, merged_range.min_col))
                     break
 
-    # Unmerge (need to create a copy of list because we're modifying during iteration)
-    for merged_range_str in merged_ranges_to_unmerge:
-        try:
-            ws.unmerge_cells(merged_range_str)
-        except Exception as e:
-            print(f"[DEBUG] Could not unmerge {merged_range_str}: {e}")
-
-    # Step 2: Clear values
+    # Clear values - only clear top-left cells of merged ranges
     for row in range(start_row, end_row + 1):
         for col in columns:
+            cell = ws.cell(row=row, column=col)
+            # Check if this is a merged cell
+            if hasattr(cell, '__class__') and 'MergedCell' in cell.__class__.__name__:
+                # Skip merged cells (not top-left)
+                continue
+            # Clear the cell value
             try:
-                ws.cell(row=row, column=col).value = None
-            except Exception as e:
-                print(f"[DEBUG] Could not clear cell at row={row}, col={col}: {e}")
+                cell.value = None
+            except AttributeError:
+                # This is a merged cell that's read-only, skip it
+                continue
 
 
 def get_flight_data(year: int, month: int):
@@ -693,7 +695,9 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
         output_path = OUTPUT_DIR / output_filename
 
     print(f"Čuvam izvještaj u: {output_path}")
+    wb.iso_dates = True
     wb.save(output_path)
+    wb.close()
 
     print(f"✅ BHDCA izvještaj uspješno generisan: {output_path}")
 

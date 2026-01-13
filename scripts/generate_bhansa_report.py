@@ -401,7 +401,9 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
         output_path = OUTPUT_DIR / f"BHANSA_{MONTH_NAMES[month]}_{year}.xlsx"
 
     print(f"Čuvam izvještaj u: {output_path}")
+    wb.iso_dates = True
     wb.save(output_path)
+    wb.close()
     print(f"✅ BHANSA izvještaj uspješno generisan!")
 
     return str(output_path)

@@ -464,7 +464,9 @@ def generate_director_stats(year: int, month_to: int, output_path: Path = None):
         output_path = OUTPUT_DIR / f"Statistika_za_direktora_{file_suffix}.xlsx"
 
     print(f"Čuvam izvještaj u: {output_path}")
+    wb.iso_dates = True
     wb.save(output_path)
+    wb.close()
     print("✅ Statistika za direktora uspješno generisana!")
 
     return str(output_path)
