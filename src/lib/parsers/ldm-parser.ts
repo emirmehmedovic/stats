@@ -79,16 +79,32 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
 
   try {
     // Pronađi liniju sa flight info (obično 2. linija ili linija koja sadrži '/')
-    const flightInfoLine = lines.find(line => line.includes('/') && line.includes('.'));
+    const flightInfoLine = lines.find(line => /^[A-Z0-9]+\/\d+\./i.test(line));
 
     if (flightInfoLine) {
-      // Parse flight info: W64241/12.9HWNL.239Y.2/5
-      // Pattern: <FLIGHT_NUMBER>/<DAY>.<REGISTRATION>.<CAPACITY>Y.<REST>
-      const flightMatch = flightInfoLine.match(/([A-Z0-9]+)\/\d+\.([A-Z0-9]+)\.(\d+)Y/i);
-      if (flightMatch) {
-        result.flightNumber = flightMatch[1];
-        result.registration = flightMatch[2];
-        result.capacity = parseInt(flightMatch[3], 10);
+      // Parse flight info: W64241/12.9HWNL.239Y.2/5 or VF272/03.TCJFM.Y189.2/4
+      const slashIndex = flightInfoLine.indexOf('/');
+      const flightNumber = flightInfoLine.slice(0, slashIndex).trim();
+      const rest = flightInfoLine.slice(slashIndex + 1).trim();
+
+      if (flightNumber) {
+        result.flightNumber = flightNumber;
+      }
+
+      const restNoDay = rest.replace(/^\d+\./, '');
+      const tokens = restNoDay.split(/[./]/).filter(Boolean);
+      const registrationToken = tokens[0];
+      const capacityToken = tokens[1];
+
+      if (registrationToken) {
+        result.registration = registrationToken;
+      }
+
+      if (capacityToken) {
+        const capacityMatch = capacityToken.match(/\d+/);
+        if (capacityMatch) {
+          result.capacity = parseInt(capacityMatch[0], 10);
+        }
       }
     }
 
@@ -117,16 +133,27 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
       }
     }
 
+    const allText = lines.join(' ');
+
+    // Pronađi ukupno putnika iz bilo koje linije
+    if (result.totalPassengers === null) {
+      const paxMatch = allText.match(/PAX\/(\d+)/i);
+      if (paxMatch) {
+        result.totalPassengers = parseInt(paxMatch[1], 10);
+      }
+    }
+
     // Pronađi liniju sa baggage info
     // Baggage može biti:
     // 1. Na zasebnoj liniji: "B/70/1051"
     // 2. Na istoj liniji sa SI: "SI B/70/1051"
     // 3. Bilo gdje u poruci: "...B/70/1051..."
-    let baggageInfoLine = lines.find(line => line.startsWith('B/') || line.includes(' B/'));
+    // 4. Alternativno: ".BAGS/20/285"
+    // 5. CHECKED BGG PCS: "CHECKED BGG PCS SAW 3/Y/102"
+    let baggageInfoLine = lines.find(line => line.startsWith('B/') || line.includes(' B/') || line.includes('BAGS/'));
 
     // Ako nije nađena u linijama, pretraži cijelu poruku
     if (!baggageInfoLine) {
-      const allText = lines.join(' ');
       if (allText.includes('B/')) {
         baggageInfoLine = allText;
       }
@@ -139,6 +166,23 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
       if (baggageMatch) {
         result.baggageCount = parseInt(baggageMatch[1], 10);
         result.baggageWeight = parseInt(baggageMatch[2], 10);
+      }
+    }
+
+    if (result.baggageCount === null || result.baggageWeight === null) {
+      const bagsMatch = allText.match(/BAGS\/(\d+)\/(\d+)/i);
+      if (bagsMatch) {
+        result.baggageCount = parseInt(bagsMatch[1], 10);
+        result.baggageWeight = parseInt(bagsMatch[2], 10);
+      }
+    }
+
+    if (result.baggageCount === null) {
+      const checkedMatch = allText.match(
+        /CHECKED\s+(?:BAGGAGE|BGG)\s+(?:PIECES|PCS)\s+[A-Z]{3}\s+\d+\/Y\/(\d+)/i
+      );
+      if (checkedMatch) {
+        result.baggageCount = parseInt(checkedMatch[1], 10);
       }
     }
   } catch (error) {

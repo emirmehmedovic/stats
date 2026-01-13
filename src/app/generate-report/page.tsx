@@ -1296,7 +1296,7 @@ export default function GenerateReportPage() {
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">Wizz Air Performance Table</h2>
                   <p className="text-violet-100 text-sm max-w-2xl leading-relaxed">
-                    Dnevni performance izvještaj za Wizz Air. Jedan sheet po danu mjeseca sa detaljnim podacima o letovima, kašnjenjima i UTC vremenima.
+                    Dnevni performance izvještaj za Wizz Air. Jedan sheet po danu mjeseca sa detaljnim podacima o letovima, kašnjenjima i lokalnim vremenima.
                   </p>
                 </div>
                 <div className="p-3 bg-white/10 rounded-xl">
@@ -1461,8 +1461,8 @@ export default function GenerateReportPage() {
                         <CheckCircle2 className="w-4 h-4 text-violet-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900 mb-0.5">UTC vremena</p>
-                        <p className="text-sm text-slate-600">STA, ATA, STD, DCT, ATD - svi u UTC timezone</p>
+                        <p className="font-medium text-slate-900 mb-0.5">Lokalna vremena</p>
+                        <p className="text-sm text-slate-600">STA, ATA, STD, DCT, ATD - preuzeta iz zapisa leta bez konverzije</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">

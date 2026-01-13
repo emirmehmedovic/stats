@@ -133,7 +133,7 @@ export default function FlightDataEntryPage() {
     arrivalFlightNumber: '',
     arrivalScheduledTime: '',
     arrivalActualTime: '',
-    arrivalStatus: 'SCHEDULED',
+    arrivalStatus: 'OPERATED',
     arrivalCancelReason: '',
     arrivalPassengers: '',
     arrivalMalePassengers: '',
@@ -150,7 +150,7 @@ export default function FlightDataEntryPage() {
     departureScheduledTime: '',
     departureActualTime: '',
     departureDoorClosingTime: '',
-    departureStatus: 'SCHEDULED',
+    departureStatus: 'OPERATED',
     departureCancelReason: '',
     departurePassengers: '',
     departureMalePassengers: '',
@@ -214,6 +214,10 @@ export default function FlightDataEntryPage() {
       if (formData.flightTypeId) {
         setFormData(prev => ({ ...prev, flightTypeId: '' }));
       }
+      return;
+    }
+
+    if (operationTypes.length === 0) {
       return;
     }
 
@@ -354,17 +358,17 @@ export default function FlightDataEntryPage() {
 
         // Default status to SCHEDULED unless explicitly set or actual time exists
         const resolvedArrivalStatus =
-          flightData.arrivalStatus && flightData.arrivalStatus !== 'OPERATED'
+          flightData.arrivalStatus
             ? flightData.arrivalStatus
             : flightData.arrivalActualTime
               ? 'OPERATED'
-              : 'SCHEDULED';
+              : 'OPERATED';
         const resolvedDepartureStatus =
-          flightData.departureStatus && flightData.departureStatus !== 'OPERATED'
+          flightData.departureStatus
             ? flightData.departureStatus
             : flightData.departureActualTime
               ? 'OPERATED'
-              : 'SCHEDULED';
+              : 'OPERATED';
         const resolvedRoute =
           typeof flightData.route === 'string'
             ? flightData.route
@@ -481,7 +485,7 @@ export default function FlightDataEntryPage() {
         arrivalFlightNumber: formData.arrivalFlightNumber || null,
         arrivalScheduledTime: formData.arrivalScheduledTime ? new Date(formData.arrivalScheduledTime).toISOString() : null,
         arrivalActualTime: formData.arrivalActualTime ? new Date(formData.arrivalActualTime).toISOString() : null,
-        arrivalStatus: formData.arrivalStatus || 'SCHEDULED',
+        arrivalStatus: formData.arrivalStatus || 'OPERATED',
         arrivalCancelReason: formData.arrivalStatus === 'CANCELLED' ? formData.arrivalCancelReason || null : null,
         arrivalPassengers: formData.arrivalFerryIn
           ? null
@@ -520,7 +524,7 @@ export default function FlightDataEntryPage() {
           const date = new Date(formData.departureDoorClosingTime);
           return !isNaN(date.getTime()) ? date.toISOString() : null;
         })() : null,
-        departureStatus: formData.departureStatus || 'SCHEDULED',
+        departureStatus: formData.departureStatus || 'OPERATED',
         departureCancelReason: formData.departureStatus === 'CANCELLED' ? formData.departureCancelReason || null : null,
         departurePassengers: formData.departureFerryOut
           ? null
