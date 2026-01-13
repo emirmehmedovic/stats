@@ -8,6 +8,7 @@ uz završni summary ukupnih statistika.
 
 import sys
 import os
+import re
 import calendar
 from pathlib import Path
 import psycopg2
@@ -38,6 +39,23 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
+def sanitize_text(value):
+    """
+    Remove control characters that can corrupt Excel XML.
+    Uklanja kontrolne karaktere koji mogu oštetiti Excel XML.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    try:
+        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
+        value = ILLEGAL_CHARACTERS_RE.sub('', value)
+    except Exception:
+        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+    return value
+
+
 def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
     """
     Helper function to properly create merged cells with consistent formatting.
@@ -48,11 +66,11 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
         start_col = openpyxl.utils.column_index_from_string(start_col)
     if isinstance(end_col, str):
         end_col = openpyxl.utils.column_index_from_string(end_col)
-    
+
     for col in range(start_col, end_col + 1):
         cell = ws.cell(row=row, column=col)
         if col == start_col and value is not None:
-            cell.value = value
+            cell.value = sanitize_text(value) if isinstance(value, str) else value
         if font:
             cell.font = font
         if fill:
@@ -61,7 +79,7 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
             cell.alignment = alignment
         if border:
             cell.border = border
-    
+
     if start_col != end_col:
         ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
 

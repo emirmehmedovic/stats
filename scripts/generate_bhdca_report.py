@@ -11,6 +11,7 @@ Izvještaj sadrži 3 sheet-a:
 
 import sys
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 import openpyxl
@@ -52,6 +53,88 @@ def get_db_connection():
         raise ValueError("DATABASE_URL environment variable not set")
 
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+
+def sanitize_text(value):
+    """
+    Remove control characters that can corrupt Excel XML.
+    Uklanja kontrolne karaktere koji mogu oštetiti Excel XML.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    try:
+        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
+        value = ILLEGAL_CHARACTERS_RE.sub('', value)
+    except Exception:
+        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+    return value
+
+
+def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
+    """
+    Helper function to properly create merged cells with consistent formatting.
+    Applies formatting to ALL cells in the range before merging to avoid Excel corruption.
+    """
+    # Convert column letters to numbers if needed
+    if isinstance(start_col, str):
+        start_col = openpyxl.utils.column_index_from_string(start_col)
+    if isinstance(end_col, str):
+        end_col = openpyxl.utils.column_index_from_string(end_col)
+
+    for col in range(start_col, end_col + 1):
+        cell = ws.cell(row=row, column=col)
+        if col == start_col and value is not None:
+            cell.value = sanitize_text(value) if isinstance(value, str) else value
+        if font:
+            cell.font = font
+        if fill:
+            cell.fill = fill
+        if alignment:
+            cell.alignment = alignment
+        if border:
+            cell.border = border
+
+    if start_col != end_col:
+        ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
+
+
+def clear_merged_cell_range(ws, start_row, end_row, columns):
+    """
+    Safely clear values in a range that may contain merged cells.
+
+    Args:
+        ws: Worksheet object
+        start_row: First row to clear
+        end_row: Last row to clear
+        columns: List of column numbers to clear
+    """
+    # Step 1: Unmerge all cells in the range
+    merged_ranges_to_unmerge = []
+    for merged_range in list(ws.merged_cells.ranges):
+        # Check if this merged range intersects with our target range
+        if (merged_range.min_row >= start_row and merged_range.max_row <= end_row):
+            # Check if any of the columns intersect
+            for col in columns:
+                if col >= merged_range.min_col and col <= merged_range.max_col:
+                    merged_ranges_to_unmerge.append(str(merged_range))
+                    break
+
+    # Unmerge (need to create a copy of list because we're modifying during iteration)
+    for merged_range_str in merged_ranges_to_unmerge:
+        try:
+            ws.unmerge_cells(merged_range_str)
+        except Exception as e:
+            print(f"[DEBUG] Could not unmerge {merged_range_str}: {e}")
+
+    # Step 2: Clear values
+    for row in range(start_row, end_row + 1):
+        for col in columns:
+            try:
+                ws.cell(row=row, column=col).value = None
+            except Exception as e:
+                print(f"[DEBUG] Could not clear cell at row={row}, col={col}: {e}")
 
 
 def get_flight_data(year: int, month: int):
@@ -283,17 +366,31 @@ def aggregate_airport_traffic(flights):
 def parse_route(route_str):
     """
     Parse route string to extract departure and arrival airport codes.
-    Route format: "TZL-MLH" or "MLH-TZL"
+    Route formats:
+    - Simple: "TZL-MLH" or "MLH-TZL"
+    - Round-trip: "TZL-DTM-TZL" or "DTM-TZL-DTM"
+
+    For round-trip format, returns the first leg (outbound).
+
     Returns: (departure_iata, arrival_iata) or (None, None) if cannot parse
     """
     if not route_str or '-' not in route_str:
         return None, None
 
-    parts = route_str.strip().split('-')
-    if len(parts) != 2:
-        return None, None
+    parts = [p.strip() for p in route_str.strip().split('-') if p.strip()]
 
-    return parts[0].strip(), parts[1].strip()
+    if len(parts) == 2:
+        # Simple one-way: "TZL-MLH"
+        return parts[0], parts[1]
+    elif len(parts) == 3:
+        # Round-trip: "TZL-DTM-TZL" or "DTM-TZL-DTM"
+        # Return first leg (outbound): parts[0] -> parts[1]
+        return parts[0], parts[1]
+    elif len(parts) > 3:
+        # Multi-leg route - use first and last
+        return parts[0], parts[-1]
+
+    return None, None
 
 
 def split_city_pairs(city_pairs, base_iata='TZL'):
@@ -319,6 +416,9 @@ def find_row_by_label(ws, label, column=4):
 
 
 def write_city_pairs_sheet(ws, city_pairs, start_row=23):
+    """
+    Write city-pair data to worksheet, safely handling merged cells.
+    """
     outbound, inbound = split_city_pairs(city_pairs)
     remarks_row = find_row_by_label(ws, 'Remarks', column=4)
     if remarks_row is None:
@@ -332,17 +432,16 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
         remarks_row += rows_needed - available_rows
 
     end_row = remarks_row - 1
-    for row in range(start_row, end_row + 1):
-        ws.cell(row=row, column=4).value = None
-        ws.cell(row=row, column=5).value = None
-        ws.cell(row=row, column=9).value = None
-        ws.cell(row=row, column=14).value = None
-        ws.cell(row=row, column=15).value = None
 
+    # Safely clear merged cells in the data range
+    # Columns: 4 (From), 5 (To), 9 (Passengers), 14 (Freight), 15 (Mail)
+    clear_merged_cell_range(ws, start_row, end_row, [4, 5, 9, 14, 15])
+
+    # Write new data
     row_num = start_row
     for from_airport, to_airport, data in outbound + inbound:
-        ws.cell(row=row_num, column=4).value = from_airport
-        ws.cell(row=row_num, column=5).value = to_airport
+        ws.cell(row=row_num, column=4).value = sanitize_text(from_airport)
+        ws.cell(row=row_num, column=5).value = sanitize_text(to_airport)
         ws.cell(row=row_num, column=9).value = data['passengers']
         ws.cell(row=row_num, column=14).value = data['freight']
         ws.cell(row=row_num, column=15).value = data['mail']
@@ -352,6 +451,10 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
 def aggregate_city_pair_data(flights, scheduled_only=True):
     """
     Agregirati city-pair podatke za Sheet 2/3
+
+    VAŽNO: Za round-trip letove (npr. "TZL-DTM-TZL"), departure i arrival se tretiraju odvojeno:
+    - Departure leg: TZL -> DTM (koristi departurePassengers)
+    - Arrival leg: DTM -> TZL (koristi arrivalPassengers)
 
     Returns:
     {
@@ -386,6 +489,8 @@ def aggregate_city_pair_data(flights, scheduled_only=True):
             return flight_type_code == 'SCHEDULED'
         return (flight.get('operation_type_code') or '').upper() == 'SCHEDULED'
 
+    TZL_IATA = 'TZL'
+
     for flight in flights:
         is_scheduled = is_scheduled_flight(flight)
 
@@ -395,32 +500,23 @@ def aggregate_city_pair_data(flights, scheduled_only=True):
         if not scheduled_only and is_scheduled:
             continue
 
-        # TZL je IATA kod za Tuzla
-        TZL_IATA = 'TZL'
+        # Parse route to get airport codes
+        route = flight.get('route')
+        if not route:
+            continue
 
-        # Pokušaj prvo dobiti airport codes iz database relacija
-        dep_iata = flight.get('departure_airport_iata')
-        arr_iata = flight.get('arrival_airport_iata')
-
-        # Ako nisu dostupni iz database-a, parse iz route field-a
-        if not dep_iata or not arr_iata:
-            route = flight.get('route')
-            if route:
-                parsed_dep, parsed_arr = parse_route(route)
-                if not dep_iata:
-                    dep_iata = parsed_dep
-                if not arr_iata:
-                    arr_iata = parsed_arr
-
-        # Provjeri da li imamo validne airport codes
+        dep_iata, arr_iata = parse_route(route)
         if not dep_iata or not arr_iata:
             continue
 
-        # Departure (TZL -> Other)
-        # Provjeri da li postoje departure putnici (umjesto flight number-a)
+        # Departure leg: TZL -> Other
         if flight.get('departurePassengers') is not None and flight.get('departurePassengers') > 0 and not flight.get('departureFerryOut'):
-            if dep_iata == TZL_IATA and arr_iata != TZL_IATA:
-                pair_key = f"{dep_iata}-{arr_iata}"
+            # Determine other airport based on route
+            # For round-trip "TZL-DTM-TZL", departure is TZL -> DTM
+            other_airport = arr_iata if dep_iata == TZL_IATA else dep_iata
+
+            if other_airport and other_airport != TZL_IATA:
+                pair_key = f"{TZL_IATA}-{other_airport}"
                 if pair_key not in city_pairs:
                     city_pairs[pair_key] = {'passengers': 0, 'freight': 0, 'mail': 0}
 
@@ -428,11 +524,15 @@ def aggregate_city_pair_data(flights, scheduled_only=True):
                 city_pairs[pair_key]['freight'] += (flight.get('departureCargo', 0) or 0) / 1000.0
                 city_pairs[pair_key]['mail'] += (flight.get('departureMail', 0) or 0) / 1000.0
 
-        # Arrival (Other -> TZL)
-        # Provjeri da li postoje arrival putnici (umjesto flight number-a)
+        # Arrival leg: Other -> TZL
         if flight.get('arrivalPassengers') is not None and flight.get('arrivalPassengers') > 0 and not flight.get('arrivalFerryIn'):
-            if arr_iata == TZL_IATA and dep_iata != TZL_IATA:
-                pair_key = f"{dep_iata}-{TZL_IATA}"
+            # Determine other airport based on route
+            # For round-trip "TZL-DTM-TZL", arrival is DTM -> TZL
+            # For simple route "DTM-TZL", arrival is DTM -> TZL
+            other_airport = dep_iata if arr_iata == TZL_IATA else arr_iata
+
+            if other_airport and other_airport != TZL_IATA:
+                pair_key = f"{other_airport}-{TZL_IATA}"
                 if pair_key not in city_pairs:
                     city_pairs[pair_key] = {'passengers': 0, 'freight': 0, 'mail': 0}
 

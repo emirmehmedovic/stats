@@ -8,6 +8,7 @@ Format: Lista letova sa detaljima o avionima, putnicima i rutama
 
 import sys
 import os
+import re
 import calendar
 from pathlib import Path
 from datetime import datetime
@@ -45,6 +46,23 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
+def sanitize_text(value):
+    """
+    Remove control characters that can corrupt Excel XML.
+    Uklanja kontrolne karaktere koji mogu oštetiti Excel XML.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    try:
+        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
+        value = ILLEGAL_CHARACTERS_RE.sub('', value)
+    except Exception:
+        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+    return value
+
+
 def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
     """
     Helper function to properly create merged cells with consistent formatting.
@@ -55,11 +73,11 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
         start_col = openpyxl.utils.column_index_from_string(start_col)
     if isinstance(end_col, str):
         end_col = openpyxl.utils.column_index_from_string(end_col)
-    
+
     for col in range(start_col, end_col + 1):
         cell = ws.cell(row=row, column=col)
         if col == start_col and value is not None:
-            cell.value = value
+            cell.value = sanitize_text(value) if isinstance(value, str) else value
         if font:
             cell.font = font
         if fill:
@@ -68,7 +86,7 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
             cell.alignment = alignment
         if border:
             cell.border = border
-    
+
     if start_col != end_col:
         ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
 
@@ -295,22 +313,22 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
         if has_departure:
             ws.cell(row=row_idx, column=1).value = flight_counter  # Nr
             ws.cell(row=row_idx, column=2).value = flight['date'].strftime('%d/%m/%Y')  # DATE
-            ws.cell(row=row_idx, column=3).value = flight['airline_name']  # COMPANY
-            ws.cell(row=row_idx, column=4).value = flight['aircraft_model']  # A/C
-            ws.cell(row=row_idx, column=5).value = flight['registration']  # REG
+            ws.cell(row=row_idx, column=3).value = sanitize_text(flight['airline_name'])  # COMPANY
+            ws.cell(row=row_idx, column=4).value = sanitize_text(flight['aircraft_model'])  # A/C
+            ws.cell(row=row_idx, column=5).value = sanitize_text(flight['registration'])  # REG
             ws.cell(row=row_idx, column=6).value = flight['aircraft_mtow'] / 1000 if flight['aircraft_mtow'] else None  # MTOW in tonnes
-            ws.cell(row=row_idx, column=7).value = flight['departureFlightNumber'] or ''  # FLT.NMB
+            ws.cell(row=row_idx, column=7).value = sanitize_text(flight['departureFlightNumber'] or '')  # FLT.NMB
             # Za DEPARTURE: FROM=TZL, TO=other_airport
-            ws.cell(row=row_idx, column=8).value = TZL_IATA  # FROM
-            ws.cell(row=row_idx, column=9).value = other_airport  # TO
-            ws.cell(row=row_idx, column=10).value = flight['airline_address'] or ''  # ADDRESS
-            ws.cell(row=row_idx, column=11).value = format_pax_with_infants(
+            ws.cell(row=row_idx, column=8).value = sanitize_text(TZL_IATA)  # FROM
+            ws.cell(row=row_idx, column=9).value = sanitize_text(other_airport)  # TO
+            ws.cell(row=row_idx, column=10).value = sanitize_text(flight['airline_address'] or '')  # ADDRESS
+            ws.cell(row=row_idx, column=11).value = sanitize_text(format_pax_with_infants(
                 flight.get('departurePassengers'),
                 flight.get('departureInfants')
-            )  # DEP PAX
+            ))  # DEP PAX
             ws.cell(row=row_idx, column=12).value = ''  # ARR PAX (empty for departure)
-            ws.cell(row=row_idx, column=13).value = get_operation_type_code(flight['operation_type_code'])  # Trip fare
-            ws.cell(row=row_idx, column=14).value = flight['date'].strftime('%A')  # Day of week
+            ws.cell(row=row_idx, column=13).value = sanitize_text(get_operation_type_code(flight['operation_type_code']))  # Trip fare
+            ws.cell(row=row_idx, column=14).value = sanitize_text(flight['date'].strftime('%A'))  # Day of week
 
             # Apply styles
             for col in range(1, 15):
@@ -331,22 +349,22 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
             if has_arrival and not has_departure:  # Samo arrival, bez departure
                 ws.cell(row=row_idx, column=1).value = flight_counter
                 ws.cell(row=row_idx, column=2).value = flight['date'].strftime('%d/%m/%Y')
-                ws.cell(row=row_idx, column=3).value = flight['airline_name']
-                ws.cell(row=row_idx, column=4).value = flight['aircraft_model']
-                ws.cell(row=row_idx, column=5).value = flight['registration']
+                ws.cell(row=row_idx, column=3).value = sanitize_text(flight['airline_name'])
+                ws.cell(row=row_idx, column=4).value = sanitize_text(flight['aircraft_model'])
+                ws.cell(row=row_idx, column=5).value = sanitize_text(flight['registration'])
                 ws.cell(row=row_idx, column=6).value = flight['aircraft_mtow'] / 1000 if flight['aircraft_mtow'] else None
-                ws.cell(row=row_idx, column=7).value = flight['arrivalFlightNumber'] or ''
+                ws.cell(row=row_idx, column=7).value = sanitize_text(flight['arrivalFlightNumber'] or '')
                 # Za ARRIVAL: FROM=other_airport, TO=TZL
-                ws.cell(row=row_idx, column=8).value = other_airport
-                ws.cell(row=row_idx, column=9).value = TZL_IATA
-                ws.cell(row=row_idx, column=10).value = flight['airline_address'] or ''
+                ws.cell(row=row_idx, column=8).value = sanitize_text(other_airport)
+                ws.cell(row=row_idx, column=9).value = sanitize_text(TZL_IATA)
+                ws.cell(row=row_idx, column=10).value = sanitize_text(flight['airline_address'] or '')
                 ws.cell(row=row_idx, column=11).value = ''  # DEP PAX (empty for arrival)
-                ws.cell(row=row_idx, column=12).value = format_pax_with_infants(
+                ws.cell(row=row_idx, column=12).value = sanitize_text(format_pax_with_infants(
                     flight.get('arrivalPassengers'),
                     flight.get('arrivalInfants')
-                )  # ARR PAX
-                ws.cell(row=row_idx, column=13).value = get_operation_type_code(flight['operation_type_code'])
-                ws.cell(row=row_idx, column=14).value = flight['date'].strftime('%A')
+                ))  # ARR PAX
+                ws.cell(row=row_idx, column=13).value = sanitize_text(get_operation_type_code(flight['operation_type_code']))
+                ws.cell(row=row_idx, column=14).value = sanitize_text(flight['date'].strftime('%A'))
 
                 # Apply styles
                 for col in range(1, 15):
