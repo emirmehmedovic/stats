@@ -57,34 +57,29 @@ def get_db_connection():
 
 def sanitize_text(value):
     """
-    ULTRA-AGGRESSIVE sanitization to prevent ANY Excel corruption.
-    Removes control chars, invalid unicode, and normalizes to ASCII-safe characters.
+    Gentle sanitization that preserves unicode (ć, č, š, ž, đ) but removes Excel-problematic characters.
+    openpyxl 3.1.5+ properly handles unicode, so we only need to remove control characters.
     """
     if value is None:
         return None
     if not isinstance(value, str):
         return value
 
-    # Step 1: Normalize unicode
-    import unicodedata
-    try:
-        value = unicodedata.normalize('NFKD', value)
-        value = value.encode('ascii', 'ignore').decode('ascii')
-    except Exception:
-        pass
-
-    # Step 2: Remove ALL control characters
+    # Step 1: Remove control characters (0x00-0x1F, 0x7F-0x9F)
     value = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
 
-    # Step 3: Use openpyxl's built-in cleaner
+    # Step 2: Use openpyxl's built-in cleaner for illegal Excel characters
     try:
         from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
         value = ILLEGAL_CHARACTERS_RE.sub('', value)
     except Exception:
         pass
 
-    # Step 4: Remove problematic chars
-    value = value.replace('\ufeff', '').replace('\u200b', '').replace('\u200c', '').replace('\u200d', '').replace('\xa0', ' ')
+    # Step 3: Remove zero-width spaces and BOM
+    value = value.replace('\ufeff', '').replace('\u200b', '').replace('\u200c', '').replace('\u200d', '')
+
+    # Step 4: Replace non-breaking space with regular space
+    value = value.replace('\xa0', ' ')
 
     # Step 5: Strip whitespace
     return value.strip()
