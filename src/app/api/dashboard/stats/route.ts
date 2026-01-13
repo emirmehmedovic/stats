@@ -48,8 +48,10 @@ export async function GET(request: NextRequest) {
         availableSeats: true,
         arrivalScheduledTime: true,
         arrivalActualTime: true,
+        arrivalStatus: true,
         departureScheduledTime: true,
         departureActualTime: true,
+        departureStatus: true,
         aircraftType: {
           select: {
             seats: true,
@@ -123,9 +125,22 @@ export async function GET(request: NextRequest) {
       flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
     const seatCapacityPerLeg = (flight: typeof last30DaysFlights[number]) =>
       flight.availableSeats || flight.aircraftType?.seats || 0;
+    const arrivalIsOperated = (flight: typeof last30DaysFlights[number]) =>
+      flight.arrivalStatus === 'OPERATED' || !!flight.arrivalActualTime;
+    const departureIsOperated = (flight: typeof last30DaysFlights[number]) =>
+      flight.departureStatus === 'OPERATED' || !!flight.departureActualTime;
+    const arrivalSeatCount = (flight: typeof last30DaysFlights[number]) => {
+      const passengers = getArrivalPassengers(flight);
+      if (!arrivalIsOperated(flight) || passengers <= 0 || flight.arrivalFerryIn) return 0;
+      return seatCapacityPerLeg(flight);
+    };
+    const departureSeatCount = (flight: typeof last30DaysFlights[number]) => {
+      const passengers = getDeparturePassengers(flight);
+      if (!departureIsOperated(flight) || passengers <= 0 || flight.departureFerryOut) return 0;
+      return seatCapacityPerLeg(flight);
+    };
     const flightSeatCount = (flight: typeof last30DaysFlights[number]) =>
-      (flight.arrivalFerryIn ? 0 : seatCapacityPerLeg(flight)) +
-      (flight.departureFerryOut ? 0 : seatCapacityPerLeg(flight));
+      arrivalSeatCount(flight) + departureSeatCount(flight);
 
     const totalArrivalPassengersToday = todaysFlights.reduce(
       (sum, f) => sum + getArrivalPassengers(f),
@@ -140,7 +155,9 @@ export async function GET(request: NextRequest) {
     const loadFactorFlights = todaysFlights.filter((f) => flightSeatCount(f) > 0);
     const totalSeats = loadFactorFlights.reduce((sum, f) => sum + flightSeatCount(f), 0);
     const totalPassengersWithSeats = loadFactorFlights.reduce(
-      (sum, f) => sum + getArrivalPassengers(f) + getDeparturePassengers(f),
+      (sum, f) => sum +
+        (arrivalSeatCount(f) > 0 ? getArrivalPassengers(f) : 0) +
+        (departureSeatCount(f) > 0 ? getDeparturePassengers(f) : 0),
       0
     );
     const averageLoadFactor = totalSeats > 0
@@ -196,7 +213,9 @@ export async function GET(request: NextRequest) {
 
       const dayLoadFlights = dayFlights.filter((f) => flightSeatCount(f) > 0);
       const dayPassengers = dayLoadFlights.reduce(
-        (sum, f) => sum + getArrivalPassengers(f) + getDeparturePassengers(f),
+        (sum, f) => sum +
+          (arrivalSeatCount(f) > 0 ? getArrivalPassengers(f) : 0) +
+          (departureSeatCount(f) > 0 ? getDeparturePassengers(f) : 0),
         0
       );
       const daySeats = dayLoadFlights.reduce((sum, f) => sum + flightSeatCount(f), 0);
