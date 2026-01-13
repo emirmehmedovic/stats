@@ -110,6 +110,11 @@ export async function PUT(
     const { id } = await context.params;
     const body = await request.json();
 
+    const cookieHeader = request.headers.get('cookie');
+    const token = getTokenFromCookie(cookieHeader);
+    const decodedUser = token ? await verifyToken(token) : null;
+    const isAdmin = decodedUser?.role === 'ADMIN';
+
     // Check if flight is locked
     const existingFlight = await prisma.flight.findUnique({
       where: { id },
@@ -142,7 +147,7 @@ export async function PUT(
         { status: 403 }
       );
     }
-    if (existingFlight.isVerified) {
+    if (existingFlight.isVerified && !isAdmin) {
       return NextResponse.json(
         {
           success: false,
@@ -273,13 +278,7 @@ export async function PUT(
       await ensureFlightTypeAllowed(resolvedOperationTypeId, resolvedFlightTypeId);
     }
 
-    let verifiedByUserId: string | null = null;
-    const cookieHeader = request.headers.get('cookie');
-    const token = getTokenFromCookie(cookieHeader);
-    if (token) {
-      const decoded = await verifyToken(token);
-      verifiedByUserId = decoded?.id || null;
-    }
+    const verifiedByUserId = decodedUser?.id || null;
 
     const delaysPayload = Array.isArray(delays) ? delays : [];
     const delayCodeIds = delaysPayload

@@ -96,6 +96,7 @@ function DailyOperationsContent() {
   const [allPastVerified, setAllPastVerified] = useState(true);
   const [pendingVerificationDate, setPendingVerificationDate] = useState<string | null>(null);
   const [pendingVerificationDates, setPendingVerificationDates] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null>(null);
 
   useEffect(() => {
     // Get date from query params if available
@@ -108,6 +109,8 @@ function DailyOperationsContent() {
 
   useEffect(() => {
     fetchFlights();
+    const role = localStorage.getItem('userRole') as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null;
+    setUserRole(role);
   }, [selectedDate]);
 
   const fetchPendingStatus = async (dateStr: string) => {
@@ -293,7 +296,7 @@ function DailyOperationsContent() {
 
   const yesterdayDate = getPreviousDateString(today);
   const requiresPastVerification = selectedDate === today;
-  const canEditSelectedDate = !requiresPastVerification || allPastVerified;
+  const canEditSelectedDate = !requiresPastVerification || allPastVerified || userRole === 'ADMIN';
 
 
   if (isLoading) {
@@ -710,7 +713,7 @@ function DailyOperationsContent() {
                         disabled={!canEditSelectedDate}
                       >
                         <Edit className="w-4 h-4" />
-                        {flight.isVerified ? 'Pregled' : 'Unesi podatke'}
+                        {flight.isVerified ? (userRole === 'ADMIN' ? 'Uredi' : 'Pregled') : 'Unesi podatke'}
                       </Button>
                     </div>
                   </div>

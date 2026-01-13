@@ -781,8 +781,11 @@ export default function FlightDataEntryPage() {
   const flightDateDisplay = formatDateString(
     getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO)
   );
-  // ADMIN can edit verified flights, other roles cannot
-  const isReadOnly = isVerificationLocked || flight.isLocked || (flight.isVerified && userRole !== 'ADMIN');
+  // ADMIN can edit verified flights and bypass verification lock
+  const isReadOnly =
+    flight.isLocked ||
+    (flight.isVerified && userRole !== 'ADMIN') ||
+    (isVerificationLocked && userRole !== 'ADMIN');
   const displayValue = (value?: string | number | null) => {
     if (value === null || value === undefined || value === '') return '-';
     return String(value);
