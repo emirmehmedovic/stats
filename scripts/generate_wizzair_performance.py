@@ -16,7 +16,6 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import openpyxl
-from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 # Putanja
@@ -73,7 +72,11 @@ def sanitize_text(value):
         return None
     if not isinstance(value, str):
         return value
-    value = ILLEGAL_CHARACTERS_RE.sub('', value)
+    try:
+        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE  # type: ignore
+        value = ILLEGAL_CHARACTERS_RE.sub('', value)
+    except Exception:
+        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
     return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
 
 SARAJEVO_TZ = pytz.timezone('Europe/Sarajevo')

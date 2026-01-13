@@ -49,3 +49,6 @@ next-env.d.ts
 # uploads
 /uploads
 /public/uploads
+
+# generated reports
+/izvještaji/generated/
