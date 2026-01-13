@@ -13,7 +13,7 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Putanja
@@ -118,6 +118,18 @@ def get_flight_data(year: int, month: int):
     return flights
 
 
+def normalize_airline_name(flight):
+    """Group Wizz Air entities under a single name."""
+    name = (flight.get('airline_name') or '').strip()
+    icao = (flight.get('airline_icao') or '').strip().upper()
+    iata = (flight.get('airline_iata') or '').strip().upper()
+
+    if 'WIZZ' in name.upper() or icao in {'WZZ', 'WMT', 'WUK'} or iata in {'W6', 'W4', 'W9'}:
+        return 'Wizz Air'
+
+    return name
+
+
 def aggregate_customs_data(flights):
     """Agregira podatke za statistiku carinskog izvještaja"""
     data = {
@@ -130,7 +142,7 @@ def aggregate_customs_data(flights):
     for flight in flights:
         operation_code = flight.get('operation_type_code', '').upper()
         is_scheduled = operation_code == 'SCHEDULED'
-        airline_name = flight['airline_name']
+        airline_name = normalize_airline_name(flight)
 
         is_ferry = flight.get('arrivalFerryIn') or flight.get('departureFerryOut')
 
@@ -207,6 +219,9 @@ def add_customs_block(ws, row, title, data, styles):
     """Dodaj jedan block statistike u worksheet"""
     title_font, section_font, header_font, regular_font, indent_font, bold_font = styles
     center_align, right_align = Alignment(horizontal='center', vertical='center'), Alignment(horizontal='right', vertical='center')
+    header_fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
+    total_fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+    zebra_fill = PatternFill(start_color="F9FAFB", end_color="F9FAFB", fill_type="solid")
 
     def apply_outline_border(start_row, end_row, start_col, end_col):
         side = Side(style='thin')
@@ -244,6 +259,7 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = header_font
         ws[f'{col}{row}'].alignment = center_align
+        ws[f'{col}{row}'].fill = header_fill
     passengers_header_row = row
     row += 1
 
@@ -261,10 +277,18 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = regular_font
         ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0'
+    for col in ['A', 'B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].fill = total_fill
     row += 1
 
-    for airline_name in sorted(data['scheduled'].keys()):
-        airline_data = data['scheduled'][airline_name]
+    airline_rows = sorted(
+        data['scheduled'].items(),
+        key=lambda item: (item[1]['embarked'] + item[1]['disembarked'], item[0]),
+        reverse=True
+    )
+
+    for idx, (airline_name, airline_data) in enumerate(airline_rows):
         ws[f'A{row}'] = f"  {airline_name}"
         ws[f'A{row}'].font = indent_font
         ws[f'B{row}'] = airline_data['flights']
@@ -274,6 +298,10 @@ def add_customs_block(ws, row, title, data, styles):
         for col in ['B', 'C', 'D', 'E']:
             ws[f'{col}{row}'].font = regular_font
             ws[f'{col}{row}'].alignment = right_align
+            ws[f'{col}{row}'].number_format = '#,##0'
+        if idx % 2 == 0:
+            for col in ['A', 'B', 'C', 'D', 'E']:
+                ws[f'{col}{row}'].fill = zebra_fill
         row += 1
 
     ws[f'A{row}'] = "Vanredni promet"
@@ -285,6 +313,9 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = regular_font
         ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0'
+    for col in ['A', 'B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].fill = total_fill
     row += 1
 
     ws[f'A{row}'] = "Ostala slijetanja"
@@ -296,6 +327,9 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = regular_font
         ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0'
+    for col in ['A', 'B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].fill = total_fill
     row += 2
 
     total_flights = scheduled_total_flights + data['non_scheduled']['flights'] + data['other_landings']['flights']
@@ -312,6 +346,9 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = bold_font
         ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0'
+    for col in ['A', 'B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].fill = total_fill
     passengers_end_row = row
     row += 3
 
@@ -329,6 +366,7 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D']:
         ws[f'{col}{row}'].font = header_font
         ws[f'{col}{row}'].alignment = center_align
+        ws[f'{col}{row}'].fill = header_fill
     freight_header_row = row
     row += 1
 
@@ -338,6 +376,7 @@ def add_customs_block(ws, row, title, data, styles):
     for col in ['B', 'C', 'D']:
         ws[f'{col}{row}'].font = regular_font
         ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0.00'
     freight_end_row = row
 
     apply_outline_border(passengers_header_row, passengers_end_row, 1, 5)
