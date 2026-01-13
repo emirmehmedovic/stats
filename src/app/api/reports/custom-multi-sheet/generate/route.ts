@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import path from 'path';
+import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
+import { writeReportMetadata } from '@/lib/report-metadata';
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
@@ -77,6 +79,22 @@ export async function POST(request: Request): Promise<NextResponse> {
           { error: result.error },
           { status: 400 }
         );
+      }
+
+      try {
+        const token = getTokenFromCookie(request.headers.get('cookie'));
+        const user = token ? await verifyToken(token) : null;
+        const resolvedFileName = result.fileName || result.filename;
+        const generatedPath =
+          result.filePath ||
+          (resolvedFileName
+            ? path.join(process.cwd(), 'izvještaji', 'generated', resolvedFileName)
+            : null);
+        if (generatedPath) {
+          await writeReportMetadata(generatedPath, user);
+        }
+      } catch (error) {
+        console.warn('Report metadata write failed:', error);
       }
 
       return NextResponse.json(result);

@@ -3,6 +3,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
+import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
+import { writeReportMetadata } from '@/lib/report-metadata';
 
 const execAsync = promisify(exec);
 
@@ -91,6 +93,14 @@ export async function POST(request: NextRequest) {
       }
 
       const fileName = path.basename(generatedFilePath);
+
+      try {
+        const token = getTokenFromCookie(request.headers.get('cookie'));
+        const user = token ? await verifyToken(token) : null;
+        await writeReportMetadata(generatedFilePath, user);
+      } catch (error) {
+        console.warn('Report metadata write failed:', error);
+      }
 
       return NextResponse.json({
         success: true,

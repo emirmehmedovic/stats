@@ -16,6 +16,7 @@ import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   Sparkles,
   Filter,
   FileSpreadsheet,
@@ -23,6 +24,14 @@ import {
   Plane,
   MapPin
 } from 'lucide-react';
+
+type GeneratedReport = {
+  fileName: string;
+  size: number;
+  updatedAt: string;
+  generatedAt: string | null;
+  generatedBy: string | null;
+};
 
 export default function GenerateReportPage() {
   const router = useRouter();
@@ -110,6 +119,64 @@ export default function GenerateReportPage() {
   const [availableRoutes, setAvailableRoutes] = useState<Array<{ route: string; display: string }>>([]);
   const [operationTypesSearchQuery, setOperationTypesSearchQuery] = useState('');
   const [airlinesSearchQuery, setAirlinesSearchQuery] = useState('');
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
+  const [isGeneratedReportsLoading, setIsGeneratedReportsLoading] = useState(false);
+  const [generatedReportsError, setGeneratedReportsError] = useState('');
+
+  const fetchGeneratedReports = async () => {
+    setIsGeneratedReportsLoading(true);
+    setGeneratedReportsError('');
+    try {
+      const response = await fetch('/api/reports/generated/list');
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Greška pri učitavanju izvještaja');
+      }
+      setGeneratedReports(data.data || []);
+    } catch (error: any) {
+      setGeneratedReportsError(error.message || 'Greška pri učitavanju izvještaja');
+    } finally {
+      setIsGeneratedReportsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGeneratedReports();
+  }, []);
+
+  const getReportLabel = (fileName: string) => {
+    if (fileName.startsWith('BHDCA_')) return 'BHDCA';
+    if (fileName.startsWith('BHANSA_')) return 'BHANSA';
+    if (fileName.startsWith('Wizz_Air_Performance_')) return 'Wizz Air';
+    if (fileName.startsWith('Statistika_za_carinu_')) return 'Carina';
+    if (fileName.startsWith('Statistika_za_direktora_')) return 'Direktor';
+    if (fileName.startsWith('01. LOKALNA STATISTIKA')) return 'Lokalna statistika';
+    if (fileName.startsWith('Custom_Advanced_')) return 'Custom Advanced';
+    if (fileName.startsWith('Custom_izvjestaj_')) return 'Custom';
+    return 'Ostalo';
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes)) return '-';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}.${mm}.${yyyy}`;
+  };
+
+  const handleGeneratedDownload = (fileName: string) => {
+    window.open(`/api/reports/generated/download?fileName=${encodeURIComponent(fileName)}`, '_blank');
+  };
 
   // Funkcija za generisanje BHDCA izvještaja
   const handleGenerateBHDCA = async () => {
@@ -137,6 +204,7 @@ export default function GenerateReportPage() {
 
       setGenerationMessage('Izvještaj uspješno generisan!');
       setGeneratedFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setGenerationMessage(`Greška: ${error.message}`);
     } finally {
@@ -177,6 +245,7 @@ export default function GenerateReportPage() {
 
       setBhansaMessage('Izvještaj uspješno generisan!');
       setBhansaFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setBhansaMessage(`Greška: ${error.message}`);
     } finally {
@@ -217,6 +286,7 @@ export default function GenerateReportPage() {
 
       setWizzairMessage('Izvještaj uspješno generisan!');
       setWizzairFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setWizzairMessage(`Greška: ${error.message}`);
     } finally {
@@ -257,6 +327,7 @@ export default function GenerateReportPage() {
 
       setWizzairDayMessage('Izvještaj za dan uspješno generisan!');
       setWizzairDayFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setWizzairDayMessage(`Greška: ${error.message}`);
     } finally {
@@ -296,6 +367,7 @@ export default function GenerateReportPage() {
 
       setCustomsMessage('Izvještaj uspješno generisan!');
       setCustomsFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setCustomsMessage(`Greška: ${error.message}`);
     } finally {
@@ -336,6 +408,7 @@ export default function GenerateReportPage() {
 
       setDirectorMessage('Izvještaj uspješno generisan!');
       setDirectorFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setDirectorMessage(`Greška: ${error.message}`);
     } finally {
@@ -376,6 +449,7 @@ export default function GenerateReportPage() {
 
       setLocalMessage('Izvještaj uspješno generisan!');
       setLocalFileName(data.fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setLocalMessage(`Greška: ${error.message}`);
     } finally {
@@ -502,6 +576,7 @@ export default function GenerateReportPage() {
       
       setCustomMessage(data.message || 'Izvještaj uspješno generisan!');
       setCustomFileName(fileName);
+      fetchGeneratedReports();
     } catch (error: any) {
       setCustomMessage(`Greška: ${error.message}`);
     } finally {
@@ -543,11 +618,104 @@ export default function GenerateReportPage() {
               <div className="flex items-center gap-4 text-sm">
                 <div className="text-right">
                   <p className="text-slate-500 text-xs">Dostupno izvještaja</p>
-                  <p className="text-2xl font-bold text-slate-900">7</p>
+                  <p className="text-2xl font-bold text-slate-900">{generatedReports.length}</p>
                 </div>
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Generated Reports List */}
+        <section>
+          <details className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <summary className="list-none cursor-pointer">
+              <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-8 py-6">
+                <div className="flex items-start justify-between gap-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="px-3 py-1 bg-white/20 rounded-lg">
+                        <span className="text-xs font-semibold text-white uppercase tracking-wide">Sačuvani izvještaji</span>
+                      </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Generisani izvještaji</h2>
+                    <p className="text-slate-100 text-sm max-w-2xl leading-relaxed">
+                      Pregled svih ranije generisanih fajlova. Možete ih preuzeti bez ponovnog generisanja.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/80 text-sm">
+                    <span className="font-semibold">Klikni za detalje</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </summary>
+
+            <div className="p-8 border-t border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-slate-600">
+                  Fajlovi iz <span className="font-semibold">izvještaji/generated</span>.
+                </p>
+                <button
+                  onClick={fetchGeneratedReports}
+                  className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
+                >
+                  Osvježi listu
+                </button>
+              </div>
+
+              {isGeneratedReportsLoading ? (
+                <div className="flex items-center gap-3 text-slate-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Učitavam izvještaje...
+                </div>
+              ) : generatedReportsError ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {generatedReportsError}
+                </div>
+              ) : generatedReports.length === 0 ? (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+                  Trenutno nema generisanih izvještaja.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-500 border-b border-slate-200">
+                        <th className="py-2 pr-4 font-semibold">Tip</th>
+                        <th className="py-2 pr-4 font-semibold">Fajl</th>
+                        <th className="py-2 pr-4 font-semibold">Generisao</th>
+                        <th className="py-2 pr-4 font-semibold">Datum</th>
+                        <th className="py-2 pr-4 font-semibold">Veličina</th>
+                        <th className="py-2 pr-4 font-semibold">Akcija</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedReports.map((report) => (
+                        <tr key={report.fileName} className="border-b border-slate-100">
+                          <td className="py-2 pr-4 text-slate-700 font-medium">{getReportLabel(report.fileName)}</td>
+                          <td className="py-2 pr-4 text-slate-700">{report.fileName}</td>
+                          <td className="py-2 pr-4 text-slate-600">{report.generatedBy || '-'}</td>
+                          <td className="py-2 pr-4 text-slate-600">
+                            {formatDate(report.generatedAt || report.updatedAt)}
+                          </td>
+                          <td className="py-2 pr-4 text-slate-600">{formatBytes(report.size)}</td>
+                          <td className="py-2 pr-4">
+                            <button
+                              onClick={() => handleGeneratedDownload(report.fileName)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Preuzmi
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </details>
         </section>
 
         {/* BHDCA Report Generator */}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import path from 'path';
+import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
+import { writeReportMetadata } from '@/lib/report-metadata';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     });
 
     return new Promise<NextResponse>((resolve) => {
-      pythonProcess.on('close', (code) => {
+      pythonProcess.on('close', async (code) => {
         if (code !== 0) {
           console.error('Python script error:', stderr);
           resolve(
@@ -59,6 +61,21 @@ export async function POST(request: NextRequest) {
         try {
           const result = JSON.parse(stdout);
           if (result.success) {
+            try {
+              const token = getTokenFromCookie(request.headers.get('cookie'));
+              const user = token ? await verifyToken(token) : null;
+              const resolvedFileName = result.fileName || result.filename;
+              const generatedPath =
+                result.filePath ||
+                (resolvedFileName
+                  ? path.join(process.cwd(), 'izvještaji', 'generated', resolvedFileName)
+                  : null);
+              if (generatedPath) {
+                await writeReportMetadata(generatedPath, user);
+              }
+            } catch (error) {
+              console.warn('Report metadata write failed:', error);
+            }
             resolve(NextResponse.json(result));
           } else {
             resolve(
