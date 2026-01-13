@@ -67,17 +67,38 @@ def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None,
         ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
 
 def sanitize_text(value):
-    """Remove control characters that can corrupt Excel XML."""
+    """
+    ULTRA-AGGRESSIVE sanitization to prevent ANY Excel corruption.
+    Removes control chars, invalid unicode, and normalizes to ASCII-safe characters.
+    """
     if value is None:
         return None
     if not isinstance(value, str):
         return value
+
+    # Step 1: Normalize unicode
+    import unicodedata
     try:
-        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE  # type: ignore
+        value = unicodedata.normalize('NFKD', value)
+        value = value.encode('ascii', 'ignore').decode('ascii')
+    except Exception:
+        pass
+
+    # Step 2: Remove ALL control characters
+    value = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
+
+    # Step 3: Use openpyxl's built-in cleaner
+    try:
+        from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
         value = ILLEGAL_CHARACTERS_RE.sub('', value)
     except Exception:
-        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
-    return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+        pass
+
+    # Step 4: Remove problematic chars
+    value = value.replace('\ufeff', '').replace('\u200b', '').replace('\u200c', '').replace('\u200d', '').replace('\xa0', ' ')
+
+    # Step 5: Strip whitespace
+    return value.strip()
 
 SARAJEVO_TZ = pytz.timezone('Europe/Sarajevo')
 UTC_TZ = pytz.utc

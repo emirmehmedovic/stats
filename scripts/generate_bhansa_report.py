@@ -48,18 +48,43 @@ def get_db_connection():
 
 def sanitize_text(value):
     """
-    Remove control characters that can corrupt Excel XML.
-    Uklanja kontrolne karaktere koji mogu oštetiti Excel XML.
+    ULTRA-AGGRESSIVE sanitization to prevent ANY Excel corruption.
+    Removes control chars, invalid unicode, and normalizes to ASCII-safe characters.
     """
     if value is None:
         return None
     if not isinstance(value, str):
         return value
+
+    # Step 1: Normalize unicode (removes accents, diacritics to ASCII equivalents)
+    import unicodedata
+    try:
+        # Try ASCII transliteration
+        value = unicodedata.normalize('NFKD', value)
+        value = value.encode('ascii', 'ignore').decode('ascii')
+    except Exception:
+        pass
+
+    # Step 2: Remove ALL control characters
+    value = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
+
+    # Step 3: Use openpyxl's built-in cleaner
     try:
         from openpyxl.utils.cell import ILLEGAL_CHARACTERS_RE
         value = ILLEGAL_CHARACTERS_RE.sub('', value)
     except Exception:
-        value = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+        pass
+
+    # Step 4: Remove any remaining problematic chars
+    value = value.replace('\ufeff', '')  # BOM
+    value = value.replace('\u200b', '')  # Zero-width space
+    value = value.replace('\u200c', '')  # Zero-width non-joiner
+    value = value.replace('\u200d', '')  # Zero-width joiner
+    value = value.replace('\xa0', ' ')   # Non-breaking space -> normal space
+
+    # Step 5: Strip whitespace
+    value = value.strip()
+
     return value
 
 
