@@ -361,6 +361,7 @@ function DailyOperationsContent() {
                   <Input
                     type="date"
                     value={pendingDate}
+                    max={today}
                     onChange={(e) => setPendingDate(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') applyDateFilter();
