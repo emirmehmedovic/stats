@@ -411,11 +411,15 @@ function DailyOperationsContent() {
       (sum, f) => sum + (f.departureFerryOut ? 0 : (f.departurePassengers || 0)),
       0
     );
+    const totalPassengers = totalArrivals + totalDepartures;
+    const totalOperations = totalFlights * 2;
     return {
       totalFlights,
       withData,
       totalArrivals,
       totalDepartures,
+      totalPassengers,
+      totalOperations,
     };
   }, [filteredFlights]);
 
@@ -555,13 +559,19 @@ function DailyOperationsContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[
               {
                 label: 'Letova danas',
                 value: summary.totalFlights,
                 icon: Plane,
                 accent: 'bg-blue-50 text-blue-700',
+              },
+              {
+                label: 'Operacija',
+                value: summary.totalOperations,
+                icon: PlaneTakeoff,
+                accent: 'bg-emerald-50 text-emerald-700',
               },
               {
                 label: 'Popunjeno',
@@ -580,6 +590,12 @@ function DailyOperationsContent() {
                 value: summary.totalDepartures.toLocaleString('bs-BA'),
                 icon: Users,
                 accent: 'bg-sky-50 text-sky-700',
+              },
+              {
+                label: 'Ukupno putnika',
+                value: summary.totalPassengers.toLocaleString('bs-BA'),
+                icon: Users,
+                accent: 'bg-amber-50 text-amber-700',
               },
             ].map((card) => (
               <div
