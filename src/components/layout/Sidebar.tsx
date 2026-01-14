@@ -337,6 +337,14 @@ export function Sidebar() {
   };
 
   const visibleSections = navSections.map((section) => {
+    const viewerRestrictedHrefs = [
+      '/flights',
+      '/airlines',
+      '/aircraft-types',
+      '/operation-types',
+      '/delay-codes',
+    ];
+
     // STW role - only show Dashboard and Predboarding from HOME section
     if (userRole === 'STW') {
       if (section.title === 'HOME') {
@@ -354,6 +362,28 @@ export function Sidebar() {
     // OPERATIONS role - hide MANAGEMENT section
     if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
       return null;
+    }
+
+    if (userRole === 'VIEWER') {
+      const filteredItems = section.items
+        .map((item) => {
+          if (item.subItems && item.subItems.length > 0) {
+            const filteredSubItems = item.subItems.filter(
+              (subItem) => !viewerRestrictedHrefs.some(route => subItem.href.startsWith(route))
+            );
+            if (filteredSubItems.length === 0) {
+              return null;
+            }
+            return { ...item, subItems: filteredSubItems };
+          }
+          if (viewerRestrictedHrefs.some(route => item.href.startsWith(route))) {
+            return null;
+          }
+          return item;
+        })
+        .filter((item): item is NavItem => item !== null);
+
+      return { ...section, items: filteredItems };
     }
 
     return section;

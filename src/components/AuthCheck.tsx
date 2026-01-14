@@ -20,6 +20,13 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
       const publicRoutes = ['/'];
       const adminRoutes = ['/admin'];
       const employeeRoutes = ['/employees'];
+      const viewerRestrictedRoutes = [
+        '/flights',
+        '/airlines',
+        '/aircraft-types',
+        '/operation-types',
+        '/delay-codes',
+      ];
 
       // Check if route is public
       if (publicRoutes.includes(pathname)) {
@@ -52,6 +59,11 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
 
         // Block OPERATIONS role from employee pages
         if (data.user.role === 'OPERATIONS' && employeeRoutes.some(route => pathname.startsWith(route))) {
+          router.push('/dashboard');
+          return;
+        }
+
+        if (data.user.role === 'VIEWER' && viewerRestrictedRoutes.some(route => pathname.startsWith(route))) {
           router.push('/dashboard');
           return;
         }

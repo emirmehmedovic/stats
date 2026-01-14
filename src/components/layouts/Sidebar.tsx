@@ -280,6 +280,35 @@ export default function Sidebar() {
     return pathname === href || pathname.startsWith(href + '/');
   };
 
+  const viewerRestrictedHrefs = [
+    '/flights',
+    '/airlines',
+    '/aircraft-types',
+    '/operation-types',
+    '/delay-codes',
+  ];
+
+  const filterViewerMenuItems = (items: MenuItem[]) => {
+    return items
+      .map((item) => {
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = item.children.filter(
+            (child) => !viewerRestrictedHrefs.some(route => child.href?.startsWith(route))
+          );
+          if (filteredChildren.length === 0) {
+            return null;
+          }
+          return { ...item, children: filteredChildren };
+        }
+        const href = item.href;
+        if (href && viewerRestrictedHrefs.some(route => href.startsWith(route))) {
+          return null;
+        }
+        return item;
+      })
+      .filter((item): item is MenuItem => item !== null);
+  };
+
   const renderMenuItem = (item: MenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.id);
@@ -361,7 +390,8 @@ export default function Sidebar() {
         <div>
           <div className="text-xs font-semibold text-slate-400 mb-2 px-2">HOME</div>
           <div className="space-y-1">
-            {menuItems.map(item => renderMenuItem(item))}
+            {(userRole === 'VIEWER' ? filterViewerMenuItems(menuItems) : menuItems)
+              .map(item => renderMenuItem(item))}
           </div>
         </div>
 

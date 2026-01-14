@@ -126,9 +126,23 @@ export async function middleware(request: NextRequest) {
     const isOperationsRestrictedRoute = operationsRestrictedApiRoutes.some(route =>
       pathname.startsWith(route)
     );
+    const viewerWriteAllowedRoutes = [
+      '/api/reports/bhdca/generate',
+      '/api/reports/bhansa/generate',
+      '/api/reports/wizzair/generate',
+      '/api/reports/wizzair/generate-day',
+      '/api/reports/customs/generate',
+      '/api/reports/director/generate',
+      '/api/reports/local/generate',
+      '/api/reports/custom-advanced/generate',
+      '/api/reports/custom-multi-sheet/generate',
+      '/api/reports/custom',
+      '/api/reports/custom/compare',
+    ];
+    const hasViewerWriteAccess = viewerWriteAllowedRoutes.includes(pathname);
 
     if (decoded.role === 'VIEWER') {
-      if (isAdminApiRoute || isWriteMethod) {
+      if (isAdminApiRoute || (isWriteMethod && !hasViewerWriteAccess)) {
         return applySecurityHeaders(
           ensureCsrfCookie(NextResponse.json({ error: 'Nemate dozvolu za pristup' }, { status: 403 }))
         );
@@ -219,6 +233,14 @@ export async function middleware(request: NextRequest) {
   const stwRoutes = ['/predboarding'];
   const isSTWRoute = stwRoutes.some(route => pathname.startsWith(route));
   const allowedSTWPages = ['/dashboard', '/predboarding'];
+  const viewerRestrictedPages = [
+    '/flights',
+    '/airlines',
+    '/aircraft-types',
+    '/operation-types',
+    '/delay-codes',
+  ];
+  const isViewerRestrictedPage = viewerRestrictedPages.some(route => pathname.startsWith(route));
 
   if (token) {
     const decoded = await verifyToken(token);
@@ -226,6 +248,11 @@ export async function middleware(request: NextRequest) {
       // STW trying to access non-allowed pages - redirect to dashboard
       const hasPageAccess = allowedSTWPages.some(route => pathname.startsWith(route));
       if (!hasPageAccess) {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+    } else if (decoded?.role === 'VIEWER') {
+      if (isViewerRestrictedPage) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
