@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Plane, Clock, Users, Package, Mail, Calendar, Building2, MapPin, Settings, AlertCircle, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,6 +93,11 @@ export default function FlightDataEntryPage() {
   const router = useRouter();
   const params = useParams();
   const flightId = params.id as string;
+  const searchParams = useSearchParams();
+  const returnDate = searchParams?.get('date');
+  const returnPath = returnDate
+    ? `/daily-operations?date=${encodeURIComponent(returnDate)}`
+    : '/daily-operations';
 
   const [flight, setFlight] = useState<Flight | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -614,7 +619,7 @@ export default function FlightDataEntryPage() {
 
       if (response.ok) {
         showToast('Podaci su uspješno sačuvani!', 'success');
-        router.push('/daily-operations');
+        router.push(returnPath);
       } else if (result.requiresConfirmation && result.warnings) {
         // Prikaži warning modal
         setValidationWarnings(result.warnings);
@@ -651,7 +656,7 @@ export default function FlightDataEntryPage() {
 
       if (response.ok) {
         showToast('Let je uspješno obrisan.', 'success');
-        router.push('/daily-operations');
+        router.push(returnPath);
       } else {
         setError(result.error || 'Greška pri brisanju leta');
       }
@@ -777,7 +782,7 @@ export default function FlightDataEntryPage() {
     return (
       <MainLayout>
         <div className="p-8">
-          <ErrorDisplay error={error} onBack={() => router.push('/daily-operations')} />
+          <ErrorDisplay error={error} onBack={() => router.push(returnPath)} />
         </div>
       </MainLayout>
     );
@@ -825,7 +830,7 @@ export default function FlightDataEntryPage() {
         {/* Back Button */}
         <Button
           variant="outline"
-          onClick={() => router.push('/daily-operations')}
+          onClick={() => router.push(returnPath)}
           className="flex items-center gap-2 hover:bg-slate-100 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -2026,7 +2031,7 @@ export default function FlightDataEntryPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push('/daily-operations')}
+                onClick={() => router.push(returnPath)}
                 disabled={isSaving}
               >
                 Odustani

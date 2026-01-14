@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as XLSX from 'xlsx-js-style';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Plane, Users, Building2, TrendingUp, Download, Calendar, PackageCheck, Package } from 'lucide-react';
-import { formatDateDisplay, formatTimeDisplay, getTodayDateString } from '@/lib/dates';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plane, Users, Building2, TrendingUp, Download, Calendar as CalendarIcon, PackageCheck, Package } from 'lucide-react';
+import { formatDateDisplay, formatTimeDisplay, getDateStringInTimeZone, getTodayDateString } from '@/lib/dates';
+import { format } from 'date-fns';
+import { bs } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import type { ChangeEvent, ChangeEventHandler } from 'react';
 
 interface DailyReportData {
   mode: 'single';
@@ -110,6 +116,144 @@ type RangeDailyReportData = {
   dateTo: string;
   daysData: DailyReportData[];
 };
+
+type DatePickerFieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+};
+
+function DatePickerField({ label, value, onChange, disabled }: DatePickerFieldProps) {
+  const parseDateValue = (dateValue: string) => {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    if (year && month && day) {
+      return new Date(year, month - 1, day);
+    }
+    const parsed = new Date(dateValue);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+  const selectedDate = value ? parseDateValue(value) : undefined;
+  const [month, setMonth] = useState<Date>(selectedDate || new Date());
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedDate) {
+      setMonth(selectedDate);
+    }
+  }, [value]);
+
+  const handleCalendarChange = (
+    nextValue: string | number,
+    event: ChangeEventHandler<HTMLSelectElement>
+  ) => {
+    const newEvent = {
+      target: {
+        value: String(nextValue),
+      },
+    } as ChangeEvent<HTMLSelectElement>;
+    event(newEvent);
+  };
+
+  return (
+    <div>
+      <Label className="text-xs font-medium text-slate-600 mb-2 block">{label}</Label>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open && !selectedDate) {
+            setMonth(new Date());
+          }
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            className={cn(
+              'w-full justify-start text-left font-normal rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 hover:border-primary-500 hover:bg-white',
+              !selectedDate && 'text-slate-500'
+            )}
+            onClick={() => setIsOpen(true)}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 text-primary-600" />
+            {selectedDate ? format(selectedDate, 'PPP', { locale: bs }) : <span>Odaberite datum</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+          <Calendar
+            captionLayout="dropdown"
+            fromYear={2018}
+            toYear={new Date().getFullYear()}
+            locale={bs}
+            formatters={{
+              formatMonthDropdown: (date) => format(date, 'MMMM', { locale: bs }),
+              formatWeekdayName: (date) => format(date, 'EEE', { locale: bs }),
+            }}
+            components={{
+              MonthCaption: ({ children }) => <>{children}</>,
+              DropdownNav: (props) => (
+                <div className="flex w-full items-center gap-2">
+                  {props.children}
+                </div>
+              ),
+              Dropdown: (props) => (
+                <Select
+                  onValueChange={(nextValue) => {
+                    if (props.onChange) {
+                      handleCalendarChange(nextValue, props.onChange);
+                    }
+                  }}
+                  value={String(props.value)}
+                >
+                  <SelectTrigger className="first:flex-1 last:shrink-0 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-slate-200 shadow-xl">
+                    {props.options?.map((option) => (
+                      <SelectItem
+                        disabled={option.disabled}
+                        key={option.value}
+                        value={String(option.value)}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ),
+            }}
+            hideNavigation
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (!date) return;
+              onChange(getDateStringInTimeZone(date));
+              setIsOpen(false);
+            }}
+            month={month}
+            onMonthChange={setMonth}
+            className="rounded-2xl bg-white p-5 text-base [--cell-size:3.75rem]"
+            classNames={{
+              months: 'flex gap-6 flex-col',
+              month: 'flex flex-col w-full gap-6',
+              weekdays: 'grid grid-cols-7 gap-3',
+              weekday: 'text-center',
+              week: 'grid grid-cols-7 gap-3 mt-3',
+              outside: 'text-slate-300 opacity-60',
+              day: 'group/day',
+              day_button: 'rounded-full transition-all hover:bg-primary-50 hover:text-primary-800 hover:shadow-[0_6px_16px_rgba(59,130,246,0.25)] data-[selected-single=true]:bg-primary-600 data-[selected-single=true]:text-white data-[selected-single=true]:shadow-[0_10px_24px_rgba(59,130,246,0.35)] data-[selected-single=true]:hover:bg-primary-600',
+              today: 'border-2 border-primary-300 text-primary-800 font-semibold',
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 export default function DailyReportPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
@@ -537,7 +681,7 @@ export default function DailyReportPage() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                  <Calendar className="w-6 h-6 text-white" />
+                  <CalendarIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold">Dnevni izvještaj</h1>
@@ -546,13 +690,10 @@ export default function DailyReportPage() {
               </div>
 
               <div className="max-w-xs">
-                <Label htmlFor="date" className="text-dark-200 text-sm mb-2 block">Izaberite datum</Label>
-                <Input
-                  id="date"
-                  type="date"
+                <DatePickerField
+                  label="Izaberite datum"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-dark-300"
+                  onChange={setSelectedDate}
                   disabled={isComparisonMode}
                 />
               </div>
@@ -631,29 +772,17 @@ export default function DailyReportPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div>
-                <Label htmlFor="comparisonStart">Datum od</Label>
-                <Input
-                  id="comparisonStart"
-                  type="date"
-                  value={comparisonStart}
-                  onChange={(e) => setComparisonStart(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="comparisonEnd">
-                  Datum do {comparisonType === 'ranges' ? '(obavezno)' : '(opciono)'}
-                </Label>
-                <Input
-                  id="comparisonEnd"
-                  type="date"
-                  value={comparisonEnd}
-                  onChange={(e) => setComparisonEnd(e.target.value)}
-                  className="mt-1"
-                  disabled={comparisonType === 'days'}
-                />
-              </div>
+              <DatePickerField
+                label="Datum od"
+                value={comparisonStart}
+                onChange={setComparisonStart}
+              />
+              <DatePickerField
+                label={`Datum do ${comparisonType === 'ranges' ? '(obavezno)' : '(opciono)'}`}
+                value={comparisonEnd}
+                onChange={setComparisonEnd}
+                disabled={comparisonType === 'days'}
+              />
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -691,26 +820,16 @@ export default function DailyReportPage() {
         <div className="bg-white rounded-3xl p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Generisanje izvještaja za period</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <Label htmlFor="rangeExportStart">Datum od</Label>
-              <Input
-                id="rangeExportStart"
-                type="date"
-                value={rangeExportStart}
-                onChange={(e) => setRangeExportStart(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="rangeExportEnd">Datum do</Label>
-              <Input
-                id="rangeExportEnd"
-                type="date"
-                value={rangeExportEnd}
-                onChange={(e) => setRangeExportEnd(e.target.value)}
-                className="mt-1"
-              />
-            </div>
+            <DatePickerField
+              label="Datum od"
+              value={rangeExportStart}
+              onChange={setRangeExportStart}
+            />
+            <DatePickerField
+              label="Datum do"
+              value={rangeExportEnd}
+              onChange={setRangeExportEnd}
+            />
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleExportRangeToExcel}

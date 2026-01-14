@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, type ChangeEvent, type ChangeEventHandler } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getDateStringInTimeZone } from '@/lib/dates';
+import { format } from 'date-fns';
+import { bs } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import {
   FileText,
-  Calendar,
+  Calendar as CalendarIcon,
   TrendingUp,
   Download,
   Building2,
@@ -32,6 +40,145 @@ type GeneratedReport = {
   generatedAt: string | null;
   generatedBy: string | null;
 };
+
+type DatePickerFieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+};
+
+function DatePickerField({ label, value, onChange }: DatePickerFieldProps) {
+  const parseDateValue = (dateValue: string) => {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    if (year && month && day) {
+      return new Date(year, month - 1, day);
+    }
+    const parsed = new Date(dateValue);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+  const selectedDate = value ? parseDateValue(value) : undefined;
+  const [month, setMonth] = useState<Date>(selectedDate || new Date());
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedDate) {
+      setMonth(selectedDate);
+    }
+  }, [value]);
+
+  const handleCalendarChange = (
+    nextValue: string | number,
+    event: ChangeEventHandler<HTMLSelectElement>
+  ) => {
+    const newEvent = {
+      target: {
+        value: String(nextValue),
+      },
+    } as ChangeEvent<HTMLSelectElement>;
+    event(newEvent);
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-2">{label}</label>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open && !selectedDate) {
+            setMonth(new Date());
+          }
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              'w-full justify-start text-left font-normal rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 hover:border-amber-400 hover:bg-white',
+              !selectedDate && 'text-slate-500'
+            )}
+            onClick={() => setIsOpen(true)}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 text-amber-600" />
+            {selectedDate ? format(selectedDate, 'PPP', { locale: bs }) : <span>Odaberite datum</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+        >
+          <Calendar
+            captionLayout="dropdown"
+            fromYear={2018}
+            toYear={new Date().getFullYear()}
+            locale={bs}
+            formatters={{
+              formatMonthDropdown: (date) => format(date, 'MMMM', { locale: bs }),
+              formatWeekdayName: (date) => format(date, 'EEE', { locale: bs }),
+            }}
+            components={{
+              MonthCaption: ({ children }) => <>{children}</>,
+              DropdownNav: (props) => (
+                <div className="flex w-full items-center gap-2">
+                  {props.children}
+                </div>
+              ),
+              Dropdown: (props) => (
+                <Select
+                  onValueChange={(nextValue) => {
+                    if (props.onChange) {
+                      handleCalendarChange(nextValue, props.onChange);
+                    }
+                  }}
+                  value={String(props.value)}
+                >
+                  <SelectTrigger className="first:flex-1 last:shrink-0 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-slate-200 shadow-xl">
+                    {props.options?.map((option) => (
+                      <SelectItem
+                        disabled={option.disabled}
+                        key={option.value}
+                        value={String(option.value)}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ),
+            }}
+            hideNavigation
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (!date) return;
+              onChange(getDateStringInTimeZone(date));
+              setIsOpen(false);
+            }}
+            month={month}
+            onMonthChange={setMonth}
+            className="rounded-2xl bg-white p-5 text-base [--cell-size:3.75rem]"
+            classNames={{
+              months: "flex gap-6 flex-col",
+              month: "flex flex-col w-full gap-6",
+              weekdays: "grid grid-cols-7 gap-3",
+              weekday: "text-center",
+              week: "grid grid-cols-7 gap-3 mt-3",
+              outside: "text-slate-300 opacity-60",
+              day: "group/day",
+              day_button: "rounded-full transition-all hover:bg-amber-100 hover:text-amber-900 hover:shadow-[0_6px_16px_rgba(245,158,11,0.25)] data-[selected-single=true]:bg-amber-600 data-[selected-single=true]:text-white data-[selected-single=true]:shadow-[0_10px_24px_rgba(245,158,11,0.35)] data-[selected-single=true]:hover:bg-amber-600",
+              today: "border-2 border-amber-300 text-amber-800 font-semibold",
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 export default function GenerateReportPage() {
   const router = useRouter();
@@ -119,6 +266,7 @@ export default function GenerateReportPage() {
   const [availableRoutes, setAvailableRoutes] = useState<Array<{ route: string; display: string }>>([]);
   const [operationTypesSearchQuery, setOperationTypesSearchQuery] = useState('');
   const [airlinesSearchQuery, setAirlinesSearchQuery] = useState('');
+  const [routesSearchQuery, setRoutesSearchQuery] = useState('');
   const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
   const [isGeneratedReportsLoading, setIsGeneratedReportsLoading] = useState(false);
   const [generatedReportsError, setGeneratedReportsError] = useState('');
@@ -498,22 +646,6 @@ export default function GenerateReportPage() {
         
         setAvailableAirlines(allAirlines);
 
-        // Fetch routes from airline routes
-        const routesRes = await fetch('/api/airline-routes');
-        if (routesRes.ok) {
-          const routesData = await routesRes.json();
-          const routes = routesData.data.map((r: any) => ({
-            route: r.route,
-            display: `${r.route} (${r.destination}, ${r.country})`
-          }));
-          
-          // Deduplicate routes by route code
-          const uniqueRoutes = Array.from(
-            new Map(routes.map((r: { route: string; display: string }) => [r.route, r])).values()
-          ) as Array<{ route: string; display: string }>;
-          
-          setAvailableRoutes(uniqueRoutes);
-        }
       } catch (error) {
         console.error('Error fetching filter data:', error);
       }
@@ -521,6 +653,46 @@ export default function GenerateReportPage() {
 
     fetchFilterData();
   }, []);
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        if (!customDateFrom || !customDateTo) {
+          setAvailableRoutes([]);
+          setCustomRoutes([]);
+          return;
+        }
+        const params = new URLSearchParams();
+        params.set('limit', '200');
+        if (routesSearchQuery.trim()) {
+          params.set('search', routesSearchQuery.trim());
+        }
+        params.set('dateFrom', customDateFrom);
+        params.set('dateTo', customDateTo);
+        if (customAirlines.length > 0) {
+          params.set('airlines', customAirlines.join(','));
+        }
+
+        const response = await fetch(`/api/routes?${params.toString()}`);
+        if (!response.ok) {
+          setAvailableRoutes([]);
+          return;
+        }
+        const data = await response.json();
+        const routes = (data.data || []).map((route: string) => ({
+          route,
+          display: route,
+        }));
+        setAvailableRoutes(routes);
+        setCustomRoutes((prev) => prev.filter((route) => routes.some((r: { route: string }) => r.route === route)));
+      } catch (error) {
+        console.error('Error fetching routes:', error);
+        setAvailableRoutes([]);
+      }
+    };
+
+    fetchRoutes();
+  }, [customDateFrom, customDateTo, customAirlines, routesSearchQuery]);
 
   // Auto-enable multi-sheet for long periods
   useEffect(() => {
@@ -1705,28 +1877,20 @@ export default function GenerateReportPage() {
                   {/* Date Range Card */}
                   <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-2 mb-4">
-                      <Calendar className="w-5 h-5 text-amber-600" />
+                      <CalendarIcon className="w-5 h-5 text-amber-600" />
                       <label className="text-base font-semibold text-slate-900">Period</label>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-2">Od datuma</label>
-                        <input
-                          type="date"
-                          value={customDateFrom}
-                          onChange={(e) => setCustomDateFrom(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 font-medium"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-2">Do datuma</label>
-                        <input
-                          type="date"
-                          value={customDateTo}
-                          onChange={(e) => setCustomDateTo(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 font-medium"
-                        />
-                      </div>
+                      <DatePickerField
+                        label="Od datuma"
+                        value={customDateFrom}
+                        onChange={setCustomDateFrom}
+                      />
+                      <DatePickerField
+                        label="Do datuma"
+                        value={customDateTo}
+                        onChange={setCustomDateTo}
+                      />
                     </div>
                     
                     {/* Multi-Sheet Toggle */}
@@ -1942,6 +2106,41 @@ export default function GenerateReportPage() {
                       <label className="text-base font-semibold text-slate-900">Rute</label>
                       <span className="ml-auto px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">{customRoutes.length}</span>
                     </div>
+
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Pretraži rute..."
+                        value={routesSearchQuery}
+                        onChange={(e) => setRoutesSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-slate-50 text-slate-900 text-sm"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const routeCodes = availableRoutes.map((routeObj) => routeObj.route);
+                          setCustomRoutes([...new Set([...customRoutes, ...routeCodes])]);
+                        }}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-xs font-bold hover:from-amber-600 hover:to-amber-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        Odaberi sve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const routeCodes = availableRoutes.map((routeObj) => routeObj.route);
+                          setCustomRoutes(customRoutes.filter((route) => !routeCodes.includes(route)));
+                        }}
+                        className="flex-1 px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                      >
+                        Poništi sve
+                      </button>
+                    </div>
+
                     <div className="border-2 border-slate-200 rounded-xl p-2 bg-slate-50 max-h-48 overflow-y-auto custom-scrollbar">
                       {availableRoutes.map((routeObj) => (
                         <label key={routeObj.route} className="flex items-center gap-3 py-2.5 px-3 hover:bg-white rounded-lg cursor-pointer transition-colors group">
@@ -1960,6 +2159,13 @@ export default function GenerateReportPage() {
                           <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{routeObj.display}</span>
                         </label>
                       ))}
+                      {availableRoutes.length === 0 && (
+                        <p className="text-sm text-slate-500 text-center py-8">
+                          {customDateFrom && customDateTo
+                            ? 'Nema ruta za odabrani period i filtere'
+                            : 'Odaberite period da biste vidjeli rute'}
+                        </p>
+                      )}
                     </div>
                   </div>
 

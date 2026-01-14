@@ -1,10 +1,39 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Search, Bell, Calendar, User } from 'lucide-react';
 import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
 
 export function Header() {
   const todayLabel = formatDateDisplay(getTodayDateString());
+  const [userName, setUserName] = useState('Korisnik');
+  const [userRole, setUserRole] = useState('Korisnik');
+
+  useEffect(() => {
+    const localName = localStorage.getItem('userName');
+    const localRole = localStorage.getItem('userRole');
+    if (localName) setUserName(localName);
+    if (localRole) setUserRole(localRole);
+
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (data?.authenticated && data?.user) {
+          const name = data.user.name || data.user.email?.split('@')[0] || 'Korisnik';
+          setUserName(name);
+          setUserRole(data.user.role || 'Korisnik');
+          localStorage.setItem('userName', name);
+          localStorage.setItem('userRole', data.user.role || 'Korisnik');
+        }
+      } catch (error) {
+        // Use localStorage fallback
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   return (
     <header className="fixed top-0 right-0 left-[280px] h-24 bg-dark-50 border-b border-dark-100 z-30">
@@ -42,15 +71,18 @@ export function Header() {
           </button>
 
           {/* User Profile */}
-          <button className="flex items-center gap-3 pl-2 pr-4 py-2 bg-white rounded-full shadow-soft hover:shadow-md transition-all">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 pl-2 pr-4 py-2 bg-white rounded-full shadow-soft hover:shadow-md transition-all"
+          >
             <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold text-dark-900 leading-none">Admin User</p>
-              <p className="text-[10px] font-medium text-dark-500 uppercase mt-1">Administrator</p>
+              <p className="text-sm font-bold text-dark-900 leading-none">{userName}</p>
+              <p className="text-[10px] font-medium text-dark-500 uppercase mt-1">{userRole}</p>
             </div>
-          </button>
+          </Link>
         </div>
       </div>
     </header>

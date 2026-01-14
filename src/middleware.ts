@@ -138,6 +138,7 @@ export async function middleware(request: NextRequest) {
       '/api/reports/custom-multi-sheet/generate',
       '/api/reports/custom',
       '/api/reports/custom/compare',
+      '/api/profile/password',
     ];
     const hasViewerWriteAccess = viewerWriteAllowedRoutes.includes(pathname);
 

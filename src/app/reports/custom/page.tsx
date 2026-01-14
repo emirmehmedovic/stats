@@ -2,14 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
-import { Activity, AlertCircle, Calendar, Clock, Plane, Package, TrendingDown, TrendingUp, Users, X } from 'lucide-react';
+import { formatDateDisplay, getDateStringInTimeZone, getTodayDateString } from '@/lib/dates';
+import { Activity, AlertCircle, Calendar as CalendarIcon, Clock, Plane, Package, TrendingDown, TrendingUp, Users, X } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { format } from 'date-fns';
+import { bs } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import type { ChangeEvent, ChangeEventHandler } from 'react';
 
 interface CustomReportData {
   filters: {
@@ -331,6 +337,142 @@ interface CustomComparisonData {
     avgDelayMinutes: { current: number | null; previous: number | null; growth: number };
     cancelledRate: { current: number | null; previous: number | null; growth: number };
   };
+}
+
+type DatePickerFieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+};
+
+function DatePickerField({ label, value, onChange }: DatePickerFieldProps) {
+  const parseDateValue = (dateValue: string) => {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    if (year && month && day) {
+      return new Date(year, month - 1, day);
+    }
+    const parsed = new Date(dateValue);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+  const selectedDate = value ? parseDateValue(value) : undefined;
+  const [month, setMonth] = useState<Date>(selectedDate || new Date());
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedDate) {
+      setMonth(selectedDate);
+    }
+  }, [value]);
+
+  const handleCalendarChange = (
+    nextValue: string | number,
+    event: ChangeEventHandler<HTMLSelectElement>
+  ) => {
+    const newEvent = {
+      target: {
+        value: String(nextValue),
+      },
+    } as ChangeEvent<HTMLSelectElement>;
+    event(newEvent);
+  };
+
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open && !selectedDate) {
+            setMonth(new Date());
+          }
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              'mt-1 w-full justify-start text-left font-normal rounded-xl border border-dark-100 bg-white px-3 py-2 text-sm',
+              !selectedDate && 'text-dark-400'
+            )}
+            onClick={() => setIsOpen(true)}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 text-primary-600" />
+            {selectedDate ? format(selectedDate, 'PPP', { locale: bs }) : <span>Odaberite datum</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+          <Calendar
+            captionLayout="dropdown"
+            fromYear={2018}
+            toYear={new Date().getFullYear()}
+            locale={bs}
+            formatters={{
+              formatMonthDropdown: (date) => format(date, 'MMMM', { locale: bs }),
+              formatWeekdayName: (date) => format(date, 'EEE', { locale: bs }),
+            }}
+            components={{
+              MonthCaption: ({ children }) => <>{children}</>,
+              DropdownNav: (props) => (
+                <div className="flex w-full items-center gap-2">
+                  {props.children}
+                </div>
+              ),
+              Dropdown: (props) => (
+                <Select
+                  onValueChange={(nextValue) => {
+                    if (props.onChange) {
+                      handleCalendarChange(nextValue, props.onChange);
+                    }
+                  }}
+                  value={String(props.value)}
+                >
+                  <SelectTrigger className="first:flex-1 last:shrink-0 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-slate-200 shadow-xl">
+                    {props.options?.map((option) => (
+                      <SelectItem
+                        disabled={option.disabled}
+                        key={option.value}
+                        value={String(option.value)}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ),
+            }}
+            hideNavigation
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (!date) return;
+              onChange(getDateStringInTimeZone(date));
+              setIsOpen(false);
+            }}
+            month={month}
+            onMonthChange={setMonth}
+            className="rounded-2xl bg-white p-5 text-base [--cell-size:3.75rem]"
+            classNames={{
+              months: 'flex gap-6 flex-col',
+              month: 'flex flex-col w-full gap-6',
+              weekdays: 'grid grid-cols-7 gap-3',
+              weekday: 'text-center',
+              week: 'grid grid-cols-7 gap-3 mt-3',
+              outside: 'text-slate-300 opacity-60',
+              day: 'group/day',
+              day_button: 'rounded-full transition-all hover:bg-primary-50 hover:text-primary-800 hover:shadow-[0_6px_16px_rgba(59,130,246,0.25)] data-[selected-single=true]:bg-primary-600 data-[selected-single=true]:text-white data-[selected-single=true]:shadow-[0_10px_24px_rgba(59,130,246,0.35)] data-[selected-single=true]:hover:bg-primary-600',
+              today: 'border-2 border-primary-300 text-primary-800 font-semibold',
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
 
 interface Airline {
@@ -987,51 +1129,15 @@ export default function CustomReportPage() {
             <div className="rounded-2xl border border-dark-100 bg-dark-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-dark-500 mb-3">Period A (bazni)</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="dateFrom">Datum od</Label>
-                  <Input
-                    id="dateFrom"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dateTo">Datum do</Label>
-                  <Input
-                    id="dateTo"
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
+                <DatePickerField label="Datum od" value={dateFrom} onChange={setDateFrom} />
+                <DatePickerField label="Datum do" value={dateTo} onChange={setDateTo} />
               </div>
             </div>
             <div className="rounded-2xl border border-dark-100 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-dark-500 mb-3">Period B (uporedni)</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="compareDateFrom">Datum od</Label>
-                  <Input
-                    id="compareDateFrom"
-                    type="date"
-                    value={compareDateFrom}
-                    onChange={(e) => setCompareDateFrom(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="compareDateTo">Datum do</Label>
-                  <Input
-                    id="compareDateTo"
-                    type="date"
-                    value={compareDateTo}
-                    onChange={(e) => setCompareDateTo(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
+                <DatePickerField label="Datum od" value={compareDateFrom} onChange={setCompareDateFrom} />
+                <DatePickerField label="Datum do" value={compareDateTo} onChange={setCompareDateTo} />
               </div>
             </div>
           </div>
