@@ -100,6 +100,13 @@ type MultiDailyReport = {
   };
 };
 
+type RangeDailyReport = {
+  mode: 'range';
+  dateFrom: string;
+  dateTo: string;
+  daysData: DailyReport[];
+};
+
 const getArrivalPassengers = (flight: any) =>
   flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
 const getDeparturePassengers = (flight: any) =>
@@ -139,6 +146,14 @@ const buildDailyReport = async (
       aircraftType: {
         select: {
           model: true,
+          seats: true,
+          mtow: true,
+        },
+      },
+      operationType: {
+        select: {
+          name: true,
+          code: true,
         },
       },
     },
@@ -384,8 +399,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const dateParam = searchParams.get('date');
     const periodsParam = searchParams.get('periods');
+    const dateFromParam = searchParams.get('dateFrom');
+    const dateToParam = searchParams.get('dateTo');
 
-    if (!dateParam && !periodsParam) {
+    if (!dateParam && !periodsParam && !dateFromParam && !dateToParam) {
       return NextResponse.json(
         {
           success: false,
@@ -393,6 +410,63 @@ export async function GET(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    if (dateFromParam || dateToParam) {
+      if (!dateFromParam || !dateToParam) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Datum od i do su obavezni (format: YYYY-MM-DD)',
+          },
+          { status: 400 }
+        );
+      }
+
+      const startDate = new Date(`${dateFromParam}T00:00:00.000Z`);
+      const endDate = new Date(`${dateToParam}T00:00:00.000Z`);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Neispravan format datuma',
+          },
+          { status: 400 }
+        );
+      }
+
+      if (startDate > endDate) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Datum od mora biti prije datuma do',
+          },
+          { status: 400 }
+        );
+      }
+
+      const days: string[] = [];
+      const current = new Date(startDate.getTime());
+      while (current <= endDate) {
+        days.push(current.toISOString().slice(0, 10));
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+
+      const daysData = await Promise.all(
+        days.map((day) => buildDailyReport(day, day, day, true))
+      );
+
+      const payload: RangeDailyReport = {
+        mode: 'range',
+        dateFrom: dateFromParam,
+        dateTo: dateToParam,
+        daysData,
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: payload,
+      });
     }
 
     if (periodsParam) {

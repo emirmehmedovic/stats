@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Plane, Users, Building2, TrendingUp, Download, Calendar, PackageCheck, Package } from 'lucide-react';
-import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
+import { formatDateDisplay, formatTimeDisplay, getTodayDateString } from '@/lib/dates';
 
 interface DailyReportData {
   mode: 'single';
@@ -104,9 +104,17 @@ interface MultiDailyReportData {
 }
 
 type DailyReportPayload = DailyReportData | MultiDailyReportData;
+type RangeDailyReportData = {
+  mode: 'range';
+  dateFrom: string;
+  dateTo: string;
+  daysData: DailyReportData[];
+};
 
 export default function DailyReportPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+  const [rangeExportStart, setRangeExportStart] = useState(getTodayDateString());
+  const [rangeExportEnd, setRangeExportEnd] = useState(getTodayDateString());
   const [comparisonStart, setComparisonStart] = useState(getTodayDateString());
   const [comparisonEnd, setComparisonEnd] = useState('');
   const [comparisonPeriods, setComparisonPeriods] = useState<string[]>([]);
@@ -115,6 +123,7 @@ export default function DailyReportPage() {
   const [reportData, setReportData] = useState<DailyReportData | null>(null);
   const [multiReportData, setMultiReportData] = useState<MultiDailyReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRangeExporting, setIsRangeExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,83 +166,335 @@ export default function DailyReportPage() {
     }
   };
 
+  const buildDailySheetRows = (data: DailyReportData) => {
+    const headerRows = [
+      ['DNEVNI IZVJESTAJ - Aerodrom Tuzla'],
+      ['Datum:', formatDateDisplay(data.date)],
+      [],
+    ];
+
+    const tableHeader = [
+      'Datum',
+      'Aviokompanija',
+      'ICAO',
+      'Ruta',
+      'Avion',
+      'Kapacitet mjesta',
+      'MTOW (kg)',
+      'Registracija',
+      'Tip operacije',
+      'Dolazak - Broj leta',
+      'Planirano slijetanje',
+      'Stvarno slijetanje',
+      'Dolazak - Putnici',
+      'Dolazak - Bebe',
+      'Dolazak - Prtljag (kg)',
+      'Dolazak - Cargo (kg)',
+      'Dolazak - Poata (kg)',
+      'Odlazak - Broj leta',
+      'Planirano polijetanje',
+      'Stvarno polijetanje',
+      'Odlazak - Putnici',
+      'Odlazak - Bebe',
+      'Odlazak - Prtljag (kg)',
+      'Odlazak - Cargo (kg)',
+      'Odlazak - Poata (kg)',
+    ];
+
+    const dataRows = data.flights.map((flight) => [
+      formatDateDisplay(flight.date),
+      flight.airline?.name || '',
+      flight.airline?.icaoCode || '',
+      flight.route || '',
+      flight.aircraftType?.model || '',
+      flight.aircraftType?.seats ?? '',
+      flight.aircraftType?.mtow ?? '',
+      flight.registration || '',
+      flight.operationType?.name || flight.operationType?.code || '',
+      flight.arrivalFlightNumber || '',
+      formatTimeDisplay(flight.arrivalScheduledTime),
+      formatTimeDisplay(flight.arrivalActualTime),
+      flight.arrivalPassengers || 0,
+      flight.arrivalInfants || 0,
+      flight.arrivalBaggage || 0,
+      flight.arrivalCargo || 0,
+      flight.arrivalMail || 0,
+      flight.departureFlightNumber || '',
+      formatTimeDisplay(flight.departureScheduledTime),
+      formatTimeDisplay(flight.departureActualTime),
+      flight.departurePassengers || 0,
+      flight.departureInfants || 0,
+      flight.departureBaggage || 0,
+      flight.departureCargo || 0,
+      flight.departureMail || 0,
+    ]);
+
+    const summaryRows = [
+      [],
+      ['SAZETAK'],
+      ['Ukupno letova', data.totals.flights],
+      ['Ukupno putnika', data.totals.totalPassengers],
+      ['Ukupno prtljaga (kg)', data.totals.totalBaggage],
+      ['Ukupno cargo (kg)', data.totals.totalCargo],
+      ['Ukupno poata (kg)', data.totals.totalMail],
+      [],
+      ['DOLAZAK'],
+      ['Letova', data.totals.arrivalFlights],
+      ['Putnika', data.totals.arrivalPassengers],
+      ['Bebe', data.totals.arrivalInfants],
+      ['Prtljag (kg)', data.totals.arrivalBaggage],
+      ['Cargo (kg)', data.totals.arrivalCargo],
+      ['Poata (kg)', data.totals.arrivalMail],
+      [],
+      ['ODLAZAK'],
+      ['Letova', data.totals.departureFlights],
+      ['Putnika', data.totals.departurePassengers],
+      ['Bebe', data.totals.departureInfants],
+      ['Prtljag (kg)', data.totals.departureBaggage],
+      ['Cargo (kg)', data.totals.departureCargo],
+      ['Poata (kg)', data.totals.departureMail],
+    ];
+
+    return [...headerRows, tableHeader, ...dataRows, ...summaryRows];
+  };
+
+  const getColumnWidths = (rows: (string | number)[][], min = 8, max = 32) => {
+    const widths: number[] = [];
+    rows.forEach((row) => {
+      row.forEach((value, colIndex) => {
+        const cellText = value === null || value === undefined ? '' : String(value);
+        widths[colIndex] = Math.max(widths[colIndex] || min, Math.min(max, cellText.length + 2));
+      });
+    });
+    return widths;
+  };
+
+  const applySheetFormatting = (
+    sheet: XLSX.WorkSheet,
+    headerRowIndex: number,
+    totalColumns: number,
+    totalRows: number,
+    summaryRowIndexes: number[],
+    dataRowStart: number,
+    dataRowEnd: number,
+    summarySections: Array<{
+      headerRow: number;
+      startRow: number;
+      endRow: number;
+      headerFill: string;
+      headerText: string;
+      labelFill: string;
+    }>
+  ) => {
+    const lastCol = XLSX.utils.encode_col(totalColumns - 1);
+    sheet['!merges'] = sheet['!merges'] || [];
+    sheet['!merges'].push({
+      s: { r: 0, c: 0 },
+      e: { r: 0, c: totalColumns - 1 },
+    });
+    summaryRowIndexes.forEach((row) => {
+      sheet['!merges']?.push({
+        s: { r: row, c: 0 },
+        e: { r: row, c: totalColumns - 1 },
+      });
+    });
+
+    sheet['!autofilter'] = {
+      ref: `A${headerRowIndex}:${lastCol}${totalRows}`,
+    };
+
+    const headerRow = headerRowIndex - 1;
+    for (let c = 0; c < totalColumns; c += 1) {
+      const cellRef = XLSX.utils.encode_cell({ r: headerRow, c });
+      const cell = sheet[cellRef];
+      if (cell) {
+        cell.s = {
+          font: { bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { patternType: 'solid', fgColor: { rgb: '1E3A8A' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: {
+            top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          },
+        };
+      }
+    }
+
+    for (let r = dataRowStart; r <= dataRowEnd; r += 1) {
+      const isStriped = (r - dataRowStart) % 2 === 1;
+      const rowFill = isStriped ? { patternType: 'solid', fgColor: { rgb: 'F8FAFC' } } : undefined;
+      for (let c = 0; c < totalColumns; c += 1) {
+        const cellRef = XLSX.utils.encode_cell({ r, c });
+        const cell = sheet[cellRef];
+        if (!cell) continue;
+        cell.s = {
+          font: { color: { rgb: '1F2937' } },
+          fill: rowFill,
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: {
+            top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+            bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+            left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+            right: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          },
+        };
+      }
+    }
+
+    summaryRowIndexes.forEach((row) => {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: 0 });
+      const cell = sheet[cellRef];
+      if (cell) {
+        cell.s = {
+          font: { bold: true, color: { rgb: '0F172A' } },
+          fill: { patternType: 'solid', fgColor: { rgb: 'FFE7BA' } },
+          alignment: { horizontal: 'left', vertical: 'center' },
+        };
+      }
+    });
+
+    const titleCell = sheet['A1'];
+    if (titleCell) {
+      titleCell.s = {
+        font: { bold: true, sz: 15, color: { rgb: '0F172A' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+    }
+
+    summarySections.forEach((section) => {
+      for (let c = 0; c < totalColumns; c += 1) {
+        const headerCellRef = XLSX.utils.encode_cell({ r: section.headerRow, c });
+        const headerCell = sheet[headerCellRef];
+        if (headerCell) {
+          headerCell.s = {
+            font: { bold: true, color: { rgb: section.headerText } },
+            fill: { patternType: 'solid', fgColor: { rgb: section.headerFill } },
+            alignment: { horizontal: 'left', vertical: 'center' },
+          };
+        }
+      }
+
+      for (let r = section.startRow; r <= section.endRow; r += 1) {
+        const labelCellRef = XLSX.utils.encode_cell({ r, c: 0 });
+        const labelCell = sheet[labelCellRef];
+        if (!labelCell) continue;
+        labelCell.s = {
+          font: { bold: true, color: { rgb: '0F172A' } },
+          fill: { patternType: 'solid', fgColor: { rgb: section.labelFill } },
+          alignment: { horizontal: 'left', vertical: 'center' },
+        };
+      }
+    });
+  };
+
+  const buildDailySheet = (data: DailyReportData) => {
+    const rows = buildDailySheetRows(data);
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    const columnWidths = getColumnWidths(rows, 8, 36);
+    sheet['!cols'] = columnWidths.map((wch) => ({ wch }));
+    const headerRowIndex = 4;
+    const headerRowZero = headerRowIndex - 1;
+    const dataStartRowZero = headerRowZero + 1;
+    const dataEndRowZero = dataStartRowZero + data.flights.length - 1;
+    const summaryStartRowZero = dataEndRowZero + 2;
+    const summaryHeaderRows = [
+      summaryStartRowZero,
+      summaryStartRowZero + 7,
+      summaryStartRowZero + 15,
+    ];
+    const summarySections = [
+      {
+        headerRow: summaryStartRowZero,
+        startRow: summaryStartRowZero + 1,
+        endRow: summaryStartRowZero + 5,
+        headerFill: 'F59E0B',
+        headerText: '0F172A',
+        labelFill: 'FEF3C7',
+      },
+      {
+        headerRow: summaryStartRowZero + 7,
+        startRow: summaryStartRowZero + 8,
+        endRow: summaryStartRowZero + 13,
+        headerFill: '16A34A',
+        headerText: 'FFFFFF',
+        labelFill: 'DCFCE7',
+      },
+      {
+        headerRow: summaryStartRowZero + 15,
+        startRow: summaryStartRowZero + 16,
+        endRow: summaryStartRowZero + 21,
+        headerFill: 'DC2626',
+        headerText: 'FFFFFF',
+        labelFill: 'FEE2E2',
+      },
+    ];
+    const totalRows = Math.max(headerRowIndex, dataEndRowZero + 1);
+    applySheetFormatting(
+      sheet,
+      headerRowIndex,
+      25,
+      totalRows,
+      summaryHeaderRows,
+      dataStartRowZero,
+      dataEndRowZero,
+      summarySections
+    );
+    return sheet;
+  };
+
   const handleExportToExcel = () => {
     if (!reportData || reportData.mode !== 'single') return;
 
-    // Create workbook
     const wb = XLSX.utils.book_new();
-
-    // Summary sheet
-    const summaryData = [
-      ['DNEVNI IZVJE`TAJ - Aerodrom Tuzla'],
-      ['Datum:', formatDateDisplay(reportData.date)],
-      [],
-      ['UKUPNO'],
-      ['Ukupno letova:', reportData.totals.flights],
-      ['Ukupno putnika:', reportData.totals.totalPassengers],
-      ['Ukupno prtljaga (kg):', reportData.totals.totalBaggage],
-      ['Ukupno cargo (kg):', reportData.totals.totalCargo],
-      ['Ukupno poate (kg):', reportData.totals.totalMail],
-      [],
-      ['DOLAZAK'],
-      ['Letova:', reportData.totals.arrivalFlights],
-      ['Putnika:', reportData.totals.arrivalPassengers],
-      ['Bebe:', reportData.totals.arrivalInfants],
-      ['Prtljag (kg):', reportData.totals.arrivalBaggage],
-      ['Cargo (kg):', reportData.totals.arrivalCargo],
-      ['Poata (kg):', reportData.totals.arrivalMail],
-      [],
-      ['ODLAZAK'],
-      ['Letova:', reportData.totals.departureFlights],
-      ['Putnika:', reportData.totals.departurePassengers],
-      ['Bebe:', reportData.totals.departureInfants],
-      ['Prtljag (kg):', reportData.totals.departureBaggage],
-      ['Cargo (kg):', reportData.totals.departureCargo],
-      ['Poata (kg):', reportData.totals.departureMail],
-    ];
-
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Sa~etak');
-
-    // Flights details sheet
-    const flightsData = reportData.flights.map(f => ({
-      'Datum': formatDateDisplay(f.date),
-      'Aviokompanija': f.airline.name,
-      'ICAO': f.airline.icaoCode,
-      'Ruta': f.route,
-      'Avion': f.aircraftType.model,
-      'Registracija': f.registration,
-      'Tip operacije': f.operationType,
-      'Dolazak - Broj leta': f.arrivalFlightNumber || '',
-      'Dolazak - Putnici': f.arrivalPassengers || 0,
-      'Dolazak - Bebe': f.arrivalInfants || 0,
-      'Dolazak - Prtljag (kg)': f.arrivalBaggage || 0,
-      'Dolazak - Cargo (kg)': f.arrivalCargo || 0,
-      'Dolazak - Poata (kg)': f.arrivalMail || 0,
-      'Odlazak - Broj leta': f.departureFlightNumber || '',
-      'Odlazak - Putnici': f.departurePassengers || 0,
-      'Odlazak - Bebe': f.departureInfants || 0,
-      'Odlazak - Prtljag (kg)': f.departureBaggage || 0,
-      'Odlazak - Cargo (kg)': f.departureCargo || 0,
-      'Odlazak - Poata (kg)': f.departureMail || 0,
-    }));
-
-    const flightsSheet = XLSX.utils.json_to_sheet(flightsData);
-    XLSX.utils.book_append_sheet(wb, flightsSheet, 'Letovi');
-
-    // By airline sheet
-    const byAirlineData = reportData.byAirline.map(a => ({
-      'Aviokompanija': a.airline,
-      'ICAO kod': a.icaoCode,
-      'Broj letova': a.flights,
-      'Broj putnika': a.passengers,
-    }));
-
-    const byAirlineSheet = XLSX.utils.json_to_sheet(byAirlineData);
-    XLSX.utils.book_append_sheet(wb, byAirlineSheet, 'Po aviokompanijama');
-
-    // Download
+    const dailySheet = buildDailySheet(reportData);
+    XLSX.utils.book_append_sheet(wb, dailySheet, formatDateDisplay(reportData.date));
     XLSX.writeFile(wb, `Dnevni_izvjestaj_${formatDateDisplay(reportData.date)}.xlsx`);
+  };
+
+  const handleExportRangeToExcel = async () => {
+    setIsRangeExporting(true);
+    setError(null);
+    try {
+      if (!rangeExportStart || !rangeExportEnd) {
+        throw new Error('Datum od i do su obavezni');
+      }
+      if (rangeExportStart > rangeExportEnd) {
+        throw new Error('Datum od mora biti prije datuma do');
+      }
+
+      const response = await fetch(
+        `/api/reports/daily?dateFrom=${rangeExportStart}&dateTo=${rangeExportEnd}`
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Greška pri učitavanju izvještaja');
+      }
+
+      const result = await response.json();
+      const payload = result.data as RangeDailyReportData;
+      if (payload.mode !== 'range' || !payload.daysData.length) {
+        throw new Error('Nema podataka za odabrani period');
+      }
+
+      const wb = XLSX.utils.book_new();
+      payload.daysData.forEach((dayReport) => {
+        const sheetName = formatDateDisplay(dayReport.date) || dayReport.date;
+        const sheet = buildDailySheet(dayReport);
+        XLSX.utils.book_append_sheet(wb, sheet, sheetName.slice(0, 31));
+      });
+
+      XLSX.writeFile(
+        wb,
+        `Dnevni_izvjestaji_${formatDateDisplay(rangeExportStart)}_${formatDateDisplay(rangeExportEnd)}.xlsx`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nepoznata greška');
+    } finally {
+      setIsRangeExporting(false);
+    }
   };
 
   const addComparisonPeriod = () => {
@@ -426,6 +687,45 @@ export default function DailyReportPage() {
             </div>
           </div>
         )}
+
+        <div className="bg-white rounded-3xl p-6 shadow-soft">
+          <h3 className="text-lg font-semibold text-dark-900 mb-4">Generisanje izvještaja za period</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <Label htmlFor="rangeExportStart">Datum od</Label>
+              <Input
+                id="rangeExportStart"
+                type="date"
+                value={rangeExportStart}
+                onChange={(e) => setRangeExportStart(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="rangeExportEnd">Datum do</Label>
+              <Input
+                id="rangeExportEnd"
+                type="date"
+                value={rangeExportEnd}
+                onChange={(e) => setRangeExportEnd(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleExportRangeToExcel}
+                disabled={isRangeExporting}
+                className="bg-primary-600 hover:bg-primary-500 text-white font-semibold"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {isRangeExporting ? 'Generišem...' : 'Exportuj period'}
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-dark-500 mt-3">
+            Za svaki dan u periodu biće kreiran zaseban sheet sa operacijama i sažetkom.
+          </p>
+        </div>
 
         {/* Error */}
         {error && (
