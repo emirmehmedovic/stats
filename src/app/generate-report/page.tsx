@@ -1479,6 +1479,7 @@ export default function GenerateReportPage() {
         </section>
 
         {/* Local Statistics Report Generator */}
+        {/*
         <section>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-700 to-teal-600 px-8 py-6">
@@ -1622,6 +1623,7 @@ export default function GenerateReportPage() {
             </div>
           </div>
         </section>
+        */}
 
         {/* Wizz Air Performance Report Generator */}
         <section>

@@ -180,16 +180,10 @@ export default function FlightDataEntryPage() {
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [pendingSubmit, setPendingSubmit] = useState(false);
 
-  const maxDateTimeLocal = flight
-    ? (() => {
-        const flightDateStr = getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO);
-        const todayStr = getTodayDateString();
-        if (flightDateStr === todayStr) {
-          return formatDateTimeLocalValue(new Date());
-        }
-        return `${flightDateStr}T23:59`;
-      })()
+  const maxScheduledDateTimeLocal = flight
+    ? `${getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO)}T23:59`
     : '';
+  const maxTodayDateTimeLocal = `${getTodayDateString()}T23:59`;
 
   useEffect(() => {
     fetchFormData();
@@ -1252,7 +1246,7 @@ export default function FlightDataEntryPage() {
                             id="departureScheduledTime"
                             type="datetime-local"
                             value={formData.departureScheduledTime}
-                            max={maxDateTimeLocal}
+                            max={maxScheduledDateTimeLocal}
                             onChange={(e) => handleChange('departureScheduledTime', e.target.value)}
                             className="text-base font-medium"
                             disabled={flight.isLocked}
@@ -1268,7 +1262,7 @@ export default function FlightDataEntryPage() {
                             id="departureActualTime"
                             type="datetime-local"
                             value={formData.departureActualTime}
-                            max={maxDateTimeLocal}
+                            max={maxTodayDateTimeLocal}
                             onChange={(e) => handleChange('departureActualTime', e.target.value)}
                             className="text-base font-medium"
                             disabled={flight.isLocked}
@@ -1324,7 +1318,7 @@ export default function FlightDataEntryPage() {
                         id="departureDoorClosingTime"
                         type="datetime-local"
                         value={formData.departureDoorClosingTime}
-                        max={maxDateTimeLocal}
+                        max={maxTodayDateTimeLocal}
                         onChange={(e) => handleChange('departureDoorClosingTime', e.target.value)}
                         className="text-base font-medium"
                         disabled={flight.isLocked}
@@ -1579,7 +1573,7 @@ export default function FlightDataEntryPage() {
                             id="arrivalScheduledTime"
                             type="datetime-local"
                             value={formData.arrivalScheduledTime}
-                            max={maxDateTimeLocal}
+                            max={maxScheduledDateTimeLocal}
                             onChange={(e) => handleChange('arrivalScheduledTime', e.target.value)}
                             className="text-base font-medium"
                             disabled={flight.isLocked}
@@ -1595,7 +1589,7 @@ export default function FlightDataEntryPage() {
                             id="arrivalActualTime"
                             type="datetime-local"
                             value={formData.arrivalActualTime}
-                            max={maxDateTimeLocal}
+                            max={maxTodayDateTimeLocal}
                             onChange={(e) => handleChange('arrivalActualTime', e.target.value)}
                             className="text-base font-medium"
                             disabled={flight.isLocked}

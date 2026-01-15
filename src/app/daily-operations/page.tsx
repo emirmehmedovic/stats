@@ -773,7 +773,7 @@ function DailyOperationsContent() {
                               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">ARR</span>
                             </div>
                             <p className="relative z-10 font-semibold text-dark-900">
-                              {formatTime(flight.arrivalScheduledTime)}
+                              {formatTime(flight.arrivalActualTime || flight.arrivalScheduledTime)}
                             </p>
                             {flight.arrivalPassengers !== null && (
                               <p className="relative z-10 text-xs text-dark-500">
@@ -794,7 +794,7 @@ function DailyOperationsContent() {
                               <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[10px] font-semibold">DEP</span>
                             </div>
                             <p className="relative z-10 font-semibold text-dark-900">
-                              {formatTime(flight.departureScheduledTime)}
+                              {formatTime(flight.departureActualTime || flight.departureScheduledTime)}
                             </p>
                             {flight.departurePassengers !== null && (
                               <p className="relative z-10 text-xs text-dark-500">
