@@ -365,6 +365,12 @@ export function Sidebar() {
       return null;
     }
 
+    // Restrict IT oprema to ADMIN only
+    if (section.title === 'MANAGEMENT' && userRole !== 'ADMIN') {
+      const filteredItems = section.items.filter((item) => item.href !== '/it-equipment');
+      return { ...section, items: filteredItems };
+    }
+
     if (userRole === 'VIEWER') {
       const filteredItems = section.items
         .map((item) => {

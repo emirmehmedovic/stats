@@ -184,12 +184,6 @@ const managementItems: MenuItem[] = [
     icon: Users,
     href: '/employees',
   },
-  {
-    id: 'it-equipment',
-    label: 'IT oprema',
-    icon: Package,
-    href: '/it-equipment',
-  },
 ];
 
 const adminItems: MenuItem[] = [
@@ -408,6 +402,12 @@ export default function Sidebar() {
             <div className="text-xs font-semibold text-slate-400 mb-2 px-2">MANAGEMENT</div>
             <div className="space-y-1">
               {managementItems.map(item => renderMenuItem(item))}
+              {userRole === 'ADMIN' && renderMenuItem({
+                id: 'it-equipment',
+                label: 'IT oprema',
+                icon: Package,
+                href: '/it-equipment',
+              })}
             </div>
           </div>
         )}

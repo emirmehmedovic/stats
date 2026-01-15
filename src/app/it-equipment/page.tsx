@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { formatDateTimeDisplay } from '@/lib/dates';
 import { PackagePlus } from 'lucide-react';
@@ -30,6 +31,7 @@ interface EquipmentAssignment {
 }
 
 export default function ItEquipmentPage() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [assignments, setAssignments] = useState<EquipmentAssignment[]>([]);
@@ -37,6 +39,8 @@ export default function ItEquipmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReturning, setIsReturning] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null>(null);
+  const [isRoleChecking, setIsRoleChecking] = useState(true);
   const [assignmentTarget, setAssignmentTarget] = useState<'employee' | 'sector'>('employee');
   const [employeeId, setEmployeeId] = useState('');
   const [sectorId, setSectorId] = useState('');
@@ -69,6 +73,15 @@ export default function ItEquipmentPage() {
       return matchesQuery && matchesSector;
     });
   }, [assignments, searchTerm, sectorFilter]);
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null;
+    setUserRole(role);
+    setIsRoleChecking(false);
+    if (role && role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [router]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -109,6 +122,30 @@ export default function ItEquipmentPage() {
 
     loadData();
   }, []);
+
+  if (isRoleChecking) {
+    return (
+      <MainLayout>
+        <div className="p-8">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center text-sm text-slate-500">Provjera pristupa...</div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (userRole && userRole !== 'ADMIN') {
+    return (
+      <MainLayout>
+        <div className="p-8">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+            <p className="text-sm text-red-700">Nemate pristup ovoj stranici.</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
