@@ -127,6 +127,7 @@ const navSections: NavSection[] = [
           { label: 'Sektori', href: '/admin/sectors', icon: Briefcase },
         ],
       },
+      { label: 'IT oprema', href: '/it-equipment', icon: Package },
     ],
   },
 ];

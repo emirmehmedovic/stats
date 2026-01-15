@@ -26,6 +26,21 @@ type Sector = {
   isActive: boolean;
 };
 
+type Service = {
+  id: string;
+  name: string;
+  code: string | null;
+  sector?: Sector | null;
+};
+
+type Position = {
+  id: string;
+  name: string;
+  code: string | null;
+  sector?: Sector | null;
+  service?: Service | null;
+};
+
 type Employee = {
   id: string;
   employeeNumber: string;
@@ -37,6 +52,10 @@ type Employee = {
   department: string | null;
   sector: Sector | null;
   sectorId: string | null;
+  service: Service | null;
+  serviceId: string | null;
+  jobPosition: Position | null;
+  jobPositionId: string | null;
   status: string;
   hireDate: string;
   photo: string | null;
@@ -53,6 +72,8 @@ export default function EmployeesPage() {
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'employees' | 'alerts'>('employees');
@@ -60,9 +81,13 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sectorFilter, setSectorFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [positionFilter, setPositionFilter] = useState('');
   const [licenseTypeFilter, setLicenseTypeFilter] = useState('');
   const [expiryWindow, setExpiryWindow] = useState('60');
   const [expirySectorFilter, setExpirySectorFilter] = useState('');
+  const [expiryServiceFilter, setExpiryServiceFilter] = useState('');
+  const [expiryPositionFilter, setExpiryPositionFilter] = useState('');
   const [licenseStatusFilter, setLicenseStatusFilter] = useState('ACTIVE');
   const [expirySearch, setExpirySearch] = useState('');
   const [expiryGroupBy, setExpiryGroupBy] = useState<'license' | 'employee'>('license');
@@ -94,6 +119,38 @@ export default function EmployeesPage() {
     ).sort();
   }, [employees]);
 
+  const filteredServices = useMemo(() => {
+    return services
+      .filter((service) => !sectorFilter || service.sector?.id === sectorFilter)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [services, sectorFilter]);
+
+  const filteredPositions = useMemo(() => {
+    return positions
+      .filter((position) => {
+        if (sectorFilter && position.sector?.id !== sectorFilter) return false;
+        if (serviceFilter && position.service?.id !== serviceFilter) return false;
+        return true;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [positions, sectorFilter, serviceFilter]);
+
+  const filteredExpiryServices = useMemo(() => {
+    return services
+      .filter((service) => !expirySectorFilter || service.sector?.id === expirySectorFilter)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [services, expirySectorFilter]);
+
+  const filteredExpiryPositions = useMemo(() => {
+    return positions
+      .filter((position) => {
+        if (expirySectorFilter && position.sector?.id !== expirySectorFilter) return false;
+        if (expiryServiceFilter && position.service?.id !== expiryServiceFilter) return false;
+        return true;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [positions, expirySectorFilter, expiryServiceFilter]);
+
   const expiringLicenses = useMemo(() => {
     return employees
       .flatMap((employee) =>
@@ -101,9 +158,11 @@ export default function EmployeesPage() {
           employeeId: employee.id,
           employeeName: `${employee.firstName} ${employee.lastName}`,
           employeeStatus: employee.status,
-          position: employee.position,
+          position: employee.jobPosition?.name || employee.position,
           sector: employee.sector?.name || '-',
           sectorId: employee.sector?.id || '',
+          serviceId: employee.service?.id || '',
+          positionId: employee.jobPosition?.id || '',
           licenseType: license.licenseType,
           licenseNumber: license.licenseNumber,
           licenseStatus: license.status,
@@ -114,6 +173,8 @@ export default function EmployeesPage() {
       .filter((item) => {
         if (licenseTypeFilter && item.licenseType !== licenseTypeFilter) return false;
         if (expirySectorFilter && item.sectorId !== expirySectorFilter) return false;
+        if (expiryServiceFilter && item.serviceId !== expiryServiceFilter) return false;
+        if (expiryPositionFilter && item.positionId !== expiryPositionFilter) return false;
         if (licenseStatusFilter && licenseStatusFilter !== 'ALL' && item.licenseStatus !== licenseStatusFilter) {
           return false;
         }
@@ -205,11 +266,61 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     fetchSectors();
+    fetchServices();
+    fetchPositions();
   }, []);
 
   useEffect(() => {
     fetchEmployees();
-  }, [search, statusFilter, sectorFilter, activeTab]);
+  }, [search, statusFilter, sectorFilter, serviceFilter, positionFilter, activeTab]);
+
+  useEffect(() => {
+    if (!sectorFilter) return;
+    if (serviceFilter && !services.some((service) => service.id === serviceFilter && service.sector?.id === sectorFilter)) {
+      setServiceFilter('');
+      setPositionFilter('');
+      return;
+    }
+    if (positionFilter && !positions.some((position) => position.id === positionFilter && position.sector?.id === sectorFilter)) {
+      setPositionFilter('');
+    }
+  }, [sectorFilter, serviceFilter, positionFilter, services, positions]);
+
+  useEffect(() => {
+    if (!serviceFilter) return;
+    const service = services.find((item) => item.id === serviceFilter);
+    if (!service) return;
+    if (service.sector?.id && service.sector.id !== sectorFilter) {
+      setSectorFilter(service.sector.id);
+    }
+    if (positionFilter && !positions.some((position) => position.id === positionFilter && position.service?.id === serviceFilter)) {
+      setPositionFilter('');
+    }
+  }, [serviceFilter, sectorFilter, positionFilter, services, positions]);
+
+  useEffect(() => {
+    if (!expirySectorFilter) return;
+    if (expiryServiceFilter && !services.some((service) => service.id === expiryServiceFilter && service.sector?.id === expirySectorFilter)) {
+      setExpiryServiceFilter('');
+      setExpiryPositionFilter('');
+      return;
+    }
+    if (expiryPositionFilter && !positions.some((position) => position.id === expiryPositionFilter && position.sector?.id === expirySectorFilter)) {
+      setExpiryPositionFilter('');
+    }
+  }, [expirySectorFilter, expiryServiceFilter, expiryPositionFilter, services, positions]);
+
+  useEffect(() => {
+    if (!expiryServiceFilter) return;
+    const service = services.find((item) => item.id === expiryServiceFilter);
+    if (!service) return;
+    if (service.sector?.id && service.sector.id !== expirySectorFilter) {
+      setExpirySectorFilter(service.sector.id);
+    }
+    if (expiryPositionFilter && !positions.some((position) => position.id === expiryPositionFilter && position.service?.id === expiryServiceFilter)) {
+      setExpiryPositionFilter('');
+    }
+  }, [expiryServiceFilter, expirySectorFilter, expiryPositionFilter, services, positions]);
 
   const fetchSectors = async () => {
     try {
@@ -223,6 +334,30 @@ export default function EmployeesPage() {
     }
   };
 
+  const fetchServices = async () => {
+    try {
+      const res = await fetch('/api/services');
+      if (res.ok) {
+        const result = await res.json();
+        setServices(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching services:', err);
+    }
+  };
+
+  const fetchPositions = async () => {
+    try {
+      const res = await fetch('/api/positions');
+      if (res.ok) {
+        const result = await res.json();
+        setPositions(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching positions:', err);
+    }
+  };
+
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
@@ -231,6 +366,8 @@ export default function EmployeesPage() {
         if (search) params.append('search', search);
         if (statusFilter) params.append('status', statusFilter);
         if (sectorFilter) params.append('sectorId', sectorFilter);
+        if (serviceFilter) params.append('serviceId', serviceFilter);
+        if (positionFilter) params.append('jobPositionId', positionFilter);
       }
 
       params.append('limit', '1000');
@@ -333,7 +470,7 @@ export default function EmployeesPage() {
         <>
           {/* Filters */}
           <div className="bg-white rounded-2xl shadow-sm border border-dark-100 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
               <div className="md:col-span-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -372,6 +509,50 @@ export default function EmployeesPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <select
+                  value={serviceFilter}
+                  onChange={(e) => setServiceFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sve službe</option>
+                  {filteredServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} {service.code ? `(${service.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={positionFilter}
+                  onChange={(e) => setPositionFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sve pozicije</option>
+                  {filteredPositions.map((position) => (
+                    <option key={position.id} value={position.id}>
+                      {position.name} {position.code ? `(${position.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSectorFilter('');
+                    setServiceFilter('');
+                    setPositionFilter('');
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                >
+                  Reset filtera
+                </button>
               </div>
             </div>
           </div>
@@ -462,7 +643,7 @@ export default function EmployeesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
             <Input
               value={expirySearch}
               onChange={(e) => setExpirySearch(e.target.value)}
@@ -490,6 +671,30 @@ export default function EmployeesPage() {
               {sectors.map((sector) => (
                 <option key={sector.id} value={sector.id}>
                   {sector.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={expiryServiceFilter}
+              onChange={(e) => setExpiryServiceFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">Sve službe</option>
+              {filteredExpiryServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name} {service.code ? `(${service.code})` : ''}
+                </option>
+              ))}
+            </select>
+            <select
+              value={expiryPositionFilter}
+              onChange={(e) => setExpiryPositionFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">Sve pozicije</option>
+              {filteredExpiryPositions.map((position) => (
+                <option key={position.id} value={position.id}>
+                  {position.name} {position.code ? `(${position.code})` : ''}
                 </option>
               ))}
             </select>
@@ -524,6 +729,17 @@ export default function EmployeesPage() {
               <option value="license">Grupisano po licenci</option>
               <option value="employee">Grupisano po radniku</option>
             </select>
+            <button
+              type="button"
+              onClick={() => {
+                setExpirySectorFilter('');
+                setExpiryServiceFilter('');
+                setExpiryPositionFilter('');
+              }}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            >
+              Reset filtera
+            </button>
           </div>
 
           {sectorSummary.length > 0 && (
@@ -690,7 +906,9 @@ export default function EmployeesPage() {
                     <h3 className="text-lg font-semibold text-dark-900 group-hover:text-blue-600 transition-colors truncate">
                       {employee.firstName} {employee.lastName}
                     </h3>
-                    <p className="text-sm text-dark-600 truncate">{employee.position}</p>
+                    <p className="text-sm text-dark-600 truncate">
+                      {employee.jobPosition?.name || employee.position}
+                    </p>
                     <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium mt-2 ${getStatusBadge(employee.status)}`}>
                       {getStatusIcon(employee.status)}
                       <span>{employee.status === 'ACTIVE' ? 'Aktivan' : employee.status === 'ON_LEAVE' ? 'Na odsustvu' : 'Neaktivan'}</span>
@@ -722,6 +940,12 @@ export default function EmployeesPage() {
                         )}
                         <span>{employee.sector.name}</span>
                       </div>
+                    </div>
+                  )}
+                  {employee.service && (
+                    <div className="flex items-center gap-2 text-sm text-dark-600">
+                      <Briefcase className="w-4 h-4" />
+                      <span>{employee.service.name}</span>
                     </div>
                   )}
                 </div>

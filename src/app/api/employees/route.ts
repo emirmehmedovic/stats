@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const department = searchParams.get('department') || '';
     const sectorId = searchParams.get('sectorId') || '';
+    const serviceId = searchParams.get('serviceId') || '';
+    const jobPositionId = searchParams.get('jobPositionId') || '';
     const status = searchParams.get('status') || '';
 
     const skip = (page - 1) * limit;
@@ -27,12 +29,35 @@ export async function GET(request: NextRequest) {
     const where: any = {};
 
     if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { employeeNumber: { contains: search, mode: 'insensitive' } },
-      ];
+      const normalized = search.trim();
+      const parts = normalized.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts;
+        const last = rest.join(' ');
+        where.OR = [
+          {
+            AND: [
+              { firstName: { contains: first, mode: 'insensitive' } },
+              { lastName: { contains: last, mode: 'insensitive' } },
+            ],
+          },
+          {
+            AND: [
+              { firstName: { contains: last, mode: 'insensitive' } },
+              { lastName: { contains: first, mode: 'insensitive' } },
+            ],
+          },
+          { email: { contains: normalized, mode: 'insensitive' } },
+          { employeeNumber: { contains: normalized, mode: 'insensitive' } },
+        ];
+      } else {
+        where.OR = [
+          { firstName: { contains: normalized, mode: 'insensitive' } },
+          { lastName: { contains: normalized, mode: 'insensitive' } },
+          { email: { contains: normalized, mode: 'insensitive' } },
+          { employeeNumber: { contains: normalized, mode: 'insensitive' } },
+        ];
+      }
     }
 
     if (department) {
@@ -41,6 +66,12 @@ export async function GET(request: NextRequest) {
 
     if (sectorId) {
       where.sectorId = sectorId;
+    }
+    if (serviceId) {
+      where.serviceId = serviceId;
+    }
+    if (jobPositionId) {
+      where.jobPositionId = jobPositionId;
     }
 
     if (status) {
@@ -56,6 +87,8 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         include: {
           sector: true,
+          service: true,
+          jobPosition: true,
           licenses: {
             select: {
               id: true,

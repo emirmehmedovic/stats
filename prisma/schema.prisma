@@ -423,6 +423,9 @@ model Sector {
   color       String?    // Hex color za UI
   isActive    Boolean    @default(true)
   employees   Employee[]
+  equipmentAssignments EquipmentAssignment[]
+  services    Service[]
+  positions   Position[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -459,16 +462,79 @@ model Employee {
   department     String?               // DEPRECATED: koristiti sector umjesto ovoga
   sector         Sector?               @relation(fields: [sectorId], references: [id])
   sectorId       String?
+  service        Service?              @relation(fields: [serviceId], references: [id])
+  serviceId      String?
+  jobPosition    Position?             @relation(fields: [jobPositionId], references: [id])
+  jobPositionId  String?
   photo          String?               // URL to photo
   status         String                @default("ACTIVE") // ACTIVE, INACTIVE, ON_LEAVE
   licenses       License[]
   documents      EmployeeDocument[]
   notifications  LicenseNotification[]
+  equipmentAssignments EquipmentAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([sectorId])
+  @@index([serviceId])
+  @@index([jobPositionId])
+}
+
+// Sluzbe/Odjeli u okviru sektora
+model Service {
+  id       String   @id @default(cuid())
+  name     String
+  code     String?
+  sector   Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  sectorId String
+  positions Position[]
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sectorId])
+}
+
+// Radne pozicije
+model Position {
+  id                String   @id @default(cuid())
+  name              String
+  code              String?
+  plannedHeadcount  Int?
+  requiredEducation String?
+  sector            Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  sectorId          String
+  service           Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId         String?
+  employees         Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sectorId])
+  @@index([serviceId])
+}
+
+// Zaduzenja IT opreme
+model EquipmentAssignment {
+  id            String   @id @default(cuid())
+  employee      Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId    String?
+  sector        Sector?   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  sectorId      String?
+  equipmentName String
+  notes         String?
+  assignedAt    DateTime @default(now())
+  returnedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([sectorId])
+  @@index([equipmentName])
 }
 
 // Licence

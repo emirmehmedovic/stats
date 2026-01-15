@@ -19,7 +19,8 @@ import {
   Activity,
   Route,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Package
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -182,6 +183,12 @@ const managementItems: MenuItem[] = [
     label: 'Radnici',
     icon: Users,
     href: '/employees',
+  },
+  {
+    id: 'it-equipment',
+    label: 'IT oprema',
+    icon: Package,
+    href: '/it-equipment',
   },
 ];
 
