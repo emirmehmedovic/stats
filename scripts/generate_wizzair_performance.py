@@ -175,6 +175,7 @@ def get_flight_data(year: int, month: int, day: int = None):
             f."arrivalFlightNumber",
             f."arrivalScheduledTime",
             f."arrivalActualTime",
+            f."arrivalEnginesOffTime",
             f."arrivalPassengers",
             f."arrivalStatus"
 
@@ -341,7 +342,8 @@ def generate_wizzair_performance(year: int, month: int, day: int = None, output_
 
             # Use stored times converted to local time (if timezone-aware)
             sta_local = to_local_datetime(flight.get('arrivalScheduledTime'))
-            ata_local = to_local_datetime(flight.get('arrivalActualTime'))
+            # Use arrivalEnginesOffTime for ATA column (engines off time instead of landing time)
+            ata_local = to_local_datetime(flight.get('arrivalEnginesOffTime'))
             std_local = to_local_datetime(flight.get('departureScheduledTime'))
             dct_local = to_local_datetime(flight.get('departureDoorClosingTime'))
             atd_local = to_local_datetime(flight.get('departureActualTime'))

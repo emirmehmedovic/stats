@@ -5,6 +5,7 @@ export async function POST() {
   try {
     const cookieStore = await cookies();
     cookieStore.delete('auth-token');
+    cookieStore.delete('billing-pin-token');
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -15,4 +16,3 @@ export async function POST() {
     );
   }
 }
-

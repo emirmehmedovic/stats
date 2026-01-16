@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken, getTokenFromCookie } from '@/lib/auth-utils';
+import { verifyToken, getTokenFromCookie, getCookieValue, verifyBillingPinToken } from '@/lib/auth-utils';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -178,6 +178,16 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    if (decoded.role === 'NAPLATE') {
+      const allowedNaplateApiRoutes = ['/api/naplate', '/api/auth/session', '/api/auth/logout'];
+      const hasNaplateAccess = allowedNaplateApiRoutes.some(route => pathname.startsWith(route));
+      if (!hasNaplateAccess) {
+        return applySecurityHeaders(
+          ensureCsrfCookie(NextResponse.json({ error: 'Nemate dozvolu za pristup' }, { status: 403 }))
+        );
+      }
+    }
+
     const response = NextResponse.next();
     return applySecurityHeaders(ensureCsrfCookie(response));
   }
@@ -252,6 +262,11 @@ export async function middleware(request: NextRequest) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
+    } else if (decoded?.role === 'NAPLATE') {
+      if (!pathname.startsWith('/naplate')) {
+        const response = NextResponse.redirect(new URL('/naplate/dnevni', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
     } else if (decoded?.role === 'VIEWER') {
       if (isViewerRestrictedPage) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
@@ -263,6 +278,29 @@ export async function middleware(request: NextRequest) {
       if (isSTWRoute && decoded.role !== 'ADMIN') {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+    }
+
+    if (pathname.startsWith('/naplate')) {
+      if (!decoded) {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+      if (decoded.role !== 'ADMIN' && decoded.role !== 'NAPLATE') {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+
+      if (!pathname.startsWith('/naplate/pin')) {
+        const cookieHeader = request.headers.get('cookie');
+        const billingToken = getCookieValue(cookieHeader, 'billing-pin-token');
+        const billingSession = billingToken ? await verifyBillingPinToken(billingToken) : null;
+        if (!billingSession || billingSession.userId !== decoded.id) {
+          const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+          const redirectUrl = new URL(`/naplate/pin?next=${encodeURIComponent(nextPath)}`, request.url);
+          const response = NextResponse.redirect(redirectUrl);
+          return applySecurityHeaders(ensureCsrfCookie(response));
+        }
       }
     }
   }

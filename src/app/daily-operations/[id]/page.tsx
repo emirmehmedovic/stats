@@ -49,6 +49,7 @@ type Flight = {
   arrivalFlightNumber: string | null;
   arrivalScheduledTime: string | null;
   arrivalActualTime: string | null;
+  arrivalEnginesOffTime: string | null;
   arrivalPassengers: number | null;
   arrivalLoadFactor: number | null;
   arrivalFerryIn: boolean;
@@ -138,6 +139,7 @@ export default function FlightDataEntryPage() {
     arrivalFlightNumber: '',
     arrivalScheduledTime: '',
     arrivalActualTime: '',
+    arrivalEnginesOffTime: '',
     arrivalStatus: 'OPERATED',
     arrivalCancelReason: '',
     arrivalPassengers: '',
@@ -398,6 +400,7 @@ export default function FlightDataEntryPage() {
           arrivalFlightNumber: flightData.arrivalFlightNumber || '',
           arrivalScheduledTime: formatDateTimeLocalValue(flightData.arrivalScheduledTime),
           arrivalActualTime: formatDateTimeLocalValue(flightData.arrivalActualTime),
+          arrivalEnginesOffTime: formatDateTimeLocalValue(flightData.arrivalEnginesOffTime) || '',
           arrivalStatus: resolvedArrivalStatus,
           arrivalCancelReason: flightData.arrivalCancelReason || '',
           arrivalPassengers: flightData.arrivalPassengers?.toString() || '',
@@ -495,6 +498,10 @@ export default function FlightDataEntryPage() {
         arrivalFlightNumber: formData.arrivalFlightNumber || null,
         arrivalScheduledTime: formData.arrivalScheduledTime ? new Date(formData.arrivalScheduledTime).toISOString() : null,
         arrivalActualTime: formData.arrivalActualTime ? new Date(formData.arrivalActualTime).toISOString() : null,
+        arrivalEnginesOffTime: formData.arrivalEnginesOffTime ? (() => {
+          const date = new Date(formData.arrivalEnginesOffTime);
+          return !isNaN(date.getTime()) ? date.toISOString() : null;
+        })() : null,
         arrivalStatus: formData.arrivalStatus || 'OPERATED',
         arrivalCancelReason: formData.arrivalStatus === 'CANCELLED' ? formData.arrivalCancelReason || null : null,
         arrivalPassengers: formData.arrivalFerryIn
@@ -1595,7 +1602,28 @@ export default function FlightDataEntryPage() {
                             disabled={flight.isLocked}
                           />
                         </div>
+                      </div>
 
+                      <div className="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl mt-5">
+                        <Label htmlFor="arrivalEnginesOffTime" className="text-base font-semibold flex items-center gap-2 mb-2">
+                          <Clock className="w-4 h-4" />
+                          ⚠️ Vrijeme gašenja kolizije (Engines Off)
+                        </Label>
+                        <p className="text-xs text-slate-600 mb-2">
+                          Vrijeme kada su motori ugašeni nakon sletanja
+                        </p>
+                        <Input
+                          id="arrivalEnginesOffTime"
+                          type="datetime-local"
+                          value={formData.arrivalEnginesOffTime}
+                          max={maxTodayDateTimeLocal}
+                          onChange={(e) => handleChange('arrivalEnginesOffTime', e.target.value)}
+                          className="text-base font-medium"
+                          disabled={flight.isLocked}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
                         <div>
                           <Label htmlFor="arrivalStatus" className="text-blue-900 font-semibold">
                             Status dolaska
@@ -1819,7 +1847,7 @@ export default function FlightDataEntryPage() {
                   <th className="py-2 pr-4 font-semibold">Broj leta</th>
                   <th className="py-2 pr-4 font-semibold">Planirano</th>
                   <th className="py-2 pr-4 font-semibold">Stvarno</th>
-                  <th className="py-2 pr-4 font-semibold">Zatvaranje vrata</th>
+                  <th className="py-2 pr-4 font-semibold">Engines Off / Door Closed</th>
                   <th className="py-2 pr-4 font-semibold">Status</th>
                   <th className="py-2 pr-4 font-semibold">Razlog</th>
                   <th className="py-2 pr-4 font-semibold">Putnici</th>
@@ -1842,7 +1870,7 @@ export default function FlightDataEntryPage() {
                   <td className="py-3 pr-4">{displayValue(formData.arrivalFlightNumber)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.arrivalScheduledTime)}</td>
                   <td className="py-3 pr-4">{displayDateTime(formData.arrivalActualTime)}</td>
-                  <td className="py-3 pr-4">-</td>
+                  <td className="py-3 pr-4">{displayDateTime(formData.arrivalEnginesOffTime)}</td>
                   <td className="py-3 pr-4">{displayValue(formData.arrivalStatus)}</td>
                   <td className="py-3 pr-4">{displayValue(formData.arrivalCancelReason)}</td>
                   <td className="py-3 pr-4">

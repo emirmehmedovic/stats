@@ -214,19 +214,37 @@ export default function EmployeeDetailPage() {
         </div>
 
         {/* Cover Photo */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 h-64 relative">
-          <div className="absolute inset-0 bg-black/10" />
+        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 h-64 relative overflow-hidden">
+          {/* Texture Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <svg width="100%" height="100%">
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
+                </pattern>
+                <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="10" cy="10" r="1.5" fill="white"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)"/>
+              <rect width="100%" height="100%" fill="url(#dots)"/>
+            </svg>
+          </div>
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-indigo-600/20" />
+          {/* Subtle Noise */}
+          <div className="absolute inset-0 bg-black/5" />
         </div>
 
         {/* Profile Section */}
         <div className="px-8">
-        <div className="bg-white rounded-b-2xl shadow-sm -mt-20 relative z-10">
+        <div className="bg-white rounded-2xl shadow-sm -mt-20 relative z-10">
           <div className="px-8 pt-6 pb-4">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Profile Picture */}
-              <div className="-mt-24 flex-shrink-0">
+              <div className="-mt-32 flex-shrink-0">
                 <div
-                  className={`w-40 h-40 rounded-3xl ring-8 ring-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ${
+                  className={`w-52 h-52 rounded-3xl ring-8 ring-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ${
                     employee.photo && !photoError ? 'cursor-zoom-in' : ''
                   }`}
                   onClick={() => {
@@ -244,7 +262,7 @@ export default function EmployeeDetailPage() {
                     />
                   ) : null}
                   {(!employee.photo || photoError) && (
-                    <span className="text-white text-5xl font-bold">
+                    <span className="text-white text-6xl font-bold">
                       {employee.firstName[0]}{employee.lastName[0]}
                     </span>
                   )}
@@ -309,8 +327,8 @@ export default function EmployeeDetailPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-white shadow-sm -mt-px">
-          <div className="max-w-7xl mx-auto px-6">
+        <div className="bg-white shadow-sm mt-6 rounded-t-2xl border-t border-slate-200">
+          <div className="px-8">
             <div className="border-b border-slate-200">
             <div className="flex gap-1">
               <button
@@ -413,86 +431,106 @@ export default function EmployeeDetailPage() {
         )}
 
         {/* Content Area */}
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div className="bg-white rounded-3xl shadow-soft p-8 space-y-8 sticky top-24 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white/70 to-indigo-100/30 opacity-70 group-hover:opacity-90 transition-all"></div>
+              <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-30"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-40"></div>
+
+              <div className="relative z-10">
               <div>
-                <h3 className="font-semibold text-slate-900 mb-4">Osnovne informacije</h3>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+                  <h3 className="font-bold text-slate-900 text-lg">Osnovne informacije</h3>
+                </div>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="w-4 h-4 text-slate-400" />
-                    <div>
-                      <p className="text-slate-500">Email</p>
-                      <p className="text-slate-900">{employee.email}</p>
+                  <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-blue-50 rounded-xl">
+                        <Mail className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</p>
                     </div>
+                    <p className="text-slate-900 font-semibold text-sm break-all">{employee.email}</p>
                   </div>
                   {employee.phone && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Phone className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-slate-500">Telefon</p>
-                        <p className="text-slate-900">{employee.phone}</p>
+                    <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-green-50 rounded-xl">
+                          <Phone className="w-4 h-4 text-green-600" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Telefon</p>
                       </div>
+                      <p className="text-slate-900 font-semibold text-sm">{employee.phone}</p>
                     </div>
                   )}
-                  <div className="flex items-center gap-3 text-sm">
-                    <User className="w-4 h-4 text-slate-400" />
-                    <div>
-                      <p className="text-slate-500">Broj radnika</p>
-                      <p className="text-slate-900 font-mono">{employee.employeeNumber}</p>
+                  <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-indigo-50 rounded-xl">
+                        <User className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Broj radnika</p>
                     </div>
+                    <p className="text-slate-900 font-bold text-sm font-mono">{employee.employeeNumber}</p>
                   </div>
                   {employee.nationalId && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <User className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-slate-500">JMBG</p>
-                        <p className="text-slate-900 font-mono">{employee.nationalId}</p>
+                    <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-purple-50 rounded-xl">
+                          <User className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">JMBG</p>
                       </div>
+                      <p className="text-slate-900 font-bold text-sm font-mono">{employee.nationalId}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="pt-6 border-t border-slate-200">
-                <h3 className="font-semibold text-slate-900 mb-4">Detalji zaposlenja</h3>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-1 h-6 bg-indigo-600 rounded-full"></div>
+                  <h3 className="font-bold text-slate-900 text-lg">Detalji zaposlenja</h3>
+                </div>
                 <div className="space-y-4">
                   {employee.sector && (
-                    <div>
-                      <p className="text-sm text-slate-500">Sektor</p>
+                    <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Sektor</p>
                       <div className="flex items-center gap-2">
                         {employee.sector.color && (
                           <div
-                            className="w-3 h-3 rounded-full"
+                            className="w-4 h-4 rounded-full shadow-soft"
                             style={{ backgroundColor: employee.sector.color }}
                           />
                         )}
-                        <p className="text-slate-900 font-medium">
+                        <p className="text-slate-900 font-bold text-sm">
                           {employee.sector.name}
                           {employee.sector.code && (
-                            <span className="text-slate-500 ml-2">({employee.sector.code})</span>
+                            <span className="text-slate-500 ml-2 font-normal">({employee.sector.code})</span>
                           )}
                         </p>
                       </div>
                     </div>
                   )}
-                  <div>
-                    <p className="text-sm text-slate-500">Pozicija</p>
-                    <p className="text-slate-900 font-medium">{employee.position}</p>
+                  <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Pozicija</p>
+                    <p className="text-slate-900 font-bold text-sm">{employee.position}</p>
                   </div>
                   {employee.dateOfBirth && (
-                    <div>
-                      <p className="text-sm text-slate-500">Datum rođenja</p>
-                      <p className="text-slate-900">{formatDateDisplay(employee.dateOfBirth)}</p>
+                    <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Datum rođenja</p>
+                      <p className="text-slate-900 font-semibold text-sm">{formatDateDisplay(employee.dateOfBirth)}</p>
                     </div>
                   )}
-                  <div>
-                    <p className="text-sm text-slate-500">Datum zaposlenja</p>
-                    <p className="text-slate-900">{formatDateDisplay(employee.hireDate)}</p>
+                  <div className="p-4 bg-white/80 rounded-2xl shadow-soft border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Datum zaposlenja</p>
+                    <p className="text-slate-900 font-semibold text-sm">{formatDateDisplay(employee.hireDate)}</p>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -501,29 +539,62 @@ export default function EmployeeDetailPage() {
           <div className="lg:col-span-2">
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                  <h3 className="font-semibold text-slate-900 mb-4">O radniku</h3>
-                  <p className="text-slate-600">
-                    {employee.firstName} {employee.lastName} radi na poziciji {employee.position}
-                    {employee.department && ` u odjelu ${employee.department}`}.
-                    Zaposlen je {formatDateDisplay(employee.hireDate)}.
-                  </p>
+                <div className="bg-white rounded-3xl shadow-soft p-8 relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white/70 to-indigo-100/50 opacity-70 group-hover:opacity-90 transition-all"></div>
+                  <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-all"></div>
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-60 group-hover:opacity-90 transition-all"></div>
+
+                  <div className="relative z-10">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">O radniku</h3>
+                    <p className="text-slate-600 leading-relaxed">
+                      {employee.firstName} {employee.lastName} radi na poziciji {employee.position}
+                      {employee.department && ` u odjelu ${employee.department}`}.
+                      Zaposlen je {formatDateDisplay(employee.hireDate)}.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                  <h3 className="font-semibold text-slate-900 mb-4">Statistika licenci</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 bg-green-50 rounded-xl">
-                      <p className="text-3xl font-bold text-green-600">{employee.stats.activeLicenses}</p>
-                      <p className="text-sm text-green-700 mt-1">Aktivnih</p>
-                    </div>
-                    <div className="p-4 bg-orange-50 rounded-xl">
-                      <p className="text-3xl font-bold text-orange-600">{employee.stats.expiringLicenses}</p>
-                      <p className="text-sm text-orange-700 mt-1">Ističu</p>
-                    </div>
-                    <div className="p-4 bg-blue-50 rounded-xl">
-                      <p className="text-3xl font-bold text-blue-600">{employee.stats.totalLicenses}</p>
-                      <p className="text-sm text-blue-700 mt-1">Ukupno</p>
+                <div className="bg-white rounded-3xl shadow-soft p-8 relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 via-white/70 to-emerald-100/50 opacity-70 group-hover:opacity-90 transition-all"></div>
+                  <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-green-200 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-all"></div>
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-60 group-hover:opacity-90 transition-all"></div>
+
+                  <div className="relative z-10">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Statistika licenci</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-6 bg-white rounded-2xl border-[6px] border-white shadow-soft hover:shadow-soft-lg transition-all group/card cursor-pointer relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-100 opacity-80 group-hover/card:opacity-100 transition-all"></div>
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-green-200 rounded-full blur-2xl opacity-60"></div>
+                        <div className="relative z-10">
+                          <div className="p-3 bg-green-100 rounded-2xl w-fit mb-3">
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          </div>
+                          <p className="text-3xl font-bold text-green-600 mb-1">{employee.stats.activeLicenses}</p>
+                          <p className="text-sm font-medium text-green-700">Aktivnih</p>
+                        </div>
+                      </div>
+                      <div className="p-6 bg-white rounded-2xl border-[6px] border-white shadow-soft hover:shadow-soft-lg transition-all group/card cursor-pointer relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-100 opacity-80 group-hover/card:opacity-100 transition-all"></div>
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-orange-200 rounded-full blur-2xl opacity-60"></div>
+                        <div className="relative z-10">
+                          <div className="p-3 bg-orange-100 rounded-2xl w-fit mb-3">
+                            <Clock className="w-6 h-6 text-orange-600" />
+                          </div>
+                          <p className="text-3xl font-bold text-orange-600 mb-1">{employee.stats.expiringLicenses}</p>
+                          <p className="text-sm font-medium text-orange-700">Ističu</p>
+                        </div>
+                      </div>
+                      <div className="p-6 bg-white rounded-2xl border-[6px] border-white shadow-soft hover:shadow-soft-lg transition-all group/card cursor-pointer relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 opacity-80 group-hover/card:opacity-100 transition-all"></div>
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-blue-200 rounded-full blur-2xl opacity-60"></div>
+                        <div className="relative z-10">
+                          <div className="p-3 bg-blue-100 rounded-2xl w-fit mb-3">
+                            <Shield className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <p className="text-3xl font-bold text-blue-600 mb-1">{employee.stats.totalLicenses}</p>
+                          <p className="text-sm font-medium text-blue-700">Ukupno</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -545,19 +616,24 @@ export default function EmployeeDetailPage() {
                 </div>
 
                 {employee.licenses.length === 0 ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-                    <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                      <Shield className="w-8 h-8 text-slate-400" />
+                  <div className="bg-white rounded-3xl shadow-soft p-12 text-center relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-50/50 via-white/70 to-slate-100/50 opacity-70"></div>
+                    <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-slate-200 rounded-full blur-3xl opacity-30"></div>
+
+                    <div className="relative z-10">
+                      <div className="mx-auto w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mb-6 shadow-soft">
+                        <Shield className="w-10 h-10 text-slate-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">Nema licenci</h3>
+                      <p className="text-slate-600 mb-8 max-w-md mx-auto">Ovaj radnik još nema dodijeljenih licenci ili certifikata.</p>
+                      <Button
+                        onClick={() => setIsAddLicenseModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-soft hover:shadow-soft-lg transition-all"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Dodaj prvu licencu
+                      </Button>
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema licenci</h3>
-                    <p className="text-slate-600 mb-6">Ovaj radnik još nema dodijeljenih licenci ili certifikata.</p>
-                    <Button
-                      onClick={() => setIsAddLicenseModalOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Dodaj prvu licencu
-                    </Button>
                   </div>
                 ) : (
                   employee.licenses.map((license) => {
@@ -565,64 +641,69 @@ export default function EmployeeDetailPage() {
                     return (
                       <div
                         key={license.id}
-                        className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+                        className="bg-white rounded-3xl shadow-soft p-8 hover:shadow-soft-lg transition-all relative overflow-hidden group"
                       >
-                        <div className="flex items-start justify-between mb-4">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white/70 to-indigo-100/50 opacity-70 group-hover:opacity-90 transition-all"></div>
+                        <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-all"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-60 group-hover:opacity-90 transition-all"></div>
+
+                        <div className="relative z-10">
+                        <div className="flex items-start justify-between mb-6">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 bg-blue-50 rounded-lg">
-                                <Shield className="w-5 h-5 text-blue-600" />
+                            <div className="flex items-center gap-4 mb-3">
+                              <div className="p-3 bg-blue-100 rounded-2xl shadow-soft">
+                                <Shield className="w-6 h-6 text-blue-600" />
                               </div>
                               <div>
-                                <h3 className="text-lg font-semibold text-slate-900">{license.licenseType}</h3>
-                                <p className="text-sm text-slate-600 font-mono">{license.licenseNumber}</p>
+                                <h3 className="text-xl font-bold text-slate-900">{license.licenseType}</h3>
+                                <p className="text-sm text-slate-600 font-mono mt-1">{license.licenseNumber}</p>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${badge.bg} ${badge.text}`}>
+                            <div className={`px-4 py-2 rounded-xl text-sm font-semibold ${badge.bg} ${badge.text} shadow-soft`}>
                               {badge.label}
                             </div>
                             <Button
                               onClick={() => setEditingLicense(license)}
                               variant="outline"
                               size="sm"
-                              className="border-slate-300 hover:bg-slate-50"
+                              className="border-slate-300 hover:bg-slate-50 rounded-xl shadow-soft"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <div>
-                              <span className="text-slate-500">Izdato:</span>
-                              <span className="ml-2 text-slate-900 font-medium">
-                                {formatDateDisplay(license.issuedDate)}
-                              </span>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div className="p-4 bg-white/80 rounded-2xl border border-slate-200 shadow-soft">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-blue-600" />
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Izdato</span>
                             </div>
+                            <p className="text-base font-bold text-slate-900">
+                              {formatDateDisplay(license.issuedDate)}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-slate-400" />
-                            <div>
-                              <span className="text-slate-500">Ističe:</span>
-                              <span className="ml-2 text-slate-900 font-medium">
-                                {formatDateDisplay(license.expiryDate)}
-                              </span>
+                          <div className="p-4 bg-white/80 rounded-2xl border border-slate-200 shadow-soft">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertCircle className="w-4 h-4 text-orange-600" />
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ističe</span>
                             </div>
+                            <p className="text-base font-bold text-slate-900">
+                              {formatDateDisplay(license.expiryDate)}
+                            </p>
                           </div>
                           {license.issuer && (
-                            <div className="col-span-2">
-                              <span className="text-slate-500">Izdavač:</span>
-                              <span className="ml-2 text-slate-900">{license.issuer}</span>
+                            <div className="col-span-2 p-4 bg-white/80 rounded-2xl border border-slate-200 shadow-soft">
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">Izdavač</span>
+                              <p className="text-base font-semibold text-slate-900">{license.issuer}</p>
                             </div>
                           )}
                           {license.requiredForPosition && (
-                            <div className="col-span-2">
-                              <span className="text-slate-500">Potrebna za poziciju:</span>
-                              <span className="ml-2 text-slate-900">{license.requiredForPosition}</span>
+                            <div className="col-span-2 p-4 bg-white/80 rounded-2xl border border-slate-200 shadow-soft">
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">Potrebna za poziciju</span>
+                              <p className="text-base font-semibold text-slate-900">{license.requiredForPosition}</p>
                             </div>
                           )}
                         </div>
@@ -630,14 +711,17 @@ export default function EmployeeDetailPage() {
                         {(() => {
                           const { daysUntil, alerts } = getExpiryNotifications(license.expiryDate);
                           return (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700 mb-4">
-                              <div className="font-semibold text-slate-600 mb-2">Obavještenja o isteku</div>
-                              <div className="flex flex-wrap gap-2">
+                            <div className="rounded-2xl bg-white/80 border border-slate-200 shadow-soft p-5 mb-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <AlertCircle className="w-4 h-4 text-slate-600" />
+                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Obavještenja o isteku</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mb-3">
                                 {alerts.length > 0 ? (
                                   alerts.map((alert) => (
                                     <span
                                       key={alert}
-                                      className={`px-2.5 py-1 rounded-full font-semibold ${
+                                      className={`px-3 py-1.5 rounded-full font-semibold text-xs shadow-soft ${
                                         alert === 'Istekla'
                                           ? 'bg-red-100 text-red-700'
                                           : 'bg-amber-100 text-amber-700'
@@ -647,10 +731,10 @@ export default function EmployeeDetailPage() {
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="text-slate-500">Nema aktivnih upozorenja</span>
+                                  <span className="text-sm text-slate-500 font-medium">Nema aktivnih upozorenja</span>
                                 )}
                               </div>
-                              <div className="mt-2 text-slate-600">
+                              <div className="text-sm font-semibold text-slate-700">
                                 {daysUntil < 0
                                   ? `Istekla prije ${Math.abs(daysUntil)} dana`
                                   : daysUntil === 0
@@ -667,6 +751,7 @@ export default function EmployeeDetailPage() {
                           documents={license.documents}
                           onDocumentsChange={fetchEmployee}
                         />
+                        </div>
                       </div>
                     );
                   })

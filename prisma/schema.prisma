@@ -199,6 +199,7 @@ model Flight {
   arrivalFlightNumber     String?
   arrivalScheduledTime    DateTime?
   arrivalActualTime       DateTime?
+  arrivalEnginesOffTime   DateTime? // Vrijeme gašenja kolizije/motora
   arrivalPassengers       Int?
   arrivalMalePassengers   Int? // Muški putnici
   arrivalFemalePassengers Int? // Ženski putnici
@@ -696,6 +697,12 @@ enum UserRole {
   OPERATIONS
   VIEWER
   STW  // Ground staff - Predboarding access
+  NAPLATE  // Billing/Collections - Financial reports access
+}
+
+enum BillingReportType {
+  DAILY
+  MONTHLY
 }
 
 model User {
@@ -705,14 +712,32 @@ model User {
   password  String
   role      UserRole @default(VIEWER)
   isActive  Boolean  @default(true)
+  billingPinHash          String?
+  billingPinFailedAttempts Int      @default(0)
+  billingPinLockedUntil   DateTime?
   reports   Report[]
   dailyOperationsVerifications DailyOperationsVerification[]
   verifiedFlights Flight[]
   auditLogs AuditLog[]
   uploadedManifests     BoardingManifest[]
   completedBoardings    BoardingManifest[] @relation("CompletedBoarding")
+  billingReports BillingReport[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model BillingReport {
+  id          String            @id @default(cuid())
+  type        BillingReportType
+  periodStart DateTime
+  data        Json
+  createdById String?
+  createdBy   User?             @relation(fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([type, periodStart])
+  @@index([periodStart])
 }
 
 model AuditLog {

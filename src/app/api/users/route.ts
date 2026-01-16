@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { requireAdmin } from '@/lib/route-guards';
 import { logAudit } from '@/lib/audit';
+import bcrypt from 'bcryptjs';
 
 // GET - List all users
 export async function GET(request: NextRequest) {
@@ -46,13 +47,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, name, role } = body;
+    const { email, password, name, role, billingPin } = body;
 
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email i lozinka su obavezni' },
         { status: 400 }
       );
+    }
+
+    if (role === 'NAPLATE') {
+      if (!billingPin) {
+        return NextResponse.json(
+          { error: 'PIN je obavezan za naplate korisnike' },
+          { status: 400 }
+        );
+      }
+      if (!/^\d{4,6}$/.test(String(billingPin))) {
+        return NextResponse.json(
+          { error: 'PIN mora imati 4-6 cifara' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if user already exists
@@ -68,6 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await hashPassword(password);
+    const billingPinHash = billingPin ? await bcrypt.hash(String(billingPin), 10) : null;
 
     const user = await prisma.user.create({
       data: {
@@ -76,6 +93,7 @@ export async function POST(request: NextRequest) {
         name: name || null,
         role: role || 'VIEWER',
         isActive: true,
+        billingPinHash,
       },
       select: {
         id: true,

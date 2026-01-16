@@ -128,33 +128,48 @@ export function ActivitySection({ employeeId, employee }: ActivitySectionProps) 
       </h3>
 
       {activities.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-          <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema aktivnosti</h3>
-          <p className="text-slate-600">
-            Aktivnosti će se prikazivati ovdje kada se dese promjene.
-          </p>
+        <div className="bg-white rounded-3xl shadow-soft p-12 text-center relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50/50 via-white/70 to-slate-100/50 opacity-70"></div>
+          <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-slate-200 rounded-full blur-3xl opacity-30"></div>
+
+          <div className="relative z-10">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mb-6 shadow-soft">
+              <Clock className="w-10 h-10 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Nema aktivnosti</h3>
+            <p className="text-slate-600 max-w-md mx-auto">
+              Aktivnosti će se prikazivati ovdje kada se dese promjene.
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow"
+              className="bg-white rounded-3xl shadow-soft p-6 hover:shadow-soft-lg transition-all relative overflow-hidden group"
             >
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-50/30 via-white/70 to-slate-100/30 opacity-70 group-hover:opacity-90 transition-all"></div>
+              <div className="absolute top-0 right-0 -mt-6 -mr-10 w-32 h-32 bg-slate-200 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-all"></div>
+
+              <div className="relative z-10">
               <div className="flex items-start gap-4">
-                <div className={`p-2 rounded-lg ${getActivityColor(activity.type)}`}>
+                <div className={`p-3 rounded-2xl shadow-soft ${getActivityColor(activity.type)}`}>
                   {getActivityIcon(activity.type)}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-slate-900">{activity.description}</p>
+                  <p className="font-bold text-slate-900 text-base">{activity.description}</p>
                   {activity.details && (
-                    <p className="text-sm text-slate-600 mt-1">{activity.details}</p>
+                    <p className="text-sm text-slate-600 mt-2 leading-relaxed">{activity.details}</p>
                   )}
-                  <p className="text-xs text-slate-500 mt-2">
-                    {formatDate(activity.timestamp)}
-                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <p className="text-xs text-slate-500 font-medium">
+                      {formatDate(activity.timestamp)}
+                    </p>
+                  </div>
                 </div>
+              </div>
               </div>
             </div>
           ))}

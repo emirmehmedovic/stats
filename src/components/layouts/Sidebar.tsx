@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  BarChart3, 
-  FileText, 
+import {
+  LayoutDashboard,
+  BarChart3,
+  FileText,
   Plane,
   Building2,
   Calendar,
@@ -20,7 +20,8 @@ import {
   Route,
   AlertCircle,
   TrendingUp,
-  Package
+  Package,
+  DollarSign
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -201,9 +202,31 @@ const adminItems: MenuItem[] = [
   },
 ];
 
+const naplateItems: MenuItem[] = [
+  {
+    id: 'naplate',
+    label: 'Naplate',
+    icon: DollarSign,
+    children: [
+      {
+        id: 'naplate-dnevni',
+        label: 'Dnevni izvještaji',
+        icon: FileText,
+        href: '/naplate/dnevni',
+      },
+      {
+        id: 'naplate-mjesecni',
+        label: 'Mjesečni izvještaji',
+        icon: FileText,
+        href: '/naplate/mjesecni',
+      },
+    ],
+  },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['analytics', 'reports']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['analytics', 'reports', 'naplate']);
   const [userRole, setUserRole] = useState<string | null>(() => {
     // Initialize from localStorage immediately
     if (typeof window !== 'undefined') {
@@ -402,6 +425,13 @@ export default function Sidebar() {
             <div className="text-xs font-semibold text-slate-400 mb-2 px-2">MANAGEMENT</div>
             <div className="space-y-1">
               {managementItems.map(item => renderMenuItem(item))}
+              {/* Naplate - Only for ADMIN and NAPLATE roles */}
+              {(userRole === 'ADMIN' || userRole === 'NAPLATE') && (
+                <>
+                  {naplateItems.map(item => renderMenuItem(item))}
+                </>
+              )}
+              {/* IT Equipment - Only for ADMIN */}
               {userRole === 'ADMIN' && renderMenuItem({
                 id: 'it-equipment',
                 label: 'IT oprema',

@@ -177,6 +177,7 @@ export async function PUT(
     const timeFields = [
       'arrivalScheduledTime',
       'arrivalActualTime',
+      'arrivalEnginesOffTime',
       'departureScheduledTime',
       'departureActualTime',
       'departureDoorClosingTime',

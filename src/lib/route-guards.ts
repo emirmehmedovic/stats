@@ -65,3 +65,7 @@ export function requireSTW(request: Request): Promise<AuthCheck> {
 export function requireAdminOrOperations(request: Request): Promise<AuthCheck> {
   return requireRole(request, ['ADMIN', 'OPERATIONS']);
 }
+
+export function requireNaplateAccess(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'NAPLATE']);
+}

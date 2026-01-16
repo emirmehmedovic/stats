@@ -23,6 +23,7 @@ export const createFlightSchema = z.object({
   arrivalFlightNumber: z.string().optional().nullable(),
   arrivalScheduledTime: z.coerce.date().optional().nullable(),
   arrivalActualTime: z.coerce.date().optional().nullable(),
+  arrivalEnginesOffTime: z.coerce.date().optional().nullable(),
   arrivalPassengers: z
     .number()
     .int()

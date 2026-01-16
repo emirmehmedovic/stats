@@ -60,7 +60,7 @@ export async function authenticateUser(email: string, password: string): Promise
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW',
+    role: user.role as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE',
   };
 }
 

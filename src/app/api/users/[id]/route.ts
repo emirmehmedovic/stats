@@ -4,6 +4,7 @@ import { hashPassword } from '@/lib/auth';
 import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
 import { requireAdmin } from '@/lib/route-guards';
 import { logAudit } from '@/lib/audit';
+import bcrypt from 'bcryptjs';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -66,7 +67,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { email, password, name, role, isActive } = body;
+    const { email, password, name, role, isActive, billingPin } = body;
 
     const updateData: any = {};
 
@@ -76,6 +77,30 @@ export async function PUT(
     if (isActive !== undefined) updateData.isActive = isActive;
     if (password) {
       updateData.password = await hashPassword(password);
+    }
+    if (billingPin) {
+      if (!/^\d{4,6}$/.test(String(billingPin))) {
+        return NextResponse.json(
+          { error: 'PIN mora imati 4-6 cifara' },
+          { status: 400 }
+        );
+      }
+      updateData.billingPinHash = await bcrypt.hash(String(billingPin), 10);
+      updateData.billingPinFailedAttempts = 0;
+      updateData.billingPinLockedUntil = null;
+    }
+
+    if (role === 'NAPLATE' && !billingPin) {
+      const existingUser = await prisma.user.findUnique({
+        where: { id },
+        select: { billingPinHash: true },
+      });
+      if (!existingUser?.billingPinHash) {
+        return NextResponse.json(
+          { error: 'PIN je obavezan za naplate korisnike' },
+          { status: 400 }
+        );
+      }
     }
 
     const user = await prisma.user.update({

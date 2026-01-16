@@ -120,47 +120,62 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
       </div>
 
       {documents.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-          <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema dokumenata</h3>
-          <p className="text-slate-600 mb-4">
-            Upload-ujte dokumente kao što su ugovori, certifikati ili lični dokumenti.
-          </p>
-          <Button
-            onClick={() => setShowUploadModal(true)}
-            variant="outline"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Upload prvi dokument
-          </Button>
+        <div className="bg-white rounded-3xl shadow-soft p-12 text-center relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50/50 via-white/70 to-slate-100/50 opacity-70"></div>
+          <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-slate-200 rounded-full blur-3xl opacity-30"></div>
+
+          <div className="relative z-10">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mb-6 shadow-soft">
+              <FileText className="w-10 h-10 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Nema dokumenata</h3>
+            <p className="text-slate-600 mb-8 max-w-md mx-auto">
+              Upload-ujte dokumente kao što su ugovori, certifikati ili lični dokumenti.
+            </p>
+            <Button
+              onClick={() => setShowUploadModal(true)}
+              variant="outline"
+              className="shadow-soft"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload prvi dokument
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(groupedDocuments).map(([category, docs]) => (
             <div key={category}>
-              <h4 className="text-sm font-semibold text-slate-700 mb-3">{category}</h4>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+                <h4 className="text-base font-bold text-slate-900">{category}</h4>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
                 {docs.map((doc) => (
                   <div
                     key={doc.id}
-                    className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow"
+                    className="bg-white rounded-3xl shadow-soft p-6 hover:shadow-soft-lg transition-all relative overflow-hidden group"
                   >
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white/70 to-indigo-100/30 opacity-70 group-hover:opacity-90 transition-all"></div>
+                    <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-all"></div>
+
+                    <div className="relative z-10">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <FileText className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="p-3 bg-blue-100 rounded-2xl shadow-soft">
+                          <FileText className="w-6 h-6 text-blue-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-slate-900 truncate">{doc.title}</h5>
+                          <h5 className="font-bold text-slate-900 text-lg mb-1">{doc.title}</h5>
                           {doc.description && (
-                            <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+                            <p className="text-sm text-slate-600 mt-2 line-clamp-2 leading-relaxed">
                               {doc.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
-                            <span>{doc.fileName}</span>
-                            <span>{formatFileSize(doc.fileSize)}</span>
-                            <span>{formatDate(doc.uploadedAt)}</span>
+                          <div className="flex items-center gap-4 mt-3">
+                            <span className="px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-700">{doc.fileName}</span>
+                            <span className="px-3 py-1 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">{formatFileSize(doc.fileSize)}</span>
+                            <span className="text-xs text-slate-500 font-medium">{formatDate(doc.uploadedAt)}</span>
                           </div>
                         </div>
                       </div>
@@ -168,19 +183,20 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
                         <a
                           href={doc.filePath}
                           download
-                          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-3 hover:bg-blue-50 rounded-xl transition-colors shadow-soft"
                           title="Download"
                         >
-                          <Download className="w-4 h-4 text-slate-600" />
+                          <Download className="w-5 h-5 text-blue-600" />
                         </a>
                         <button
                           onClick={() => handleDelete(doc.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-3 hover:bg-red-50 rounded-xl transition-colors shadow-soft"
                           title="Obriši"
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          <Trash2 className="w-5 h-5 text-red-600" />
                         </button>
                       </div>
+                    </div>
                     </div>
                   </div>
                 ))}

@@ -23,6 +23,7 @@ import {
   LogOut,
   Shield,
   Briefcase,
+  DollarSign,
 } from 'lucide-react';
 
 interface NavItem {
@@ -127,6 +128,15 @@ const navSections: NavSection[] = [
           { label: 'Sektori', href: '/admin/sectors', icon: Briefcase },
         ],
       },
+      {
+        label: 'Naplate',
+        href: '/naplate',
+        icon: DollarSign,
+        subItems: [
+          { label: 'Dnevni izvještaji', href: '/naplate/dnevni', icon: FileText },
+          { label: 'Mjesečni izvještaji', href: '/naplate/mjesecni', icon: FileText },
+        ],
+      },
       { label: 'IT oprema', href: '/it-equipment', icon: Package },
     ],
   },
@@ -229,6 +239,11 @@ export function Sidebar() {
   };
 
   useEffect(() => {
+    if (userRole === 'NAPLATE') {
+      setLoadingPassengers(false);
+      return;
+    }
+
     const fetchTodayPassengers = async () => {
       try {
         const response = await fetch('/api/dashboard/stats');
@@ -246,7 +261,7 @@ export function Sidebar() {
     };
 
     fetchTodayPassengers();
-  }, []);
+  }, [userRole]);
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -360,19 +375,37 @@ export function Sidebar() {
       return null;
     }
 
+    if (userRole === 'NAPLATE') {
+      if (section.title !== 'MANAGEMENT') {
+        return null;
+      }
+      const naplateItems = section.items.filter((item) => item.href === '/naplate');
+      return { ...section, items: naplateItems };
+    }
+
     // OPERATIONS role - hide MANAGEMENT section
     if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
       return null;
     }
 
-    // Restrict IT oprema to ADMIN only
-    if (section.title === 'MANAGEMENT' && userRole !== 'ADMIN') {
-      const filteredItems = section.items.filter((item) => item.href !== '/it-equipment');
-      return { ...section, items: filteredItems };
+    let adjustedSection = section;
+
+    if (section.title === 'MANAGEMENT') {
+      let filteredItems = section.items;
+
+      if (userRole !== 'ADMIN') {
+        filteredItems = filteredItems.filter((item) => item.href !== '/it-equipment');
+      }
+
+      if (userRole !== 'ADMIN' && userRole !== 'NAPLATE') {
+        filteredItems = filteredItems.filter((item) => item.href !== '/naplate');
+      }
+
+      adjustedSection = { ...section, items: filteredItems };
     }
 
     if (userRole === 'VIEWER') {
-      const filteredItems = section.items
+      const filteredItems = adjustedSection.items
         .map((item) => {
           if (item.subItems && item.subItems.length > 0) {
             const filteredSubItems = item.subItems.filter(
@@ -390,10 +423,10 @@ export function Sidebar() {
         })
         .filter((item): item is NavItem => item !== null);
 
-      return { ...section, items: filteredItems };
+      return { ...adjustedSection, items: filteredItems };
     }
 
-    return section;
+    return adjustedSection;
   }).filter((section): section is NavSection => section !== null);
 
   return (
