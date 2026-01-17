@@ -167,6 +167,51 @@ export async function GET(request: NextRequest) {
     // Active airlines (unique airlines in last 30 days)
     const activeAirlinesCount = new Set(last30DaysFlights.map(f => f.airlineId)).size;
 
+    // Calculate total operations today (realized arrivals + departures)
+    const todayArrivals = todaysFlights.filter(f => arrivalIsOperated(f)).length;
+    const todayDepartures = todaysFlights.filter(f => departureIsOperated(f)).length;
+    const totalOperationsToday = todayArrivals + todayDepartures;
+
+    // Calculate punctuality for today
+    let todayOnTimeCount = 0;
+    let todayDelayedCount = 0;
+    let todayEligibleCount = 0;
+    let totalDelayMinutes = 0;
+
+    todaysFlights.forEach(flight => {
+      if (flight.arrivalScheduledTime && flight.arrivalActualTime) {
+        todayEligibleCount++;
+        const delayMs = new Date(flight.arrivalActualTime).getTime() -
+                       new Date(flight.arrivalScheduledTime).getTime();
+        const delayMinutes = delayMs / 60000;
+
+        if (delayMinutes < 15) {
+          todayOnTimeCount++;
+        } else {
+          todayDelayedCount++;
+          totalDelayMinutes += delayMinutes;
+        }
+      }
+
+      if (flight.departureScheduledTime && flight.departureActualTime) {
+        todayEligibleCount++;
+        const delayMs = new Date(flight.departureActualTime).getTime() -
+                       new Date(flight.departureScheduledTime).getTime();
+        const delayMinutes = delayMs / 60000;
+
+        if (delayMinutes < 15) {
+          todayOnTimeCount++;
+        } else {
+          todayDelayedCount++;
+          totalDelayMinutes += delayMinutes;
+        }
+      }
+    });
+
+    const averageDelayMinutes = todayDelayedCount > 0
+      ? Math.round(totalDelayMinutes / todayDelayedCount)
+      : 0;
+
     // Group flights by date for last 30 days
     const flightsPerDay: { date: string; count: number }[] = [];
     const passengersPerDay: { date: string; passengers: number }[] = [];
@@ -290,6 +335,13 @@ export async function GET(request: NextRequest) {
         arrivals: totalArrivalPassengersToday,
         departures: totalDeparturePassengersToday,
         loadFactor: averageLoadFactor,
+        operations: totalOperationsToday,
+        punctuality: {
+          onTime: todayOnTimeCount,
+          delayed: todayDelayedCount,
+          total: todayEligibleCount,
+          averageDelay: averageDelayMinutes,
+        },
       },
       activeAirlines: activeAirlinesCount,
       flightsPerDay,

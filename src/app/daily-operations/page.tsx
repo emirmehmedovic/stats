@@ -59,8 +59,10 @@ type Flight = {
   } | null;
   arrivalScheduledTime: string | null;
   arrivalActualTime: string | null;
+  arrivalStatus?: string;
   departureScheduledTime: string | null;
   departureActualTime: string | null;
+  departureStatus?: string;
   arrivalPassengers: number | null;
   arrivalFerryIn: boolean;
   departurePassengers: number | null;
@@ -412,7 +414,16 @@ function DailyOperationsContent() {
       0
     );
     const totalPassengers = totalArrivals + totalDepartures;
-    const totalOperations = totalFlights * 2;
+
+    // Broj operacija - samo realizovane (OPERATED ili sa actual time)
+    const arrivalOperations = filteredFlights.filter(
+      f => f.arrivalStatus === 'OPERATED' || !!f.arrivalActualTime
+    ).length;
+    const departureOperations = filteredFlights.filter(
+      f => f.departureStatus === 'OPERATED' || !!f.departureActualTime
+    ).length;
+    const totalOperations = arrivalOperations + departureOperations;
+
     return {
       totalFlights,
       withData,

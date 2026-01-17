@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Plane, Users, Building2, TrendingUp } from 'lucide-react';
+import { Plane, Users, Building2, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
 
@@ -13,6 +13,13 @@ interface DashboardStats {
     arrivals: number;
     departures: number;
     loadFactor: number;
+    operations: number;
+    punctuality: {
+      onTime: number;
+      delayed: number;
+      total: number;
+      averageDelay: number;
+    };
   };
   activeAirlines: number;
   flightsPerDay: Array<{
@@ -267,6 +274,70 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Novi red - Operacije i tačnost */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              title: 'Broj operacija',
+              value: stats.today.operations.toLocaleString('bs-BA'),
+              icon: CheckCircle,
+              trend: 'Realizovano',
+              color: 'text-green-600',
+              bgColor: 'bg-green-50',
+              badge: 'Danas',
+            },
+            {
+              title: 'Tačnost',
+              value: stats.today.punctuality.total > 0
+                ? `${Math.round((stats.today.punctuality.onTime / stats.today.punctuality.total) * 100)}%`
+                : 'N/A',
+              icon: Clock,
+              trend: stats.today.punctuality.averageDelay > 0
+                ? `Pros. kašnjenje ${stats.today.punctuality.averageDelay}min`
+                : 'Na vrijeme',
+              color: 'text-purple-600',
+              bgColor: 'bg-purple-50',
+              badge: 'On-time performance',
+            },
+            {
+              title: 'Na vrijeme / Ukupno',
+              value: `${stats.today.punctuality.onTime}/${stats.today.punctuality.total}`,
+              icon: CheckCircle,
+              trend: stats.today.punctuality.delayed > 0
+                ? `${stats.today.punctuality.delayed} kasnilo`
+                : 'Bez kašnjenja',
+              color: 'text-blue-600',
+              bgColor: 'bg-blue-50',
+              badge: 'Letovi danas',
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="bg-white rounded-3xl p-6 shadow-soft hover:shadow-soft-lg transition-all group cursor-pointer flex flex-col justify-between h-[160px] relative overflow-hidden border-[6px] border-white"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-50/60 via-white/70 to-primary-100/50 opacity-70 group-hover:opacity-90 group-hover:blur-[2px] transition-all"></div>
+              <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-primary-200 rounded-full blur-2xl opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary-100 rounded-full blur-3xl -mb-12 -ml-12 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all"></div>
+
+              <div className="flex justify-between items-start relative z-10">
+                <div className={`p-3.5 rounded-2xl ${item.bgColor} group-hover:scale-110 transition-transform`}>
+                  <item.icon className={`w-6 h-6 ${item.color}`} />
+                </div>
+                <span className="px-3 py-1 bg-dark-50 rounded-full text-[10px] font-bold text-dark-500 uppercase tracking-wide">
+                  {item.badge}
+                </span>
+              </div>
+              <div className="relative z-10">
+                <h4 className="text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-dark-500">{item.title}</span>
+                  <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full ml-auto">{item.trend}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Analitika i pregled lidera */}
