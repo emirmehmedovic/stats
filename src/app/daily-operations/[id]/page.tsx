@@ -1012,13 +1012,42 @@ export default function FlightDataEntryPage() {
 
               <div className="relative z-10 p-8">
                 {/* Section Header */}
-                <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-100">
-                  <div className="p-3.5 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl shadow-sm">
-                    <Settings className="w-6 h-6 text-slate-700" />
+                <div className="flex items-center justify-between mb-8 pb-6 border-b-2 border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3.5 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl shadow-sm">
+                      <Settings className="w-6 h-6 text-slate-700" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">Osnovne informacije</h2>
+                      <p className="text-sm text-slate-600 font-medium">Opšti podaci o letu</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Osnovne informacije</h2>
-                    <p className="text-sm text-slate-600 font-medium">Opšti podaci o letu</p>
+
+                  {/* Status Badges */}
+                  <div className="flex flex-col gap-2">
+                    {/* Door Closing Time Badge */}
+                    {hasDepartureData && (
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                        formData.departureDoorClosingTime
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-amber-100 text-amber-700 border border-amber-200'
+                      }`}>
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{formData.departureDoorClosingTime ? '✓ Zatvaranje vrata uneseno' : '⚠ Zatvaranje vrata nije uneseno'}</span>
+                      </div>
+                    )}
+
+                    {/* Engines Off Time Badge */}
+                    {hasArrivalData && (
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                        formData.arrivalEnginesOffTime
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-amber-100 text-amber-700 border border-amber-200'
+                      }`}>
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{formData.arrivalEnginesOffTime ? '✓ Gašenje motora uneseno' : '⚠ Gašenje motora nije uneseno'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

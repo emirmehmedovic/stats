@@ -82,6 +82,7 @@ type Flight = {
   isLocked: boolean;
   isVerified: boolean;
   departureDoorClosingTime: string | null;
+  arrivalEnginesOffTime: string | null;
   _count?: {
     delays: number;
   };
@@ -751,10 +752,26 @@ function DailyOperationsContent() {
                               <Plane className="w-3 h-3" /> {flight.aircraftType.model}
                             </span>
                           )}
-                          {flight.departureDoorClosingTime && (
-                            <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200 flex items-center gap-1">
+                          {/* Door Closing Time Badge */}
+                          {(flight.departureScheduledTime || flight.departureActualTime || flight.departurePassengers !== null) && (
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center gap-1 ${
+                              flight.departureDoorClosingTime
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
                               <DoorClosed className="w-3 h-3" />
-                              Vrata zatvorena
+                              {flight.departureDoorClosingTime ? 'Vrijeme zatvaranja vrata uneseno' : 'Nije unešeno vrijeme zatvaranja vrata'}
+                            </span>
+                          )}
+                          {/* Engines Off Time Badge */}
+                          {(flight.arrivalScheduledTime || flight.arrivalActualTime || flight.arrivalPassengers !== null) && (
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center gap-1 ${
+                              flight.arrivalEnginesOffTime
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              <Timer className="w-3 h-3" />
+                              {flight.arrivalEnginesOffTime ? 'Vrijeme gašenja motora uneseno' : 'Nije unešeno vrijeme gašenja motora'}
                             </span>
                           )}
                           {flight._count && flight._count.delays > 0 && (
