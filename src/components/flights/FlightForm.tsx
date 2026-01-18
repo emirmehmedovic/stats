@@ -45,10 +45,12 @@ export function FlightForm({
   const [aircraftTypes, setAircraftTypes] = useState<AircraftType[]>([]);
   const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [isDiverted, setIsDiverted] = useState(false);
+  const [flightMode, setFlightMode] = useState<'both' | 'arrival-only' | 'departure-only'>('both');
   const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
   const [airlineSearch, setAirlineSearch] = useState('');
   const [aircraftTypeSearch, setAircraftTypeSearch] = useState('');
+  const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
+  const [selectedAircraftType, setSelectedAircraftType] = useState<AircraftType | null>(null);
 
   const {
     register,
@@ -84,6 +86,7 @@ export function FlightForm({
     } else {
       setAirlineRoutes([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [airlineId]);
 
   useEffect(() => {
@@ -112,7 +115,14 @@ export function FlightForm({
       if (!res.ok) return;
 
       const data = await res.json();
-      setAirlines(data.data || []);
+      let airlinesList = data.data || [];
+
+      // Always include the selected airline in the list if it's not there
+      if (selectedAirline && !airlinesList.find((a: Airline) => a.id === selectedAirline.id)) {
+        airlinesList = [selectedAirline, ...airlinesList];
+      }
+
+      setAirlines(airlinesList);
     } catch (error) {
       console.error('Error fetching airlines:', error);
     }
@@ -129,7 +139,14 @@ export function FlightForm({
       if (!res.ok) return;
 
       const data = await res.json();
-      setAircraftTypes(data.data || []);
+      let aircraftTypesList = data.data || [];
+
+      // Always include the selected aircraft type in the list if it's not there
+      if (selectedAircraftType && !aircraftTypesList.find((a: AircraftType) => a.id === selectedAircraftType.id)) {
+        aircraftTypesList = [selectedAircraftType, ...aircraftTypesList];
+      }
+
+      setAircraftTypes(aircraftTypesList);
     } catch (error) {
       console.error('Error fetching aircraft types:', error);
     }
@@ -231,7 +248,13 @@ export function FlightForm({
                 subtitle: airline.icaoCode,
               }))}
               value={watch('airlineId') || ''}
-              onChange={(value) => setValue('airlineId', value)}
+              onChange={(value) => {
+                setValue('airlineId', value);
+                const airline = airlines.find(a => a.id === value);
+                if (airline) {
+                  setSelectedAirline(airline);
+                }
+              }}
               onSearchChange={setAirlineSearch}
               placeholder="Izaberite aviokompaniju"
               searchPlaceholder="Pretraži aviokompanije..."
@@ -251,7 +274,13 @@ export function FlightForm({
                 subtitle: `${type.seats} sjedišta`,
               }))}
               value={watch('aircraftTypeId') || ''}
-              onChange={(value) => setValue('aircraftTypeId', value)}
+              onChange={(value) => {
+                setValue('aircraftTypeId', value);
+                const aircraftType = aircraftTypes.find(a => a.id === value);
+                if (aircraftType) {
+                  setSelectedAircraftType(aircraftType);
+                }
+              }}
               onSearchChange={setAircraftTypeSearch}
               placeholder="Izaberite tip aviona"
               searchPlaceholder="Pretraži tipove aviona..."
@@ -351,9 +380,77 @@ export function FlightForm({
         </div>
       </div>
 
-      {/* Arrival Information */}
+      {/* Flight Mode Selection */}
       <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <h3 className="text-lg font-semibold text-textMain mb-4">Dolazak (Arrival)</h3>
+        <h3 className="text-lg font-semibold text-textMain mb-4">Tip leta</h3>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-dark-600">Izaberite koji dio leta želite dodati:</p>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="flightMode"
+                value="both"
+                checked={flightMode === 'both'}
+                onChange={(e) => setFlightMode('both')}
+                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+              />
+              <span className="text-sm">Kompletan let (dolazak + odlazak)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="flightMode"
+                value="arrival-only"
+                checked={flightMode === 'arrival-only'}
+                onChange={(e) => {
+                  setFlightMode('arrival-only');
+                  // Clear departure fields
+                  setValue('departureFlightNumber', null);
+                  setValue('departureScheduledTime', null);
+                  setValue('departureActualTime', null);
+                  setValue('departurePassengers', null);
+                  setValue('departureInfants', null);
+                  setValue('departureBaggage', null);
+                  setValue('departureCargo', null);
+                  setValue('departureMail', null);
+                  setValue('departureFerryOut', false);
+                }}
+                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+              />
+              <span className="text-sm">Samo dolazak (prenoćio/divertovan)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="flightMode"
+                value="departure-only"
+                checked={flightMode === 'departure-only'}
+                onChange={(e) => {
+                  setFlightMode('departure-only');
+                  // Clear arrival fields
+                  setValue('arrivalFlightNumber', null);
+                  setValue('arrivalScheduledTime', null);
+                  setValue('arrivalActualTime', null);
+                  setValue('arrivalPassengers', null);
+                  setValue('arrivalInfants', null);
+                  setValue('arrivalBaggage', null);
+                  setValue('arrivalCargo', null);
+                  setValue('arrivalMail', null);
+                  setValue('arrivalFerryIn', false);
+                }}
+                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+              />
+              <span className="text-sm">Samo odlazak (nastavak od prošle noći)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Arrival Information */}
+      {(flightMode === 'both' || flightMode === 'arrival-only') && (
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
+          <h3 className="text-lg font-semibold text-textMain mb-4">Dolazak (Arrival)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Arrival Flight Number */}
           <div>
@@ -491,38 +588,18 @@ export function FlightForm({
               <option value="OPERATED">Izvršen</option>
               <option value="CANCELLED">Otkazan</option>
               <option value="DIVERTED">Preusmjeren</option>
+              <option value="NOT_OPERATED">Nije realizovan</option>
             </select>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Departure Information */}
-      <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-textMain">Odlazak (Departure)</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isDiverted"
-              checked={isDiverted}
-              onChange={(e) => {
-                setIsDiverted(e.target.checked);
-                if (e.target.checked) {
-                  // Clear departure fields when marked as diverted
-                  setValue('departureScheduledTime', null);
-                  setValue('departureActualTime', null);
-                  setValue('departureFlightNumber', null);
-                  setValue('departureStatus', 'DIVERTED');
-                }
-              }}
-              className="w-4 h-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary"
-            />
-            <Label htmlFor="isDiverted" className="text-sm font-normal cursor-pointer">
-              Divertovan let (departure TBD)
-            </Label>
-          </div>
-        </div>
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${isDiverted ? 'opacity-50' : ''}`}>
+      {(flightMode === 'both' || flightMode === 'departure-only') && (
+        <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
+          <h3 className="text-lg font-semibold text-textMain mb-4">Odlazak (Departure)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Departure Flight Number */}
           <div>
             <Label htmlFor="departureFlightNumber">Broj leta</Label>
@@ -530,7 +607,6 @@ export function FlightForm({
               id="departureFlightNumber"
               placeholder="npr. W62830"
               {...register('departureFlightNumber')}
-              disabled={isDiverted}
             />
           </div>
 
@@ -541,7 +617,6 @@ export function FlightForm({
               id="departureScheduledTime"
               type="datetime-local"
               {...register('departureScheduledTime', { valueAsDate: true })}
-              disabled={isDiverted}
             />
           </div>
 
@@ -552,7 +627,6 @@ export function FlightForm({
               id="departureActualTime"
               type="datetime-local"
               {...register('departureActualTime', { valueAsDate: true })}
-              disabled={isDiverted}
             />
           </div>
 
@@ -563,7 +637,6 @@ export function FlightForm({
               type="checkbox"
               {...register('departureFerryOut')}
               className="h-4 w-4 rounded border-borderSoft"
-              disabled={isDiverted}
             />
             <Label htmlFor="departureFerryOut" className="text-sm">
               Ferry OUT (prazan let bez putnika)
@@ -583,7 +656,7 @@ export function FlightForm({
                   return isNaN(num) ? null : num;
                 },
               })}
-              disabled={isDiverted || departureFerryOut}
+              disabled={departureFerryOut}
             />
           </div>
 
@@ -600,7 +673,7 @@ export function FlightForm({
                   return isNaN(num) ? null : num;
                 },
               })}
-              disabled={isDiverted || departureFerryOut}
+              disabled={departureFerryOut}
             />
           </div>
 
@@ -617,7 +690,6 @@ export function FlightForm({
                   return isNaN(num) ? null : num;
                 },
               })}
-              disabled={isDiverted}
             />
           </div>
 
@@ -634,7 +706,6 @@ export function FlightForm({
                   return isNaN(num) ? null : num;
                 },
               })}
-              disabled={isDiverted}
             />
           </div>
 
@@ -651,7 +722,6 @@ export function FlightForm({
                   return isNaN(num) ? null : num;
                 },
               })}
-              disabled={isDiverted}
             />
           </div>
 
@@ -666,10 +736,12 @@ export function FlightForm({
               <option value="OPERATED">Izvršen</option>
               <option value="CANCELLED">Otkazan</option>
               <option value="DIVERTED">Preusmjeren</option>
+              <option value="NOT_OPERATED">Nije realizovan</option>
             </select>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Operational Details */}
       <div className="bg-white rounded-3xl shadow-soft px-6 py-5">

@@ -165,6 +165,7 @@ enum FlightStatus {
   OPERATED
   CANCELLED
   DIVERTED
+  NOT_OPERATED
 }
 
 enum DelayPhase {

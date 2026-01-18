@@ -42,13 +42,17 @@ export function SearchableSelect({
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        // Don't trigger onSearchChange when clicking outside
+        if (search && onSearchChange) {
+          onSearchChange('');
+        }
         setSearch('');
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [search, onSearchChange]);
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -70,12 +74,20 @@ export function SearchableSelect({
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
     setIsOpen(false);
+    // Don't trigger onSearchChange when resetting search
+    if (search && onSearchChange) {
+      onSearchChange('');
+    }
     setSearch('');
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
+    // Don't trigger onSearchChange when clearing
+    if (search && onSearchChange) {
+      onSearchChange('');
+    }
     setSearch('');
   };
 

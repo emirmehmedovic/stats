@@ -187,6 +187,30 @@ export default function FlightDataEntryPage() {
     : '';
   const maxTodayDateTimeLocal = `${getTodayDateString()}T23:59`;
 
+  // Check if arrival or departure data exists
+  const hasArrivalData = flight && (
+    flight.arrivalFlightNumber ||
+    flight.arrivalScheduledTime ||
+    flight.arrivalActualTime ||
+    flight.arrivalEnginesOffTime ||
+    flight.arrivalPassengers !== null ||
+    flight.arrivalInfants !== null ||
+    flight.arrivalBaggage !== null ||
+    flight.arrivalCargo !== null ||
+    flight.arrivalMail !== null
+  );
+
+  const hasDepartureData = flight && (
+    flight.departureFlightNumber ||
+    flight.departureScheduledTime ||
+    flight.departureActualTime ||
+    flight.departurePassengers !== null ||
+    flight.departureInfants !== null ||
+    flight.departureBaggage !== null ||
+    flight.departureCargo !== null ||
+    flight.departureMail !== null
+  );
+
   useEffect(() => {
     fetchFormData();
     fetchFlight();
@@ -1182,6 +1206,7 @@ export default function FlightDataEntryPage() {
             </div>
 
             {/* Departure Section */}
+            {hasDepartureData && (
             <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border-l-8 border-orange-400">
               {/* Decorative blobs */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100 opacity-40 rounded-full blur-3xl -mr-32 -mt-32"></div>
@@ -1293,6 +1318,7 @@ export default function FlightDataEntryPage() {
                             <option value="CANCELLED">Otkazan</option>
                             <option value="DIVERTED">Divertovan</option>
                             <option value="SCHEDULED">Zakazan</option>
+                            <option value="NOT_OPERATED">Nije realizovan</option>
                           </select>
                           <p className="mt-1 text-xs text-orange-700">
                             Odaberite status odlaska prije čuvanja.
@@ -1507,8 +1533,10 @@ export default function FlightDataEntryPage() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Arrival Section */}
+            {hasArrivalData && (
             <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border-l-8 border-blue-400">
               {/* Decorative blobs */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 opacity-40 rounded-full blur-3xl -mr-32 -mt-32"></div>
@@ -1610,7 +1638,7 @@ export default function FlightDataEntryPage() {
                           ⚠️ Vrijeme gašenja kolizije (Engines Off)
                         </Label>
                         <p className="text-xs text-slate-600 mb-2">
-                          Vrijeme kada su motori ugašeni nakon sletanja
+                          Vrijeme kada su motori ugašeni nakon slijetanja
                         </p>
                         <Input
                           id="arrivalEnginesOffTime"
@@ -1641,6 +1669,7 @@ export default function FlightDataEntryPage() {
                             <option value="CANCELLED">Otkazan</option>
                             <option value="DIVERTED">Divertovan</option>
                             <option value="SCHEDULED">Zakazan</option>
+                            <option value="NOT_OPERATED">Nije realizovan</option>
                           </select>
                           <p className="mt-1 text-xs text-blue-700">
                             Odaberite status dolaska prije čuvanja.
@@ -1820,6 +1849,7 @@ export default function FlightDataEntryPage() {
                 </div>
               </div>
             </div>
+            )}
         </fieldset>
 
         {/* Error Message */}
@@ -1865,6 +1895,7 @@ export default function FlightDataEntryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
+                {hasArrivalData && (
                 <tr className="bg-blue-50/70 hover:bg-blue-50/90 transition-colors">
                   <td className="py-3 pr-4 font-semibold text-blue-700 sticky left-0 z-10 bg-blue-50/70">Dolazak</td>
                   <td className="py-3 pr-4">{displayValue(formData.arrivalFlightNumber)}</td>
@@ -1888,6 +1919,8 @@ export default function FlightDataEntryPage() {
                   <td className="py-3 pr-4">{formData.arrivalFerryIn ? 'Ferry IN' : '-'}</td>
                   <td className="py-3 pr-4">{getDelaySummary(arrivalDelays)}</td>
                 </tr>
+                )}
+                {hasDepartureData && (
                 <tr className="bg-orange-50/60 hover:bg-orange-50/90 transition-colors">
                   <td className="py-3 pr-4 font-semibold text-orange-700 sticky left-0 z-10 bg-orange-50/60">Odlazak</td>
                   <td className="py-3 pr-4">{displayValue(formData.departureFlightNumber)}</td>
@@ -1911,6 +1944,7 @@ export default function FlightDataEntryPage() {
                   <td className="py-3 pr-4">{formData.departureFerryOut ? 'Ferry OUT' : '-'}</td>
                   <td className="py-3 pr-4">{getDelaySummary(departureDelays)}</td>
                 </tr>
+                )}
               </tbody>
             </table>
             </div>
@@ -1918,6 +1952,7 @@ export default function FlightDataEntryPage() {
         </div>
 
         {/* Load Factor Display */}
+        {(hasArrivalData || hasDepartureData) && (
         <div className="bg-white/90 rounded-3xl shadow-soft border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -1929,8 +1964,9 @@ export default function FlightDataEntryPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${hasArrivalData && hasDepartureData ? 'md:grid-cols-2' : ''} gap-4`}>
             {/* Arrival Load Factor */}
+            {hasArrivalData && (
             <div className="bg-blue-50/60 rounded-2xl border border-blue-200/60 p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Plane className="w-4 h-4 text-blue-600 transform -rotate-45" />
@@ -1975,8 +2011,10 @@ export default function FlightDataEntryPage() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Departure Load Factor */}
+            {hasDepartureData && (
             <div className="bg-orange-50/60 rounded-2xl border border-orange-200/60 p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Plane className="w-4 h-4 text-orange-600 transform rotate-45" />
@@ -2021,6 +2059,7 @@ export default function FlightDataEntryPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -2030,6 +2069,7 @@ export default function FlightDataEntryPage() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Actions */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-6">
