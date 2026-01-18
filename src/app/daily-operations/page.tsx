@@ -771,7 +771,7 @@ function DailyOperationsContent() {
                                 : 'bg-amber-50 text-amber-700 border-amber-200'
                             }`}>
                               <Timer className="w-3 h-3" />
-                              {flight.arrivalEnginesOffTime ? 'Vrijeme gašenja motora uneseno' : 'Nije unešeno vrijeme gašenja motora'}
+                              {flight.arrivalEnginesOffTime ? 'Vrijeme gašenja kolizije uneseno' : 'Nije unešeno vrijeme gašenja kolizije'}
                             </span>
                           )}
                           {flight._count && flight._count.delays > 0 && (

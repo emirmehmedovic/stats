@@ -1045,7 +1045,7 @@ export default function FlightDataEntryPage() {
                           : 'bg-amber-100 text-amber-700 border border-amber-200'
                       }`}>
                         <Clock className="w-3.5 h-3.5" />
-                        <span>{formData.arrivalEnginesOffTime ? '✓ Gašenje motora uneseno' : '⚠ Gašenje motora nije uneseno'}</span>
+                        <span>{formData.arrivalEnginesOffTime ? '✓ Gašenje kolizije uneseno' : '⚠ Gašenje kolizije nije uneseno'}</span>
                       </div>
                     )}
                   </div>
