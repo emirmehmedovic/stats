@@ -151,7 +151,20 @@ export async function middleware(request: NextRequest) {
     }
 
     if (decoded.role === 'MANAGER') {
-      if (isAdminApiRoute) {
+      const allowedManagerApiRoutes = [
+        '/api/employees',
+        '/api/licenses',
+        '/api/license-types',
+        '/api/sectors',
+        '/api/documents',
+        '/api/upload/employee-photo',
+        '/api/auth/session',
+        '/api/auth/logout',
+        '/api/profile',
+      ];
+      const hasManagerApiAccess = allowedManagerApiRoutes.some(route => pathname.startsWith(route));
+
+      if (!hasManagerApiAccess) {
         return applySecurityHeaders(
           ensureCsrfCookie(NextResponse.json({ error: 'Nemate dozvolu za pristup' }, { status: 403 }))
         );
@@ -214,11 +227,17 @@ export async function middleware(request: NextRequest) {
     return applySecurityHeaders(ensureCsrfCookie(response));
   }
 
-  // If authenticated and trying to access login, redirect to dashboard
+  // If authenticated and trying to access login, redirect to appropriate page
   if (isPublicRoute && pathname === '/' && token) {
     const decoded = await verifyToken(token);
     if (decoded) {
-      const response = NextResponse.redirect(new URL('/dashboard', request.url));
+      let redirectPath = '/dashboard';
+      if (decoded.role === 'MANAGER') {
+        redirectPath = '/employees';
+      } else if (decoded.role === 'NAPLATE') {
+        redirectPath = '/naplate/dnevni';
+      }
+      const response = NextResponse.redirect(new URL(redirectPath, request.url));
       return applySecurityHeaders(ensureCsrfCookie(response));
     }
   }
@@ -260,6 +279,14 @@ export async function middleware(request: NextRequest) {
       const hasPageAccess = allowedSTWPages.some(route => pathname.startsWith(route));
       if (!hasPageAccess) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return applySecurityHeaders(ensureCsrfCookie(response));
+      }
+    } else if (decoded?.role === 'MANAGER') {
+      // MANAGER can only access /employees and /dashboard
+      const allowedManagerPages = ['/employees', '/dashboard', '/profile'];
+      const hasManagerPageAccess = allowedManagerPages.some(route => pathname.startsWith(route));
+      if (!hasManagerPageAccess) {
+        const response = NextResponse.redirect(new URL('/employees', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
     } else if (decoded?.role === 'NAPLATE') {

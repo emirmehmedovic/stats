@@ -375,6 +375,24 @@ export function Sidebar() {
       return null;
     }
 
+    // MANAGER role - only show Dashboard from HOME and Radnici from MANAGEMENT
+    if (userRole === 'MANAGER') {
+      if (section.title === 'HOME') {
+        return {
+          ...section,
+          items: section.items.filter(item => item.href === '/dashboard')
+        };
+      }
+      if (section.title === 'MANAGEMENT') {
+        return {
+          ...section,
+          items: section.items.filter(item => item.href === '/employees')
+        };
+      }
+      // Hide all other sections for MANAGER
+      return null;
+    }
+
     if (userRole === 'NAPLATE') {
       if (section.title !== 'MANAGEMENT') {
         return null;
