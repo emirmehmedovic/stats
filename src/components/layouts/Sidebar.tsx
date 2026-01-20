@@ -21,7 +21,8 @@ import {
   AlertCircle,
   TrendingUp,
   Package,
-  DollarSign
+  DollarSign,
+  Briefcase
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -184,6 +185,18 @@ const managementItems: MenuItem[] = [
     label: 'Radnici',
     icon: Users,
     href: '/employees',
+  },
+  {
+    id: 'license-types',
+    label: 'Tipovi licenci',
+    icon: Shield,
+    href: '/admin/license-types',
+  },
+  {
+    id: 'sectors',
+    label: 'Sektori',
+    icon: Briefcase,
+    href: '/admin/sectors',
   },
 ];
 

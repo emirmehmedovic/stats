@@ -375,7 +375,7 @@ export function Sidebar() {
       return null;
     }
 
-    // MANAGER role - only show Dashboard from HOME and Radnici from MANAGEMENT
+    // MANAGER role - show Dashboard and employee-related management pages
     if (userRole === 'MANAGER') {
       if (section.title === 'HOME') {
         return {
@@ -386,7 +386,16 @@ export function Sidebar() {
       if (section.title === 'MANAGEMENT') {
         return {
           ...section,
-          items: section.items.filter(item => item.href === '/employees')
+          items: section.items
+            .filter(item => item.href === '/employees')
+            .map(item => ({
+              ...item,
+              subItems: item.subItems?.filter(subItem =>
+                ['/employees', '/admin/license-types', '/admin/sectors'].some(route =>
+                  subItem.href.startsWith(route)
+                )
+              ),
+            }))
         };
       }
       // Hide all other sections for MANAGER

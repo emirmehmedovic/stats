@@ -152,10 +152,13 @@ export async function middleware(request: NextRequest) {
 
     if (decoded.role === 'MANAGER') {
       const allowedManagerApiRoutes = [
+        '/api/dashboard',
         '/api/employees',
         '/api/licenses',
         '/api/license-types',
         '/api/sectors',
+        '/api/services',
+        '/api/positions',
         '/api/documents',
         '/api/upload/employee-photo',
         '/api/auth/session',
@@ -232,9 +235,7 @@ export async function middleware(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (decoded) {
       let redirectPath = '/dashboard';
-      if (decoded.role === 'MANAGER') {
-        redirectPath = '/employees';
-      } else if (decoded.role === 'NAPLATE') {
+      if (decoded.role === 'NAPLATE') {
         redirectPath = '/naplate/dnevni';
       }
       const response = NextResponse.redirect(new URL(redirectPath, request.url));
@@ -245,7 +246,9 @@ export async function middleware(request: NextRequest) {
   // Check role-based access for admin routes
   if (isAdminRoute && token) {
     const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'ADMIN') {
+    const managerAllowedAdminPages = ['/admin/license-types', '/admin/sectors'];
+    const isManagerAllowedAdminPage = managerAllowedAdminPages.some(route => pathname.startsWith(route));
+    if (!decoded || (decoded.role !== 'ADMIN' && !(decoded.role === 'MANAGER' && isManagerAllowedAdminPage))) {
       const response = NextResponse.redirect(new URL('/dashboard', request.url));
       return applySecurityHeaders(ensureCsrfCookie(response));
     }
@@ -282,8 +285,8 @@ export async function middleware(request: NextRequest) {
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
     } else if (decoded?.role === 'MANAGER') {
-      // MANAGER can only access /employees and /dashboard
-      const allowedManagerPages = ['/employees', '/dashboard', '/profile'];
+      // MANAGER can only access specific pages
+      const allowedManagerPages = ['/employees', '/dashboard', '/profile', '/admin/license-types', '/admin/sectors'];
       const hasManagerPageAccess = allowedManagerPages.some(route => pathname.startsWith(route));
       if (!hasManagerPageAccess) {
         const response = NextResponse.redirect(new URL('/employees', request.url));

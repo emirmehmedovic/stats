@@ -20,6 +20,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
       const publicRoutes = ['/'];
       const adminRoutes = ['/admin'];
       const employeeRoutes = ['/employees'];
+      const managerAllowedAdminRoutes = ['/admin/license-types', '/admin/sectors'];
       const viewerRestrictedRoutes = [
         '/flights',
         '/airlines',
@@ -50,7 +51,8 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
             userRole: data.user.role,
             isAdmin: data.user.role === 'ADMIN'
           });
-          if (data.user.role !== 'ADMIN') {
+          const isManagerAllowedAdminPage = managerAllowedAdminRoutes.some(route => pathname.startsWith(route));
+          if (data.user.role !== 'ADMIN' && !(data.user.role === 'MANAGER' && isManagerAllowedAdminPage)) {
             console.log('AuthCheck - Redirecting to dashboard, role:', data.user.role);
             router.push('/dashboard');
             return;
