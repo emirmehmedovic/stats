@@ -433,6 +433,12 @@ model Sector {
   updatedAt DateTime @updatedAt
 }
 
+enum TrainingType {
+  INITIAL    // Sticanje
+  RENEWAL    // Obnavljanje
+  EXTENSION  // Produženje
+}
+
 // Tipovi licenci (reusable)
 model LicenseType {
   id                   String    @id @default(cuid())
@@ -443,10 +449,26 @@ model LicenseType {
   requiresRenewal      Boolean   @default(true)
   isActive             Boolean   @default(true)
   category             String?   // npr. "Safety", "Security", "Operations"
+
+  // Training program details
+  trainingType         TrainingType? // INITIAL, RENEWAL, EXTENSION
+  parentLicenseTypeId  String?
+  parentLicenseType    LicenseType?  @relation("LicenseTypeVariants", fields: [parentLicenseTypeId], references: [id], onDelete: SetNull)
+  variants             LicenseType[] @relation("LicenseTypeVariants")
+
+  instructors          String?   // Instruktori/predavači (e.g. "Interni - 2 predavača")
+  programDuration      String?   // Trajanje programa (e.g. "5 dana", "1 dan")
+  theoryHours          Int?      // Teorijska nastava (sati)
+  practicalHours       Int?      // Praktične vježbe (sati)
+  workplaceTraining    String?   // Osposobljavanje na radnom mjestu
+
   licenses             License[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([parentLicenseTypeId])
+  @@index([trainingType])
 }
 
 // Radnici

@@ -28,6 +28,7 @@ export async function GET(
         licenses: {
           include: {
             documents: true,
+            type: true,
           },
           orderBy: { expiryDate: 'asc' },
         },

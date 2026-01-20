@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Plus, Edit2, Trash2, ArrowLeft, Search, Filter } from 'lucide-react';
+import LicenseTypeEmployeesModal from '@/components/admin/LicenseTypeEmployeesModal';
 
 interface LicenseType {
   id: string;
@@ -13,10 +14,29 @@ interface LicenseType {
   requiresRenewal: boolean;
   isActive: boolean;
   category: string | null;
+  trainingType: 'INITIAL' | 'RENEWAL' | 'EXTENSION' | null;
+  parentLicenseTypeId: string | null;
+  parentLicenseType?: {
+    id: string;
+    name: string;
+    code: string | null;
+  } | null;
+  variants?: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    trainingType: 'INITIAL' | 'RENEWAL' | 'EXTENSION' | null;
+  }>;
+  instructors: string | null;
+  programDuration: string | null;
+  theoryHours: number | null;
+  practicalHours: number | null;
+  workplaceTraining: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: {
     licenses: number;
+    variants: number;
   };
 }
 
@@ -27,6 +47,7 @@ export default function LicenseTypesPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingType, setEditingType] = useState<LicenseType | null>(null);
+  const [viewingType, setViewingType] = useState<LicenseType | null>(null);
 
   useEffect(() => {
     fetchLicenseTypes();
@@ -168,27 +189,47 @@ export default function LicenseTypesPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-lg font-semibold text-slate-900">{type.name}</h3>
                     {!type.isActive && (
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
                         Neaktivno
                       </span>
                     )}
+                    {type.trainingType && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        type.trainingType === 'INITIAL' ? 'bg-green-100 text-green-700' :
+                        type.trainingType === 'RENEWAL' ? 'bg-blue-100 text-blue-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>
+                        {type.trainingType === 'INITIAL' ? 'Sticanje' :
+                         type.trainingType === 'RENEWAL' ? 'Obnavljanje' : 'Produženje'}
+                      </span>
+                    )}
                   </div>
                   {type.code && (
                     <p className="text-sm text-slate-500 font-mono">{type.code}</p>
                   )}
+                  {type.parentLicenseType && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Varijanta od: <span className="font-medium">{type.parentLicenseType.name}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {type.category && (
-                <div className="mb-3">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {type.category && (
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
                     {type.category}
                   </span>
-                </div>
-              )}
+                )}
+                {type._count && type._count.variants > 0 && (
+                  <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium">
+                    {type._count.variants} varijante
+                  </span>
+                )}
+              </div>
 
               {type.description && (
                 <p className="text-sm text-slate-600 mb-4 line-clamp-2">
@@ -197,6 +238,30 @@ export default function LicenseTypesPage() {
               )}
 
               <div className="space-y-2 mb-4 text-sm">
+                {type.instructors && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Instruktori:</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {type.instructors}
+                    </span>
+                  </div>
+                )}
+                {type.programDuration && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Trajanje:</span>
+                    <span className="font-medium text-slate-900">
+                      {type.programDuration}
+                    </span>
+                  </div>
+                )}
+                {(type.theoryHours !== null || type.practicalHours !== null) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Teorija / Praksa:</span>
+                    <span className="font-medium text-slate-900">
+                      {type.theoryHours || 0}h / {type.practicalHours || 0}h
+                    </span>
+                  </div>
+                )}
                 {type.validityPeriodMonths && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Period važenja:</span>
@@ -221,21 +286,52 @@ export default function LicenseTypesPage() {
                 )}
               </div>
 
-              <div className="flex gap-2 pt-4 border-t border-slate-100">
+              {/* Show variants if this is a parent */}
+              {type.variants && type.variants.length > 0 && (
+                <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Varijante:</p>
+                  <div className="space-y-1">
+                    {type.variants.map(variant => (
+                      <div key={variant.id} className="text-xs text-slate-600 flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          variant.trainingType === 'INITIAL' ? 'bg-green-100 text-green-700' :
+                          variant.trainingType === 'RENEWAL' ? 'bg-blue-100 text-blue-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {variant.trainingType === 'INITIAL' ? 'Sticanje' :
+                           variant.trainingType === 'RENEWAL' ? 'Obnavljanje' : 'Produženje'}
+                        </span>
+                        <span className="font-mono text-slate-500">{variant.code}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 pt-4 border-t border-slate-100">
                 <button
-                  onClick={() => setEditingType(type)}
-                  className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setViewingType(type)}
+                  className="w-full px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
-                  <Edit2 className="w-4 h-4" />
-                  Uredi
+                  <Shield className="w-4 h-4" />
+                  Prikaži radnike
                 </button>
-                <button
-                  onClick={() => handleDelete(type.id)}
-                  className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Obriši
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingType(type)}
+                    className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Uredi
+                  </button>
+                  <button
+                    onClick={() => handleDelete(type.id)}
+                    className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Obriši
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -271,6 +367,14 @@ export default function LicenseTypesPage() {
           }}
         />
       )}
+
+      {/* View Employees Modal */}
+      {viewingType && (
+        <LicenseTypeEmployeesModal
+          licenseType={viewingType}
+          onClose={() => setViewingType(null)}
+        />
+      )}
     </div>
   );
 }
@@ -290,6 +394,13 @@ function LicenseTypeModal({ licenseType, onClose, onSave }: LicenseTypeModalProp
     requiresRenewal: licenseType?.requiresRenewal ?? true,
     isActive: licenseType?.isActive ?? true,
     category: licenseType?.category || '',
+    trainingType: licenseType?.trainingType || '',
+    parentLicenseTypeId: licenseType?.parentLicenseTypeId || '',
+    instructors: licenseType?.instructors || '',
+    programDuration: licenseType?.programDuration || '',
+    theoryHours: licenseType?.theoryHours || '',
+    practicalHours: licenseType?.practicalHours || '',
+    workplaceTraining: licenseType?.workplaceTraining || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -312,6 +423,14 @@ function LicenseTypeModal({ licenseType, onClose, onSave }: LicenseTypeModalProp
           validityPeriodMonths: formData.validityPeriodMonths
             ? parseInt(formData.validityPeriodMonths as string)
             : null,
+          theoryHours: formData.theoryHours
+            ? parseInt(formData.theoryHours as string)
+            : null,
+          practicalHours: formData.practicalHours
+            ? parseInt(formData.practicalHours as string)
+            : null,
+          trainingType: formData.trainingType || null,
+          parentLicenseTypeId: formData.parentLicenseTypeId || null,
         }),
       });
 
@@ -408,6 +527,93 @@ function LicenseTypeModal({ licenseType, onClose, onSave }: LicenseTypeModalProp
                 onChange={(e) => setFormData({ ...formData, validityPeriodMonths: e.target.value })}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="npr. 12, 24, 36"
+              />
+            </div>
+
+            {/* Training Type */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Tip obuke
+              </label>
+              <select
+                value={formData.trainingType}
+                onChange={(e) => setFormData({ ...formData, trainingType: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              >
+                <option value="">-- Bez tipa (parent) --</option>
+                <option value="INITIAL">Sticanje</option>
+                <option value="RENEWAL">Obnavljanje</option>
+                <option value="EXTENSION">Produženje</option>
+              </select>
+            </div>
+
+            {/* Instructors */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Instruktori/Predavači
+              </label>
+              <input
+                type="text"
+                value={formData.instructors}
+                onChange={(e) => setFormData({ ...formData, instructors: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="npr. Interni – 2 predavača"
+              />
+            </div>
+
+            {/* Program Duration */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Trajanje programa
+              </label>
+              <input
+                type="text"
+                value={formData.programDuration}
+                onChange={(e) => setFormData({ ...formData, programDuration: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="npr. 5 dana, 1 dan"
+              />
+            </div>
+
+            {/* Theory and Practical Hours */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Teorijska nastava (sati)
+                </label>
+                <input
+                  type="number"
+                  value={formData.theoryHours}
+                  onChange={(e) => setFormData({ ...formData, theoryHours: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Praktične vježbe (sati)
+                </label>
+                <input
+                  type="number"
+                  value={formData.practicalHours}
+                  onChange={(e) => setFormData({ ...formData, practicalHours: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Workplace Training */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Osposobljavanje na radnom mjestu
+              </label>
+              <input
+                type="text"
+                value={formData.workplaceTraining}
+                onChange={(e) => setFormData({ ...formData, workplaceTraining: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Opcionalno"
               />
             </div>
 

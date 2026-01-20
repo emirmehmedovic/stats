@@ -24,6 +24,13 @@ export async function PUT(
       requiresRenewal,
       isActive,
       category,
+      trainingType,
+      parentLicenseTypeId,
+      instructors,
+      programDuration,
+      theoryHours,
+      practicalHours,
+      workplaceTraining,
     } = body;
 
     if (!name) {
@@ -43,6 +50,13 @@ export async function PUT(
         requiresRenewal: requiresRenewal ?? true,
         isActive: isActive ?? true,
         category: category || null,
+        trainingType: trainingType || null,
+        parentLicenseTypeId: parentLicenseTypeId || null,
+        instructors: instructors || null,
+        programDuration: programDuration || null,
+        theoryHours: theoryHours !== undefined ? theoryHours : null,
+        practicalHours: practicalHours !== undefined ? practicalHours : null,
+        workplaceTraining: workplaceTraining || null,
       },
     });
 

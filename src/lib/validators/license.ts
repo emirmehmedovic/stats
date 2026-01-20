@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createLicenseSchema = z.object({
-  licenseType: z.string().min(1, 'License type is required'),
+  licenseTypeId: z.string().min(1, 'License type is required'),
   licenseNumber: z.string().min(1, 'License number is required'),
   issuedDate: z.string(), // ISO date string
   expiryDate: z.string(), // ISO date string

@@ -29,7 +29,14 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 
 type License = {
   id: string;
-  licenseType: string;
+  licenseType?: string; // DEPRECATED
+  licenseTypeId: string | null;
+  type?: {
+    id: string;
+    name: string;
+    code: string | null;
+    category: string | null;
+  } | null;
   licenseNumber: string;
   issuedDate: string;
   expiryDate: string;

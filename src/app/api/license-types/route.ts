@@ -14,11 +14,29 @@ export async function GET(request: Request) {
     const licenseTypes = await prisma.licenseType.findMany({
       include: {
         _count: {
-          select: { licenses: true },
+          select: { licenses: true, variants: true },
+        },
+        parentLicenseType: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        variants: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            trainingType: true,
+          },
+          orderBy: {
+            trainingType: 'asc',
+          },
         },
       },
       orderBy: {
-        name: 'asc',
+        code: 'asc',
       },
     });
 
@@ -48,6 +66,13 @@ export async function POST(request: Request) {
       requiresRenewal,
       isActive,
       category,
+      trainingType,
+      parentLicenseTypeId,
+      instructors,
+      programDuration,
+      theoryHours,
+      practicalHours,
+      workplaceTraining,
     } = body;
 
     if (!name) {
@@ -66,6 +91,13 @@ export async function POST(request: Request) {
         requiresRenewal: requiresRenewal ?? true,
         isActive: isActive ?? true,
         category: category || null,
+        trainingType: trainingType || null,
+        parentLicenseTypeId: parentLicenseTypeId || null,
+        instructors: instructors || null,
+        programDuration: programDuration || null,
+        theoryHours: theoryHours || null,
+        practicalHours: practicalHours || null,
+        workplaceTraining: workplaceTraining || null,
       },
     });
 

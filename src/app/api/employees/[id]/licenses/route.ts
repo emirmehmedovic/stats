@@ -25,6 +25,7 @@ export async function GET(
       where: { employeeId: id },
       include: {
         documents: true,
+        type: true,
       },
       orderBy: { expiryDate: 'asc' },
     });
@@ -75,7 +76,7 @@ export async function POST(
     const license = await prisma.license.create({
       data: {
         employeeId: id,
-        licenseType: validated.licenseType,
+        licenseTypeId: validated.licenseTypeId,
         licenseNumber: validated.licenseNumber,
         issuedDate: dateOnlyToUtc(validated.issuedDate),
         expiryDate: dateOnlyToUtc(validated.expiryDate),
@@ -85,6 +86,7 @@ export async function POST(
       },
       include: {
         documents: true,
+        type: true,
       },
     });
 

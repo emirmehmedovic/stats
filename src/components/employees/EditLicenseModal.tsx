@@ -9,7 +9,14 @@ import { showToast } from '../ui/toast';
 
 type License = {
   id: string;
-  licenseType: string;
+  licenseType?: string; // DEPRECATED
+  licenseTypeId: string | null;
+  type?: {
+    id: string;
+    name: string;
+    code: string | null;
+    category: string | null;
+  } | null;
   licenseNumber: string;
   issuedDate: string;
   expiryDate: string;
@@ -32,7 +39,7 @@ export default function EditLicenseModal({ license, isOpen, onClose, onSuccess, 
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
-    licenseType: license.licenseType,
+    licenseTypeId: license.licenseTypeId || '',
     licenseNumber: license.licenseNumber,
     issuedDate: license.issuedDate.split('T')[0],
     expiryDate: license.expiryDate.split('T')[0],
@@ -44,7 +51,7 @@ export default function EditLicenseModal({ license, isOpen, onClose, onSuccess, 
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        licenseType: license.licenseType,
+        licenseTypeId: license.licenseTypeId || '',
         licenseNumber: license.licenseNumber,
         issuedDate: license.issuedDate.split('T')[0],
         expiryDate: license.expiryDate.split('T')[0],
@@ -151,15 +158,17 @@ export default function EditLicenseModal({ license, isOpen, onClose, onSuccess, 
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-licenseType">Tip licence *</Label>
+                <Label htmlFor="edit-licenseType">Tip licence</Label>
                 <Input
                   id="edit-licenseType"
-                  required
-                  value={formData.licenseType}
-                  onChange={(e) => handleChange('licenseType', e.target.value)}
-                  placeholder="AVSEC, Fire Fighter, Security..."
-                  className="mt-1"
+                  value={license.type?.name || license.licenseType || 'N/A'}
+                  disabled
+                  className="mt-1 bg-slate-50"
+                  title="Tip licence ne može biti izmijenjen"
                 />
+                <p className="text-xs text-slate-500 mt-1">
+                  Tip licence ne može biti izmijenjen nakon kreiranja
+                </p>
               </div>
 
               <div>

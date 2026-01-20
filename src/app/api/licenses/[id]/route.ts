@@ -33,6 +33,7 @@ export async function GET(
           },
         },
         documents: true,
+        type: true,
       },
     });
 
@@ -89,18 +90,19 @@ export async function PUT(
     const license = await prisma.license.update({
       where: { id },
       data: {
-        ...(validated.licenseType && { licenseType: validated.licenseType }),
+        ...(validated.licenseTypeId && { licenseTypeId: validated.licenseTypeId }),
         ...(validated.licenseNumber && { licenseNumber: validated.licenseNumber }),
         ...(validated.issuedDate && { issuedDate: dateOnlyToUtc(validated.issuedDate) }),
         ...(validated.expiryDate && { expiryDate: dateOnlyToUtc(validated.expiryDate) }),
         ...(validated.issuer !== undefined && { issuer: validated.issuer || null }),
         ...(validated.status && { status: validated.status }),
-        ...(validated.requiredForPosition !== undefined && { 
-          requiredForPosition: validated.requiredForPosition || null 
+        ...(validated.requiredForPosition !== undefined && {
+          requiredForPosition: validated.requiredForPosition || null
         }),
       },
       include: {
         documents: true,
+        type: true,
       },
     });
 
