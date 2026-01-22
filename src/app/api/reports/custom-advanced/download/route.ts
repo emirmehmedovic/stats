@@ -17,10 +17,13 @@ export async function GET(request: NextRequest) {
     const filePath = path.join(process.cwd(), 'izvještaji', 'generated', fileName);
     const fileBuffer = await readFile(filePath);
 
+    // RFC 5987 encoding za imena sa specijalnim karakterima
+    const encodedFilename = encodeURIComponent(fileName);
+
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
       },
     });
   } catch (error) {

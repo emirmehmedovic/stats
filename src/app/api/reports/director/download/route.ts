@@ -41,11 +41,14 @@ export async function GET(request: NextRequest) {
     try {
       const fileBuffer = await readFile(filePath);
 
+      // RFC 5987 encoding za imena sa specijalnim karakterima
+      const encodedFilename = encodeURIComponent(fileName);
+
       return new NextResponse(fileBuffer, {
         status: 200,
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
           'Content-Length': fileBuffer.length.toString(),
         },
       });

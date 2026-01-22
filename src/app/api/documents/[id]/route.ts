@@ -45,10 +45,13 @@ export async function GET(
     const fileBuffer = await readFile(filePath);
 
     // Return file sa proper headers
+    // RFC 5987 encoding za imena sa specijalnim karakterima
+    const encodedFilename = encodeURIComponent(document.fileName);
+
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': document.fileType,
-        'Content-Disposition': `attachment; filename="${document.fileName}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
         'Content-Length': document.fileSize.toString(),
       },
     });

@@ -25,10 +25,13 @@ export async function GET(request: NextRequest) {
 
     const fileBuffer = await fs.readFile(filePath);
 
+    // RFC 5987 encoding za imena sa specijalnim karakterima
+    const encodedFilename = encodeURIComponent(safeName);
+
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${safeName}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
         'Cache-Control': 'no-store',
       },
     });

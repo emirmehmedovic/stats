@@ -68,10 +68,14 @@ export async function GET(
     const html = generatePDFHTML(licenseType, licenses);
 
     // Vrati HTML sa proper headers za download
+    // RFC 5987 encoding za imena sa specijalnim karakterima
+    const fileName = `licenca-${licenseType.code || 'izvjestaj'}.html`;
+    const encodedFilename = encodeURIComponent(fileName);
+
     return new NextResponse(html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': `inline; filename="licenca-${licenseType.code || 'izvjestaj'}.html"`,
+        'Content-Disposition': `inline; filename*=UTF-8''${encodedFilename}`,
       },
     });
   } catch (error) {
