@@ -25,7 +25,7 @@ import { DocumentsSection } from '@/components/employees/DocumentsSection';
 import { ActivitySection } from '@/components/employees/ActivitySection';
 import { showToast } from '@/components/ui/toast';
 import { dateOnlyToUtc, formatDateDisplay, getDateStringInTimeZone, getTodayDateString, TIME_ZONE_SARAJEVO } from '@/lib/dates';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 type License = {
   id: string;
@@ -177,7 +177,7 @@ export default function EmployeeDetailPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <MainLayout>
         <div className="p-8">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
@@ -186,72 +186,47 @@ export default function EmployeeDetailPage() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </MainLayout>
     );
   }
 
   if (error || !employee) {
     return (
-      <DashboardLayout>
+      <MainLayout>
         <div className="p-8">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
             <p className="text-sm text-red-700">{error || 'Employee not found'}</p>
           </div>
         </div>
-      </DashboardLayout>
+      </MainLayout>
     );
   }
 
   const statusBadge = getStatusBadge(employee.status);
 
   return (
-    <DashboardLayout>
+    <MainLayout>
       <div className="min-h-screen">
         {/* Back Button */}
-        <div className="bg-white border-b border-slate-200 -mt-20">
-          <div className="px-8 py-4">
-            <button
-              onClick={() => router.push('/employees')}
-              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="font-medium">Nazad na listu radnika</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Cover Photo */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 h-64 relative overflow-hidden">
-          {/* Texture Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <svg width="100%" height="100%">
-              <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
-                </pattern>
-                <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <circle cx="10" cy="10" r="1.5" fill="white"/>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)"/>
-              <rect width="100%" height="100%" fill="url(#dots)"/>
-            </svg>
-          </div>
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-indigo-600/20" />
-          {/* Subtle Noise */}
-          <div className="absolute inset-0 bg-black/5" />
+        <div className="px-8 py-4 mb-4">
+          <button
+            onClick={() => router.push('/employees')}
+            className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="font-medium">Nazad na listu radnika</span>
+          </button>
         </div>
 
         {/* Profile Section */}
         <div className="px-8">
-        <div className="bg-white rounded-2xl shadow-sm -mt-20 relative z-10">
+        <div className="bg-white rounded-2xl shadow-sm relative z-10">
           <div className="px-8 pt-6 pb-4">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Profile Picture */}
-              <div className="-mt-32 flex-shrink-0">
+              <div className="flex-shrink-0">
                 <div
-                  className={`w-52 h-52 rounded-3xl ring-8 ring-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ${
+                  className={`w-32 h-32 rounded-3xl shadow-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ${
                     employee.photo && !photoError ? 'cursor-zoom-in' : ''
                   }`}
                   onClick={() => {
@@ -269,7 +244,7 @@ export default function EmployeeDetailPage() {
                     />
                   ) : null}
                   {(!employee.photo || photoError) && (
-                    <span className="text-white text-6xl font-bold">
+                    <span className="text-white text-4xl font-bold">
                       {employee.firstName[0]}{employee.lastName[0]}
                     </span>
                   )}
@@ -277,7 +252,7 @@ export default function EmployeeDetailPage() {
               </div>
 
               {/* Name & Actions */}
-              <div className="flex-1 pt-4">
+              <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div>
                     <h1 className="text-3xl font-bold text-slate-900">
@@ -662,7 +637,9 @@ export default function EmployeeDetailPage() {
                                 <Shield className="w-6 h-6 text-blue-600" />
                               </div>
                               <div>
-                                <h3 className="text-xl font-bold text-slate-900">{license.licenseType}</h3>
+                                <h3 className="text-xl font-bold text-slate-900">
+                                  {license.type?.name || license.licenseType}
+                                </h3>
                                 <p className="text-sm text-slate-600 font-mono mt-1">{license.licenseNumber}</p>
                               </div>
                             </div>
@@ -804,6 +781,6 @@ export default function EmployeeDetailPage() {
         />
       )}
       </div>
-    </DashboardLayout>
+    </MainLayout>
   );
 }

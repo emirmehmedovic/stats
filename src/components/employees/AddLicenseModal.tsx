@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { showToast } from '../ui/toast';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type LicenseType = {
   id: string;
@@ -180,21 +181,18 @@ export default function AddLicenseModal({ employeeId, isOpen, onClose, onSuccess
                     Učitavanje tipova...
                   </div>
                 ) : (
-                  <select
-                    id="licenseTypeId"
-                    required
+                  <SearchableSelect
+                    options={licenseTypes.map((type) => ({
+                      value: type.id,
+                      label: type.name,
+                      subtitle: [type.code, type.category].filter(Boolean).join(' - '),
+                    }))}
                     value={formData.licenseTypeId}
-                    onChange={(e) => handleLicenseTypeChange(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Izaberite tip licence...</option>
-                    {licenseTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name} {type.code ? `(${type.code})` : ''}
-                        {type.category ? ` - ${type.category}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleLicenseTypeChange}
+                    placeholder="Izaberite tip licence..."
+                    searchPlaceholder="Pretraži tipove licenci..."
+                    className="mt-1"
+                  />
                 )}
               </div>
 
