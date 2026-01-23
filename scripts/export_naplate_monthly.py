@@ -380,6 +380,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    title_row = header_row - 1
-    label = str(carrier_data.get("label") or "AIRLINE").strip()
-    ws.cell(row=title_row, column=fee_col).value = f"1. {label} SERVICES SOLD TO THE PASSENGERS AT AIRPORT"
