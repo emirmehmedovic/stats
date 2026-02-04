@@ -525,7 +525,7 @@ export default function MjesecniIzvjestajiPage() {
                                           <p className="text-sm font-bold text-slate-800">Usluge</p>
                                         </div>
                                         <div className="space-y-2.5 text-sm">
-                                          {services.map((service) => (
+                                          {services.filter(service => Number(service.qty || 0) > 0).map((service) => (
                                             <div key={service.id} className="flex items-center justify-between bg-white/60 rounded-xl px-3 py-2.5 border border-slate-100">
                                               <div className="flex items-center gap-2">
                                                 <span className="text-slate-700 font-medium">{service.label}</span>
@@ -539,7 +539,7 @@ export default function MjesecniIzvjestajiPage() {
                                               </div>
                                             </div>
                                           ))}
-                                          {services.length === 0 && (
+                                          {services.filter(service => Number(service.qty || 0) > 0).length === 0 && (
                                             <div className="text-xs text-slate-500 bg-white/40 rounded-xl px-3 py-4 text-center border border-slate-100">
                                               Nema unesenih usluga.
                                             </div>
