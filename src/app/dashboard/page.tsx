@@ -156,7 +156,7 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-dark-300 text-sm font-medium mb-1">Današnji promet</p>
-                  <h3 className="text-4xl font-bold tracking-tight">{stats.today.passengers.toLocaleString('bs-BA')}</h3>
+                  <h3 className="text-3xl sm:text-4xl font-bold tracking-tight">{stats.today.passengers.toLocaleString('bs-BA')}</h3>
                   <p className="text-xs text-dark-300 mt-1">Putnici (dolazak + odlazak)</p>
                 </div>
                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 ].map((item) => (
                   <div key={item.label} className="p-3 rounded-2xl bg-white/5 border border-white/10">
                     <p className="text-[11px] uppercase tracking-wide text-dark-200 font-semibold">{item.label}</p>
-                    <p className={`text-xl font-bold ${item.accent}`}>{item.value}</p>
+                    <p className={`text-lg sm:text-xl font-bold ${item.accent}`}>{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="relative z-10">
-                    <h4 className="text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
+                    <h4 className="text-2xl sm:text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-dark-500">{item.title}</span>
                       <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full ml-auto">{item.trend}</span>
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="relative z-10">
-                <h4 className="text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
+                <h4 className="text-2xl sm:text-3xl font-bold text-dark-900 mb-1">{item.value}</h4>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-dark-500">{item.title}</span>
                   <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full ml-auto">{item.trend}</span>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-lg font-bold text-dark-900">Analitika letova</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-dark-900">Analitika letova</h3>
                   <p className="text-sm text-dark-500">Trend letova u zadnjih 30 dana</p>
                 </div>
                 <div className="flex gap-2">
@@ -413,7 +413,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-lg font-bold text-dark-900">Promet putnika</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-dark-900">Promet putnika</h3>
                   <p className="text-sm text-dark-500">Ukupan broj putnika po danu (30 dana)</p>
                 </div>
                 <div className="flex gap-2">
@@ -472,7 +472,7 @@ export default function DashboardPage() {
 
           <div className="xl:col-span-1 flex flex-col gap-6">
             <div className="bg-white rounded-3xl p-6 shadow-soft">
-              <h3 className="text-lg font-bold text-dark-900 mb-4">Top aviokompanije</h3>
+              <h3 className="text-base sm:text-lg font-bold text-dark-900 mb-4">Top aviokompanije</h3>
               <div className="space-y-3">
                 {stats.topAirlines.map((airline) => (
                   <div
@@ -487,7 +487,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-dark-500 uppercase tracking-wide">{airline.icaoCode}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-dark-900">{airline.count}</p>
+                      <p className="text-base sm:text-lg font-bold text-dark-900">{airline.count}</p>
                       <p className="text-[11px] text-dark-500">letova</p>
                     </div>
                   </div>
@@ -496,7 +496,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-white rounded-3xl p-6 shadow-soft flex-1">
-              <h3 className="text-lg font-bold text-dark-900 mb-4">Tipovi operacija</h3>
+              <h3 className="text-base sm:text-lg font-bold text-dark-900 mb-4">Tipovi operacija</h3>
               <div className="grid grid-cols-2 gap-3">
                 {stats.operationTypes.map((op) => (
                   <div key={op.type} className="p-3 rounded-2xl border border-dark-100 hover:border-primary-200 hover:bg-primary-50 transition-all">
@@ -518,7 +518,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-bold text-dark-900">Load factor (7 dana)</h3>
+                <h3 className="text-base sm:text-lg font-bold text-dark-900">Load factor (7 dana)</h3>
                 <p className="text-sm text-dark-500">Prosječna popunjenost po danu</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-primary-50 text-primary-600 text-xs font-semibold">7d</span>
@@ -571,7 +571,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-bold text-dark-900">Tačnost (7 dana)</h3>
+                <h3 className="text-base sm:text-lg font-bold text-dark-900">Tačnost (7 dana)</h3>
                 <p className="text-sm text-dark-500">On-time performance po danu</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold">7d</span>

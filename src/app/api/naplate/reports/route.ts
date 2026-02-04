@@ -128,3 +128,80 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const authCheck = await requireNaplateAccess(request);
+    if ('error' in authCheck) {
+      return authCheck.error;
+    }
+
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const date = searchParams.get('date');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+
+    if (!type || type !== 'DAILY') {
+      return NextResponse.json({ error: 'Brisanje je dozvoljeno samo za dnevne izvještaje' }, { status: 400 });
+    }
+
+    // Delete a range of reports
+    if (from && to) {
+      const fromDate = parseDateOnly(from);
+      const toDate = parseDateOnly(to);
+      if (!fromDate || !toDate) {
+        return NextResponse.json({ error: 'Neispravan raspon datuma' }, { status: 400 });
+      }
+      const result = await prisma.billingReport.deleteMany({
+        where: {
+          type: 'DAILY',
+          periodStart: {
+            gte: fromDate,
+            lte: toDate,
+          },
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        deletedCount: result.count,
+        message: `Obrisano ${result.count} izvještaja`
+      });
+    }
+
+    // Delete a single report
+    if (date) {
+      const periodStart = parseDateOnly(date);
+      if (!periodStart) {
+        return NextResponse.json({ error: 'Neispravan datum' }, { status: 400 });
+      }
+      await prisma.billingReport.delete({
+        where: {
+          type_periodStart: {
+            type: 'DAILY',
+            periodStart,
+          },
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        deletedCount: 1,
+        message: 'Izvještaj je uspješno obrisan'
+      });
+    }
+
+    return NextResponse.json({ error: 'Nedostaje datum' }, { status: 400 });
+  } catch (error: any) {
+    console.error('Delete billing report error:', error);
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Izvještaj ne postoji' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Greška pri brisanju izvještaja' },
+      { status: 500 }
+    );
+  }
+}

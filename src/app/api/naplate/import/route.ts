@@ -13,12 +13,14 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file');
+    const selectedDate = formData.get('selectedDate') as string | null;
+
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: 'Nedostaje fajl' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { report, warnings } = parseAccountingExport(buffer);
+    const { report, warnings } = parseAccountingExport(buffer, selectedDate || undefined);
 
     return NextResponse.json({ report, warnings });
   } catch (error) {

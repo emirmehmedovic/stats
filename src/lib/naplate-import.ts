@@ -71,12 +71,408 @@ const findOrCreateService = (
   return created;
 };
 
-export function parseAccountingExport(buffer: Buffer): { report: DailyReport; warnings: string[] } {
+function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: string): { report: DailyReport; warnings: string[] } | null {
+  const detectedDate = findDateString(rows);
+  const dateToUse = detectedDate || fallbackDate || new Date().toISOString().slice(0, 10);
+  const report = createEmptyDailyReport(dateToUse);
+  const warnings: string[] = [];
+
+  console.log('[Parser] Starting operational export parse, total rows:', rows.length);
+
+  // Check if this is the operational format by looking for the header row
+  const hasOperationalFormat = rows.some(row => {
+    const text = row.map(c => c ? String(c) : '').join(' ');
+    return text.match(/OTHER\s+WIZZ\s+AIR\s+SERVICES/i) || text.match(/OTHER\s+PEGASUS\s+SERVICES/i);
+  });
+
+  if (!hasOperationalFormat) {
+    console.log('[Parser] Operational format not detected');
+    return null;
+  }
+
+  console.log('[Parser] Operational format detected!');
+
+  // Parse services (rows 4-36 approx)
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowText = row.map(cell => cell ? String(cell).trim() : '').join(' ');
+
+    // Skip header rows and total rows
+    if (rowText.match(/Fee types|ALL AMOUNTS|^Total|Airport remunerations.*dodatni/i)) {
+      continue;
+    }
+
+    // Parse Wizz Air services (columns 1-7)
+    if (row[1] && typeof row[1] === 'string' && row[1].trim() && !rowText.match(/BOOKINGS/i) && i > 2 && i < 37) {
+      const label = String(row[1]).trim();
+
+      // Skip Total and summary rows
+      if (label.match(/^Total/i) || label.match(/Airport remunerations/i)) {
+        continue;
+      }
+
+      const code = row[2] ? String(row[2]).trim() : '';
+      const unit = row[3] ? String(row[3]).trim() : 'kom';
+      const price = asNumber(row[4]);
+      const qty = asNumber(row[5]);
+      const amount = asNumber(row[6]);
+
+      if (label && label !== 'EUR' && (qty > 0 || amount > 0)) {
+        console.log(`[Parser] Adding Wizz service:`, { label, code, unit, price, qty, amount });
+
+        // Find existing service
+        let service;
+
+        if (label === 'Other' || label === 'Ostalo') {
+          // For "Other" services, match by label AND price to avoid merging different items
+          service = report.carriers.wizz.services.find(s =>
+            (s.label === label || s.label === 'Ostalo' || s.label === 'Other') && s.price === price
+          );
+        } else {
+          // For labeled services, prioritize label match, then code
+          service = report.carriers.wizz.services.find(s => s.label === label);
+
+          // If not found by label and code exists, try by code (but only if it's a unique code)
+          if (!service && code && code !== 'BAGEXC') {
+            service = report.carriers.wizz.services.find(s => s.code === code);
+          }
+        }
+
+        if (service) {
+          // Update existing service
+          service.qty += qty;
+          console.log(`[Parser] Updated existing Wizz service:`, service);
+        } else {
+          // Add new service
+          report.carriers.wizz.services.push(
+            createServiceItem({ label, code, unit, price, qty })
+          );
+        }
+      }
+    }
+
+    // Parse Pegasus services (columns 9-15)
+    if (i > 2 && i < 37) {
+      const rawLabel = row[9] && typeof row[9] === 'string' ? String(row[9]).trim() : '';
+      const code = row[10] ? String(row[10]).trim() : '';
+      const unit = row[11] ? String(row[11]).trim() : 'kom';
+      const price = asNumber(row[12]);
+      const qty = asNumber(row[13]);
+      const amount = asNumber(row[14]);
+
+      // Skip if no data
+      if (qty === 0 && amount === 0) {
+        continue;
+      }
+
+      // Use "Other" if no label provided
+      const label = rawLabel && rawLabel !== 'EUR' ? rawLabel : 'Other';
+
+      // Skip Total and summary rows
+      if (label.match(/^Total/i) || label.match(/Airport remunerations/i)) {
+        continue;
+      }
+
+      console.log(`[Parser] Adding Pegasus service:`, { label, code, unit, price, qty, amount });
+
+      // Find existing service
+      let service;
+
+      if (label === 'Other') {
+        // For "Other" services, match by label AND price to avoid merging different items
+        service = report.carriers.pegasus.services.find(s =>
+          s.label === label && s.price === price
+        );
+      } else {
+        // For labeled services, prioritize label match, then code
+        service = report.carriers.pegasus.services.find(s => s.label === label);
+
+        // If not found by label and code exists, try by code (but only if it's a unique code)
+        if (!service && code && code !== 'BAGEXC') {
+          service = report.carriers.pegasus.services.find(s => s.code === code);
+        }
+      }
+
+      if (service) {
+        // Update existing service
+        service.qty += qty;
+        console.log(`[Parser] Updated existing Pegasus service:`, service);
+      } else {
+        // Add new service
+        report.carriers.pegasus.services.push(
+          createServiceItem({ label, code, unit, price, qty })
+        );
+      }
+    }
+
+    // Parse Ajet services (columns 17-23)
+    if (i > 2 && i < 37) {
+      const rawLabel = row[17] && typeof row[17] === 'string' ? String(row[17]).trim() : '';
+      const code = row[18] ? String(row[18]).trim() : '';
+      const unit = row[19] ? String(row[19]).trim() : 'kom';
+      const price = asNumber(row[20]);
+      const qty = asNumber(row[21]);
+      const amount = asNumber(row[22]);
+
+      // Skip if no data
+      if (qty === 0 && amount === 0) {
+        continue;
+      }
+
+      // Use "Other" if no label provided
+      const label = rawLabel && rawLabel !== 'EUR' ? rawLabel : 'Other';
+
+      // Skip Total and summary rows
+      if (label.match(/^Total/i) || label.match(/Airport remunerations/i)) {
+        continue;
+      }
+
+      console.log(`[Parser] Adding Ajet service:`, { label, code, unit, price, qty, amount });
+
+      // Find existing service
+      let service;
+
+      if (label === 'Other') {
+        // For "Other" services, match by label AND price to avoid merging different items
+        service = report.carriers.ajet.services.find(s =>
+          s.label === label && s.price === price
+        );
+      } else {
+        // For labeled services, prioritize label match, then code
+        service = report.carriers.ajet.services.find(s => s.label === label);
+
+        // If not found by label and code exists, try by code (but only if it's a unique code)
+        if (!service && code && code !== 'BAGEXC') {
+          service = report.carriers.ajet.services.find(s => s.code === code);
+        }
+      }
+
+      if (service) {
+        // Update existing service
+        service.qty += qty;
+        console.log(`[Parser] Updated existing Ajet service:`, service);
+      } else {
+        // Add new service
+        report.carriers.ajet.services.push(
+          createServiceItem({ label, code, unit, price, qty })
+        );
+      }
+    }
+
+    // Parse Wizz Air bookings (rows 42-46 approx, columns 1 and 3)
+    if (i >= 40 && i <= 60 && row[1] && typeof row[1] === 'number' && row[3]) {
+      const amountEur = asNumber(row[1]);
+      const pax = asNumber(row[3]);
+
+      if (amountEur > 0 && pax > 0) {
+        console.log(`[Parser] Adding Wizz booking:`, { amountEur, pax });
+        report.carriers.wizz.bookings.transactions.push(
+          createBookingTransaction({
+            pnr: '',
+            pax,
+            amountEur,
+            airportRemunerationKm: 0,
+            commissionKm: 0,
+          })
+        );
+      }
+    }
+
+    // Parse Pegasus bookings (rows 42-46 approx, columns 9 and 11)
+    if (i >= 40 && i <= 60 && row[9] && typeof row[9] === 'number' && row[11]) {
+      const amountEur = asNumber(row[9]);
+      const pax = asNumber(row[11]);
+
+      if (amountEur > 0 && pax > 0) {
+        console.log(`[Parser] Adding Pegasus booking:`, { amountEur, pax });
+        report.carriers.pegasus.bookings.transactions.push(
+          createBookingTransaction({
+            pnr: '',
+            pax,
+            amountEur,
+            airportRemunerationKm: 0,
+            commissionKm: 0,
+          })
+        );
+      }
+    }
+
+    // Parse Ajet bookings (rows 42-46 approx, columns 17 and 19)
+    if (i >= 40 && i <= 60 && row[17] && typeof row[17] === 'number' && row[19]) {
+      const amountEur = asNumber(row[17]);
+      const pax = asNumber(row[19]);
+
+      if (amountEur > 0 && pax > 0) {
+        console.log(`[Parser] Adding Ajet booking:`, { amountEur, pax });
+        report.carriers.ajet.bookings.transactions.push(
+          createBookingTransaction({
+            pnr: '',
+            pax,
+            amountEur,
+            airportRemunerationKm: 0,
+            commissionKm: 0,
+          })
+        );
+      }
+    }
+
+    // Parse Airport remuneration for bookings (row 60)
+    if (rowText.match(/Airport remuneration.*Provizija/i)) {
+      // Wizz Air (column 4)
+      if (row[4]) {
+        const airportRemuneration = asNumber(row[4]);
+        if (airportRemuneration > 0) {
+          console.log(`[Parser] Adding airport remuneration to Wizz bookings:`, airportRemuneration);
+          // Add to all Wizz bookings
+          report.carriers.wizz.bookings.transactions.forEach(txn => {
+            if (!txn.airportRemunerationKm) {
+              txn.airportRemunerationKm = airportRemuneration / report.carriers.wizz.bookings.transactions.length;
+            }
+          });
+        }
+      }
+
+      // Pegasus (column 12)
+      if (row[12]) {
+        const airportRemuneration = asNumber(row[12]);
+        if (airportRemuneration > 0) {
+          console.log(`[Parser] Adding airport remuneration to Pegasus bookings:`, airportRemuneration);
+          // Add to all Pegasus bookings
+          report.carriers.pegasus.bookings.transactions.forEach(txn => {
+            if (!txn.airportRemunerationKm) {
+              txn.airportRemunerationKm = airportRemuneration / report.carriers.pegasus.bookings.transactions.length;
+            }
+          });
+        }
+      }
+
+      // Ajet (column 20)
+      if (row[20]) {
+        const airportRemuneration = asNumber(row[20]);
+        if (airportRemuneration > 0) {
+          console.log(`[Parser] Adding airport remuneration to Ajet bookings:`, airportRemuneration);
+          // Add to all Ajet bookings
+          report.carriers.ajet.bookings.transactions.forEach(txn => {
+            if (!txn.airportRemunerationKm) {
+              txn.airportRemunerationKm = airportRemuneration / report.carriers.ajet.bookings.transactions.length;
+            }
+          });
+        }
+      }
+    }
+
+    // Parse Airport services
+    // PVC ZIP vrecice (row 62)
+    if (rowText.match(/PVC\s+ZIP\s+vrecice/i)) {
+      const qty = asNumber(row[3]) || 0;
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.id === 'airport_pvc');
+      if (service) {
+        console.log('[Parser] Adding airport PVC:', { qty, amount });
+        service.qty = qty;
+        if (amount > 0) {
+          service.amountOverride = amount;
+        }
+      }
+    }
+
+    // Higijenske Maske (row 63)
+    if (rowText.match(/Higijenske\s+Maske/i)) {
+      const qty = asNumber(row[3]) || 0;
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.id === 'airport_masks');
+      if (service) {
+        console.log('[Parser] Adding airport masks:', { qty, amount });
+        service.qty = qty;
+        if (amount > 0) {
+          service.amountOverride = amount;
+        }
+      }
+    }
+
+    // Internet kodovi (row 64)
+    if (rowText.match(/Internet\s+kodovi/i)) {
+      const qty = asNumber(row[3]) || 0;
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.id === 'airport_internet');
+      if (service) {
+        console.log('[Parser] Adding airport internet:', { qty, amount });
+        service.qty = qty;
+        if (amount > 0) {
+          service.amountOverride = amount;
+        }
+      }
+    }
+
+    // Dječija nedelja (row 65)
+    if (rowText.match(/Dječija\s+nedelja/i)) {
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.id === 'airport_donation');
+      if (service && amount > 0) {
+        console.log('[Parser] Adding airport donation:', { amount });
+        service.amountOverride = (service.amountOverride || 0) + amount;
+      }
+    }
+
+    // Dodatni Aerodromski servis (row 66)
+    if (rowText.match(/Dodatni\s+Aerodromski\s+servis/i)) {
+      const qty = asNumber(row[3]) || 0;
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.label.match(/Dodatni servis/i));
+      if (service) {
+        console.log('[Parser] Adding additional airport service:', { qty, amount });
+        service.qty = qty;
+        if (amount > 0) {
+          service.amountOverride = amount;
+        }
+      }
+    }
+
+    // Parse Airport remunerations from row 37 (only if not already set from row 66)
+    if (rowText.match(/Airport remunerations.*dodatni aerodromski servis/i) && row[5]) {
+      const amount = asNumber(row[5]);
+      if (amount > 0) {
+        console.log('[Parser] Found airport remunerations for Wizz from row 37:', amount);
+        const service = report.airportServices.find(s => s.label.match(/Dodatni servis/i));
+        // Only add if not already set from detailed rows below
+        if (service && service.qty === 0 && (!service.amountOverride || service.amountOverride === 0)) {
+          console.log('[Parser] Setting airport remunerations:', amount);
+          service.amountOverride = amount;
+        }
+      }
+    }
+  }
+
+  console.log('[Parser] Operational format detected, services found:', {
+    wizz: report.carriers.wizz.services.length,
+    pegasus: report.carriers.pegasus.services.length,
+    ajet: report.carriers.ajet.services.length,
+    wizzBookings: report.carriers.wizz.bookings.transactions.length,
+    airportServices: report.airportServices.filter(s => s.qty > 0 || (s.amountOverride && s.amountOverride > 0)).length
+  });
+
+  if (!detectedDate) {
+    warnings.push(fallbackDate
+      ? 'Datum nije pronađen u fajlu, korišten je odabrani datum.'
+      : 'Datum nije pronađen u fajlu, korišten je današnji datum.');
+  }
+
+  return { report, warnings };
+}
+
+export function parseAccountingExport(buffer: Buffer, fallbackDate?: string): { report: DailyReport; warnings: string[] } {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true }) as Array<Array<unknown>>;
 
+  // Try operational format first
+  const operationalResult = parseOperationalExport(rows, fallbackDate);
+  if (operationalResult) {
+    return operationalResult;
+  }
+
+  // Fall back to accounting format
   const detectedDate = findDateString(rows);
   const report = createEmptyDailyReport(detectedDate || new Date().toISOString().slice(0, 10));
   const warnings: string[] = [];

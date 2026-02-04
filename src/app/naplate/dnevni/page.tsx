@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, FileText, Upload, Save, RefreshCcw, Plane, TrendingUp, Building2, ChevronDown } from 'lucide-react';
+import { Calendar, FileText, Upload, Save, RefreshCcw, Plane, TrendingUp, Building2, ChevronDown, Trash2, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +61,11 @@ export default function DnevniIzvjestajiPage() {
     amount: '',
   });
   const [newCarrierName, setNewCarrierName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<'single' | 'range'>('single');
+  const [deleteDateSingle, setDeleteDateSingle] = useState('');
+  const [deleteDateFrom, setDeleteDateFrom] = useState('');
+  const [deleteDateTo, setDeleteDateTo] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const carrierKeys = useMemo(
@@ -181,6 +186,7 @@ export default function DnevniIzvjestajiPage() {
       setIsImporting(true);
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('selectedDate', selectedDate);
       const response = await fetch('/api/naplate/import', {
         method: 'POST',
         body: formData,
@@ -479,6 +485,60 @@ export default function DnevniIzvjestajiPage() {
     showToast('Aviokompanija dodana', 'success');
   };
 
+  const deleteReports = async () => {
+    try {
+      setIsDeleting(true);
+
+      if (deleteMode === 'single') {
+        if (!deleteDateSingle) {
+          showToast('Odaberite datum', 'error');
+          return;
+        }
+        const response = await fetch(`/api/naplate/reports?type=DAILY&date=${deleteDateSingle}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || 'Greška pri brisanju');
+        }
+        showToast(data.message || 'Izvještaj je obrisan', 'success');
+        setDeleteDateSingle('');
+        // Refresh if we deleted current date
+        if (deleteDateSingle === selectedDate) {
+          await loadReport(selectedDate);
+        }
+      } else {
+        if (!deleteDateFrom || !deleteDateTo) {
+          showToast('Odaberite oba datuma', 'error');
+          return;
+        }
+        if (deleteDateFrom > deleteDateTo) {
+          showToast('Početni datum mora biti prije krajnjeg', 'error');
+          return;
+        }
+        const response = await fetch(`/api/naplate/reports?type=DAILY&from=${deleteDateFrom}&to=${deleteDateTo}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || 'Greška pri brisanju');
+        }
+        showToast(data.message || `Obrisano ${data.deletedCount} izvještaja`, 'success');
+        setDeleteDateFrom('');
+        setDeleteDateTo('');
+        // Refresh if current date is in the deleted range
+        if (selectedDate >= deleteDateFrom && selectedDate <= deleteDateTo) {
+          await loadReport(selectedDate);
+        }
+      }
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      showToast(error?.message || 'Greška pri brisanju izvještaja', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8">
       {/* Header - Dashboard style */}
@@ -610,6 +670,116 @@ export default function DnevniIzvjestajiPage() {
                     <Plane className="w-4 h-4 mr-2" />
                     Dodaj aviokompaniju
                   </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Delete Reports Card - Dashboard style */}
+          <div className="bg-white rounded-3xl border border-rose-200 shadow-soft-lg p-7 space-y-4 relative overflow-hidden">
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-rose-50 rounded-full blur-3xl -ml-10 -mb-10"></div>
+            <div className="absolute top-0 right-0 w-28 h-28 bg-rose-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 shadow-soft">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Brisanje izvještaja</h2>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Upravljanje podacima</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteMode('single')}
+                    className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                      deleteMode === 'single'
+                        ? 'bg-rose-600 text-white shadow-soft'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Jedan dan
+                  </button>
+                  <button
+                    onClick={() => setDeleteMode('range')}
+                    className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                      deleteMode === 'range'
+                        ? 'bg-rose-600 text-white shadow-soft'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Raspon
+                  </button>
+                </div>
+
+                {deleteMode === 'single' ? (
+                  <div className="space-y-3">
+                    <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                      Izaberite datum za brisanje
+                    </Label>
+                    <Input
+                      type="date"
+                      value={deleteDateSingle}
+                      onChange={(e) => setDeleteDateSingle(e.target.value)}
+                      className="h-12"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                      Od datuma
+                    </Label>
+                    <Input
+                      type="date"
+                      value={deleteDateFrom}
+                      onChange={(e) => setDeleteDateFrom(e.target.value)}
+                      className="h-12"
+                    />
+                    <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                      Do datuma
+                    </Label>
+                    <Input
+                      type="date"
+                      value={deleteDateTo}
+                      onChange={(e) => setDeleteDateTo(e.target.value)}
+                      className="h-12"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  onClick={(event) =>
+                    showConfirmToast(
+                      deleteMode === 'single'
+                        ? `Obrisati izvještaj za ${deleteDateSingle}?`
+                        : `Obrisati sve izvještaje od ${deleteDateFrom} do ${deleteDateTo}?`,
+                      deleteReports,
+                      'Potvrdi brisanje',
+                      event.currentTarget
+                    )
+                  }
+                  disabled={
+                    isDeleting ||
+                    (deleteMode === 'single' ? !deleteDateSingle : !deleteDateFrom || !deleteDateTo)
+                  }
+                  variant="outline"
+                  className="w-full h-12 font-semibold border-2 border-rose-300 text-rose-700 hover:bg-rose-50 hover:border-rose-400"
+                >
+                  <Trash2 className={`w-4 h-4 mr-2 ${isDeleting ? 'animate-bounce' : ''}`} />
+                  {isDeleting ? 'Brišem...' : deleteMode === 'single' ? 'Obriši izvještaj' : 'Obriši izvještaje'}
+                </Button>
+
+                <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                    <span className="font-bold uppercase tracking-wide">Upozorenje</span>
+                  </div>
+                  <p className="pl-3 border-l-2 border-rose-400">
+                    Ova akcija je trajna i ne može se poništiti. Svi podaci za odabrani datum ili period će biti trajno obrisani.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1221,6 +1391,20 @@ export default function DnevniIzvjestajiPage() {
                                   disabled={item.qty <= 0}
                                 >
                                   - Ukloni
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={(event) =>
+                                    showConfirmToast(
+                                      'Obrisati ovu uslugu potpuno?',
+                                      () => removeService(carrier, item.id),
+                                      'Potvrdi brisanje',
+                                      event.currentTarget
+                                    )
+                                  }
+                                  className="h-10 px-3 text-xs font-semibold border-2 border-red-400 text-red-600 hover:bg-red-50 hover:border-red-500 transition-all"
+                                >
+                                  <Trash className="w-4 h-4" />
                                 </Button>
                               </div>
                             )}
