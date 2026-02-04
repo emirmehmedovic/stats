@@ -19,7 +19,13 @@ type CarrierTotals = {
 
 const matchService = (items: ServiceItem[], candidate: ServiceItem) => {
   if (candidate.code) {
-    return items.find((item) => item.code === candidate.code);
+    return items.find(
+      (item) =>
+        item.code === candidate.code &&
+        item.price === candidate.price &&
+        item.currency === candidate.currency &&
+        item.unit === candidate.unit
+    );
   }
   return items.find(
     (item) =>

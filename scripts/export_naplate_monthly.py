@@ -4,6 +4,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.cell.cell import MergedCell
 
 
 def find_header_row(ws):
@@ -28,6 +29,26 @@ def find_value_column(ws, row, preferred):
         if cell.data_type == "f" or isinstance(cell.value, (int, float)):
             return col
     return preferred[0]
+
+def find_row_value_column(ws, row, fallback):
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=row, column=col)
+        if cell.data_type == "f":
+            return col
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=row, column=col)
+        if isinstance(cell.value, (int, float)):
+            return col
+    return fallback
+
+def set_cell_value_safe(ws, row, col, value):
+    cell = ws.cell(row=row, column=col)
+    if cell.__class__.__name__ == "MergedCell":
+        for merged in ws.merged_cells.ranges:
+            if merged.min_row <= row <= merged.max_row and merged.min_col <= col <= merged.max_col:
+                ws.cell(row=merged.min_row, column=merged.min_col).value = value
+                return
+    cell.value = value
 
 
 def build_header_map(ws, header_row):
@@ -300,6 +321,13 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         value_col = find_value_column(ws, commission_row, [amount_col, qty_col, price_col])
         ws.cell(row=commission_row, column=value_col).value = total_commission
 
+    booking_rem_row = find_label_row(ws, "Airport remuneration (Provizija na kartu)")
+    total_booking_rem = 0.0
+    if booking_rem_row:
+        total_booking_rem = sum(float(txn.get("airportRemunerationKm") or 0) for txn in booking_txns)
+        value_col = find_value_column(ws, booking_rem_row, [amount_col, qty_col, price_col])
+        ws.cell(row=booking_rem_row, column=value_col).value = total_booking_rem
+
     # Airport services rows
     service_lookup = {item.get("id"): item for item in airport_services}
 
@@ -315,7 +343,6 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         "higijenske": "airport_masks",
         "internet": "airport_internet",
         "dječija": "airport_donation",
-        "dodatni aerodromski servis": "airport_total",
     }
 
     airport_total = 0.0
@@ -324,6 +351,13 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         if svc:
             airport_total += service_amount(svc)
 
+    remove_row = find_label_row(ws, "7. Dodatni Aerodromski servis")
+    if remove_row:
+        for col in range(fee_col, valute_col + 1):
+            cell = ws.cell(row=remove_row, column=col)
+            if not isinstance(cell, MergedCell):
+                cell.value = None
+
     for row in range(1, ws.max_row + 1):
         label = ws.cell(row=row, column=fee_col).value
         if not isinstance(label, str):
@@ -331,18 +365,44 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         lowered = label.lower()
         for marker, key in mapping.items():
             if marker in lowered:
-                if key == "airport_total":
-                    value_col = find_value_column(ws, row, [amount_col, qty_col, price_col])
-                    ws.cell(row=row, column=value_col).value = airport_total + float(adjustments_amount or 0)
+                svc = service_lookup.get(key)
+                # Airport services block uses fixed columns (qty in D, amount in E/F area)
+                if not svc:
+                    set_cell_value_safe(ws, row, 4, 0)
+                    value_col = find_row_value_column(ws, row, 5)
+                    set_cell_value_safe(ws, row, value_col, 0)
+                    break
+                if key == "airport_donation":
+                    # Donation is a total amount; qty should stay empty/0.
+                    donation_amount = float(svc.get("amountOverride") or 0)
+                    if donation_amount == 0:
+                        donation_amount = float(svc.get("qty") or 0)
+                    set_cell_value_safe(ws, row, 4, 0)
+                    value_col = find_row_value_column(ws, row, 5)
+                    set_cell_value_safe(ws, row, 5, donation_amount)
+                    if value_col != 5:
+                        set_cell_value_safe(ws, row, value_col, 0)
                 else:
-                    svc = service_lookup.get(key)
-                    if not svc:
-                        continue
-                    if key == "airport_internet":
-                        ws.cell(row=row, column=price_col - 1).value = float(svc.get("qty") or 0)
-                    value_col = find_value_column(ws, row, [amount_col, qty_col, price_col])
-                    ws.cell(row=row, column=value_col).value = service_amount(svc)
+                    set_cell_value_safe(ws, row, 4, float(svc.get("qty") or 0))
+                    value_col = find_row_value_column(ws, row, 5)
+                    set_cell_value_safe(ws, row, value_col, service_amount(svc))
                 break
+
+    # Ensure donation row is cleared if no data (template may contain a fixed value)
+    donation_row = find_label_row(ws, "Dječija")
+    if donation_row:
+        svc = service_lookup.get("airport_donation")
+        qty = float((svc or {}).get("qty") or 0)
+        amount_override = float((svc or {}).get("amountOverride") or 0)
+        if qty == 0 and amount_override == 0:
+            set_cell_value_safe(ws, donation_row, 4, 0)
+            set_cell_value_safe(ws, donation_row, 5, 0)
+
+    amount_airport_row = find_label_row(ws, "Amount for Airport Tuzla")
+    if amount_airport_row:
+        total_airport_amount = airport_rem_value + total_booking_rem + airport_total
+        value_col = find_row_value_column(ws, amount_airport_row, amount_col)
+        ws.cell(row=amount_airport_row, column=value_col).value = total_airport_amount
 
     wb.save(output_path)
 
