@@ -39,11 +39,12 @@ def build_header_map(ws, header_row):
     return headers
 
 
-def scan_service_rows(ws, fee_col, code_col, header_row):
+def scan_service_rows(ws, fee_col, code_col, header_row, price_col=None):
     rows = []
     other_rows = []
     code_rows = {}
     label_rows = {}
+    price_rows = {}  # Map price -> row for matching by price
     for row in range(header_row + 2, ws.max_row + 1):
         label = ws.cell(row=row, column=fee_col).value
         code = ws.cell(row=row, column=code_col).value
@@ -58,7 +59,12 @@ def scan_service_rows(ws, fee_col, code_col, header_row):
             label_rows[label.strip()] = row
         if code:
             code_rows[str(code).strip()] = row
-    return rows, other_rows, code_rows, label_rows
+        # Store price mapping for matching by price
+        if price_col:
+            price_val = ws.cell(row=row, column=price_col).value
+            if isinstance(price_val, (int, float)) and price_val > 0:
+                price_rows[float(price_val)] = row
+    return rows, other_rows, code_rows, label_rows, price_rows
 
 
 def write_amount_formula(ws, row, price_col, qty_col, amount_col):
@@ -83,7 +89,7 @@ def export_sky_speed(template_path, output_path, carrier_data):
     amount_col = headers.get("amount", 6)
     valute_col = headers.get("valute", 7)
 
-    rows, other_rows, code_rows, label_rows = scan_service_rows(ws, fee_col, code_col, header_row)
+    rows, other_rows, code_rows, label_rows, price_rows = scan_service_rows(ws, fee_col, code_col, header_row, price_col)
 
     for row in rows:
         ws.cell(row=row, column=qty_col).value = 0
@@ -92,17 +98,33 @@ def export_sky_speed(template_path, output_path, carrier_data):
 
     other_iter = iter(other_rows)
     used_other = set()
+    used_rows = set()
 
     for service in carrier_data.get("services", []):
         label = str(service.get("label", "")).strip()
         code = str(service.get("code", "")).strip()
+        price = float(service.get("price", 0))
 
-        # Try to find by label first (more specific)
-        target_row = label_rows.get(label)
+        target_row = None
+
+        # Try to find by price first (most specific for services with same label/code)
+        if price > 0 and price in price_rows:
+            potential_row = price_rows[price]
+            if potential_row not in used_rows:
+                target_row = potential_row
+                used_rows.add(target_row)
+
+        # If not found by price, try by label
+        if target_row is None:
+            target_row = label_rows.get(label)
+            if target_row and target_row in used_rows:
+                target_row = None  # Already used
 
         # If not found by label, try by code (but skip BAGEXC as it's not unique)
         if target_row is None and code and code != "BAGEXC":
             target_row = code_rows.get(code)
+            if target_row and target_row in used_rows:
+                target_row = None  # Already used
 
         # If still not found, use "Other" row
         if target_row is None:
@@ -111,6 +133,9 @@ def export_sky_speed(template_path, output_path, carrier_data):
                 used_other.add(target_row)
             except StopIteration:
                 continue
+
+        if target_row:
+            used_rows.add(target_row)
 
         ws.cell(row=target_row, column=fee_col).value = service.get("label") or "Other"
         ws.cell(row=target_row, column=code_col).value = code or ""
@@ -162,7 +187,7 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
     label = str(carrier_data.get("label") or "AIRLINE").strip()
     ws.cell(row=title_row, column=fee_col).value = f"1. OTHER {label} SERVICES SOLD TO THE PASSENGERS AT AIRPORT"
 
-    rows, other_rows, code_rows, label_rows = scan_service_rows(ws, fee_col, code_col, header_row)
+    rows, other_rows, code_rows, label_rows, price_rows = scan_service_rows(ws, fee_col, code_col, header_row, price_col)
 
     for row in rows:
         ws.cell(row=row, column=qty_col).value = 0
@@ -171,17 +196,33 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
 
     other_iter = iter(other_rows)
     used_other = set()
+    used_rows = set()
 
     for service in carrier_data.get("services", []):
         label = str(service.get("label", "")).strip()
         code = str(service.get("code", "")).strip()
+        price = float(service.get("price", 0))
 
-        # Try to find by label first (more specific)
-        target_row = label_rows.get(label)
+        target_row = None
+
+        # Try to find by price first (most specific for services with same label/code)
+        if price > 0 and price in price_rows:
+            potential_row = price_rows[price]
+            if potential_row not in used_rows:
+                target_row = potential_row
+                used_rows.add(target_row)
+
+        # If not found by price, try by label
+        if target_row is None:
+            target_row = label_rows.get(label)
+            if target_row and target_row in used_rows:
+                target_row = None  # Already used
 
         # If not found by label, try by code (but skip BAGEXC as it's not unique)
         if target_row is None and code and code != "BAGEXC":
             target_row = code_rows.get(code)
+            if target_row and target_row in used_rows:
+                target_row = None  # Already used
 
         # If still not found, use "Other" row
         if target_row is None:
@@ -190,6 +231,9 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
                 used_other.add(target_row)
             except StopIteration:
                 continue
+
+        if target_row:
+            used_rows.add(target_row)
 
         ws.cell(row=target_row, column=fee_col).value = service.get("label") or "Ostalo"
         ws.cell(row=target_row, column=code_col).value = code or ""
