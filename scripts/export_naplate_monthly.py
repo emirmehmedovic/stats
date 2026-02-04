@@ -191,13 +191,13 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         ws.cell(row=row, column=qty_col).value = 0
         ws.cell(row=row, column=amount_col).value = 0
 
-    # airport remuneration from bookings
-    booking_txns = carrier_data.get("bookings", {}).get("transactions", [])
-    total_airport_rem = sum(float(txn.get("airportRemunerationKm") or 0) for txn in booking_txns)
+    # airport remuneration - calculate total service items (qty) × 10 KM
+    total_service_items = sum(float(service.get("qty") or 0) for service in carrier_data.get("services", []))
+    airport_rem_value = total_service_items * 10  # 10 KM per service item
     airport_rem_row = find_label_row(ws, "airport remunerations")
     if airport_rem_row:
         value_col = find_value_column(ws, airport_rem_row, [amount_col, qty_col, price_col])
-        ws.cell(row=airport_rem_row, column=value_col).value = total_airport_rem
+        ws.cell(row=airport_rem_row, column=value_col).value = airport_rem_value
 
     # bookings section
     booking_header_row = find_label_row(ws, "bookings sold")
