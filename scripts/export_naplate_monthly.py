@@ -43,6 +43,7 @@ def scan_service_rows(ws, fee_col, code_col, header_row):
     rows = []
     other_rows = []
     code_rows = {}
+    label_rows = {}
     for row in range(header_row + 2, ws.max_row + 1):
         label = ws.cell(row=row, column=fee_col).value
         code = ws.cell(row=row, column=code_col).value
@@ -53,9 +54,11 @@ def scan_service_rows(ws, fee_col, code_col, header_row):
         rows.append(row)
         if isinstance(label, str) and label.strip().lower().startswith(("other", "ostalo")):
             other_rows.append(row)
+        if isinstance(label, str) and label.strip():
+            label_rows[label.strip()] = row
         if code:
             code_rows[str(code).strip()] = row
-    return rows, other_rows, code_rows
+    return rows, other_rows, code_rows, label_rows
 
 
 def write_amount_formula(ws, row, price_col, qty_col, amount_col):
@@ -80,7 +83,7 @@ def export_sky_speed(template_path, output_path, carrier_data):
     amount_col = headers.get("amount", 6)
     valute_col = headers.get("valute", 7)
 
-    rows, other_rows, code_rows = scan_service_rows(ws, fee_col, code_col, header_row)
+    rows, other_rows, code_rows, label_rows = scan_service_rows(ws, fee_col, code_col, header_row)
 
     for row in rows:
         ws.cell(row=row, column=qty_col).value = 0
@@ -91,8 +94,17 @@ def export_sky_speed(template_path, output_path, carrier_data):
     used_other = set()
 
     for service in carrier_data.get("services", []):
+        label = str(service.get("label", "")).strip()
         code = str(service.get("code", "")).strip()
-        target_row = code_rows.get(code)
+
+        # Try to find by label first (more specific)
+        target_row = label_rows.get(label)
+
+        # If not found by label, try by code (but skip BAGEXC as it's not unique)
+        if target_row is None and code and code != "BAGEXC":
+            target_row = code_rows.get(code)
+
+        # If still not found, use "Other" row
         if target_row is None:
             try:
                 target_row = next(other_iter)
@@ -150,7 +162,7 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
     label = str(carrier_data.get("label") or "AIRLINE").strip()
     ws.cell(row=title_row, column=fee_col).value = f"1. OTHER {label} SERVICES SOLD TO THE PASSENGERS AT AIRPORT"
 
-    rows, other_rows, code_rows = scan_service_rows(ws, fee_col, code_col, header_row)
+    rows, other_rows, code_rows, label_rows = scan_service_rows(ws, fee_col, code_col, header_row)
 
     for row in rows:
         ws.cell(row=row, column=qty_col).value = 0
@@ -161,8 +173,17 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
     used_other = set()
 
     for service in carrier_data.get("services", []):
+        label = str(service.get("label", "")).strip()
         code = str(service.get("code", "")).strip()
-        target_row = code_rows.get(code)
+
+        # Try to find by label first (more specific)
+        target_row = label_rows.get(label)
+
+        # If not found by label, try by code (but skip BAGEXC as it's not unique)
+        if target_row is None and code and code != "BAGEXC":
+            target_row = code_rows.get(code)
+
+        # If still not found, use "Other" row
         if target_row is None:
             try:
                 target_row = next(other_iter)
