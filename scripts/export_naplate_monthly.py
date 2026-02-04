@@ -44,7 +44,7 @@ def scan_service_rows(ws, fee_col, code_col, header_row, price_col=None):
     other_rows = []
     code_rows = {}
     label_rows = {}
-    price_rows = {}  # Map price -> row for matching by price
+    price_rows = {}  # Map price -> list of rows for matching by price
     for row in range(header_row + 2, ws.max_row + 1):
         label = ws.cell(row=row, column=fee_col).value
         code = ws.cell(row=row, column=code_col).value
@@ -59,11 +59,14 @@ def scan_service_rows(ws, fee_col, code_col, header_row, price_col=None):
             label_rows[label.strip()] = row
         if code:
             code_rows[str(code).strip()] = row
-        # Store price mapping for matching by price
+        # Store price mapping for matching by price (support multiple rows per price)
         if price_col:
             price_val = ws.cell(row=row, column=price_col).value
             if isinstance(price_val, (int, float)) and price_val > 0:
-                price_rows[float(price_val)] = row
+                price_key = float(price_val)
+                if price_key not in price_rows:
+                    price_rows[price_key] = []
+                price_rows[price_key].append(row)
     return rows, other_rows, code_rows, label_rows, price_rows
 
 
@@ -108,11 +111,14 @@ def export_sky_speed(template_path, output_path, carrier_data):
         target_row = None
 
         # Try to find by price first (most specific for services with same label/code)
-        if price > 0 and price in price_rows:
-            potential_row = price_rows[price]
-            if potential_row not in used_rows:
-                target_row = potential_row
-                used_rows.add(target_row)
+        if price > 0 and price in price_rows and len(price_rows[price]) > 0:
+            # Pop the first unused row with this price
+            for potential_row in price_rows[price]:
+                if potential_row not in used_rows:
+                    target_row = potential_row
+                    price_rows[price].remove(potential_row)
+                    used_rows.add(target_row)
+                    break
 
         # If not found by price, try by label
         if target_row is None:
@@ -206,11 +212,14 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
         target_row = None
 
         # Try to find by price first (most specific for services with same label/code)
-        if price > 0 and price in price_rows:
-            potential_row = price_rows[price]
-            if potential_row not in used_rows:
-                target_row = potential_row
-                used_rows.add(target_row)
+        if price > 0 and price in price_rows and len(price_rows[price]) > 0:
+            # Pop the first unused row with this price
+            for potential_row in price_rows[price]:
+                if potential_row not in used_rows:
+                    target_row = potential_row
+                    price_rows[price].remove(potential_row)
+                    used_rows.add(target_row)
+                    break
 
         # If not found by price, try by label
         if target_row is None:
