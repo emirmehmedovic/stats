@@ -1,5 +1,6 @@
 import json
 import sys
+from copy import copy
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -19,6 +20,14 @@ def find_label_row(ws, label):
     for row in range(1, ws.max_row + 1):
         cell_value = ws.cell(row=row, column=2).value
         if isinstance(cell_value, str) and label.lower() in cell_value.lower():
+            return row
+    return None
+
+
+def find_service_total_row(ws, fee_col, header_row):
+    for row in range(header_row + 2, ws.max_row + 1):
+        label = ws.cell(row=row, column=fee_col).value
+        if isinstance(label, str) and label.strip().lower().startswith("total"):
             return row
     return None
 
@@ -96,6 +105,19 @@ def write_amount_formula(ws, row, price_col, qty_col, amount_col):
     qty_letter = get_column_letter(qty_col)
     ws.cell(row=row, column=amount_col).value = f"={qty_letter}{row}*{price_letter}{row}"
 
+def copy_row_style(ws, src_row, dst_row, start_col, end_col):
+    for col in range(start_col, end_col + 1):
+        src = ws.cell(row=src_row, column=col)
+        dst = ws.cell(row=dst_row, column=col)
+        if src.has_style:
+            dst.font = copy(src.font)
+            dst.border = copy(src.border)
+            dst.fill = copy(src.fill)
+            dst.number_format = src.number_format
+            dst.protection = copy(src.protection)
+            dst.alignment = copy(src.alignment)
+        dst.value = None
+
 
 def export_sky_speed(template_path, output_path, carrier_data):
     wb = load_workbook(template_path)
@@ -114,6 +136,7 @@ def export_sky_speed(template_path, output_path, carrier_data):
     valute_col = headers.get("valute", 7)
 
     rows, other_rows, code_rows, label_rows, price_rows = scan_service_rows(ws, fee_col, code_col, header_row, price_col)
+    template_row = other_rows[0] if other_rows else (rows[-1] if rows else None)
 
     for row in rows:
         ws.cell(row=row, column=qty_col).value = 0
@@ -123,6 +146,9 @@ def export_sky_speed(template_path, output_path, carrier_data):
     other_iter = iter(other_rows)
     used_other = set()
     used_rows = set()
+    template_row = other_rows[0] if other_rows else (rows[-1] if rows else None)
+    template_row = other_rows[0] if other_rows else (rows[-1] if rows else None)
+    template_row = other_rows[0] if other_rows else (rows[-1] if rows else None)
 
     for service in carrier_data.get("services", []):
         label = str(service.get("label", "")).strip()
@@ -159,7 +185,14 @@ def export_sky_speed(template_path, output_path, carrier_data):
                 target_row = next(other_iter)
                 used_other.add(target_row)
             except StopIteration:
-                continue
+                total_row = find_service_total_row(ws, fee_col, header_row)
+                if total_row is None or template_row is None:
+                    continue
+                ws.insert_rows(total_row)
+                copy_row_style(ws, template_row, total_row, fee_col, valute_col)
+                target_row = total_row
+                other_rows.append(target_row)
+                used_other.add(target_row)
 
         if target_row:
             used_rows.add(target_row)
@@ -260,7 +293,13 @@ def export_wizz_airport(template_path, output_path, carrier_data, airport_servic
                 target_row = next(other_iter)
                 used_other.add(target_row)
             except StopIteration:
-                continue
+                total_row = find_service_total_row(ws, fee_col, header_row)
+                if total_row is None or template_row is None:
+                    continue
+                ws.insert_rows(total_row)
+                copy_row_style(ws, template_row, total_row, fee_col, valute_col)
+                target_row = total_row
+                used_other.add(target_row)
 
         if target_row:
             used_rows.add(target_row)

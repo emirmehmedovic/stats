@@ -4,6 +4,7 @@ from copy import copy
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.cell.cell import MergedCell
 from openpyxl.utils import get_column_letter
 
 
@@ -72,6 +73,8 @@ def scan_service_rows(ws, block, header_row):
     rows = []
     other_rows = []
     code_rows = {}
+    label_rows = {}
+    price_rows = {}
     for row in range(header_row + 2, ws.max_row + 1):
         label = ws.cell(row=row, column=block["fee_types"]).value
         code = ws.cell(row=row, column=block["code"]).value
@@ -82,9 +85,15 @@ def scan_service_rows(ws, block, header_row):
         rows.append(row)
         if isinstance(label, str) and label.strip().lower().startswith("ostalo"):
             other_rows.append(row)
+        if isinstance(label, str) and label.strip():
+            label_rows[label.strip()] = row
         if code:
             code_rows[str(code).strip()] = row
-    return rows, other_rows, code_rows
+        price_val = ws.cell(row=row, column=block["price"]).value
+        if isinstance(price_val, (int, float)) and price_val > 0:
+            price_key = float(price_val)
+            price_rows.setdefault(price_key, []).append(row)
+    return rows, other_rows, code_rows, label_rows, price_rows
 
 
 def find_label_row(ws, label):
@@ -99,6 +108,28 @@ def write_amount_formula(ws, row, price_col, qty_col, amount_col):
     price_letter = get_column_letter(price_col)
     qty_letter = get_column_letter(qty_col)
     ws.cell(row=row, column=amount_col).value = f"={qty_letter}{row}*{price_letter}{row}"
+
+
+def find_row_value_column(ws, row, fallback):
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=row, column=col)
+        if cell.data_type == "f":
+            return col
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=row, column=col)
+        if isinstance(cell.value, (int, float)):
+            return col
+    return fallback
+
+
+def set_cell_value_safe(ws, row, col, value):
+    cell = ws.cell(row=row, column=col)
+    if isinstance(cell, MergedCell):
+        for merged in ws.merged_cells.ranges:
+            if merged.min_row <= row <= merged.max_row and merged.min_col <= col <= merged.max_col:
+                ws.cell(row=merged.min_row, column=merged.min_col).value = value
+                return
+    cell.value = value
 
 
 def main():
@@ -160,7 +191,7 @@ def main():
         title = f"1. OTHER {label} SERVICES SOLD TO THE PASSENGERS AT AIRPORT"
         ws.cell(row=header_row - 1, column=block["fee_types"]).value = title
 
-        rows, other_rows, code_rows = scan_service_rows(ws, block, header_row)
+        rows, other_rows, code_rows, label_rows, price_rows = scan_service_rows(ws, block, header_row)
 
         # Reset service rows
         for row in rows:
@@ -170,10 +201,32 @@ def main():
 
         other_iter = iter(other_rows)
         used_other = set()
+        used_rows = set()
 
         for service in services:
+            label_text = str(service.get("label", "")).strip()
             code = str(service.get("code", "")).strip()
-            target_row = code_rows.get(code)
+            price = float(service.get("price") or 0)
+            target_row = None
+
+            if price > 0 and price in price_rows and len(price_rows[price]) > 0:
+                for potential_row in price_rows[price]:
+                    if potential_row not in used_rows:
+                        target_row = potential_row
+                        price_rows[price].remove(potential_row)
+                        used_rows.add(target_row)
+                        break
+
+            if target_row is None:
+                target_row = label_rows.get(label_text)
+                if target_row and target_row in used_rows:
+                    target_row = None
+
+            if target_row is None and code and code != "BAGEXC":
+                target_row = code_rows.get(code)
+                if target_row and target_row in used_rows:
+                    target_row = None
+
             if target_row is None:
                 try:
                     target_row = next(other_iter)
@@ -204,15 +257,14 @@ def main():
             ws.cell(row=row, column=block["qty"]).value = 0
             ws.cell(row=row, column=block["amount"]).value = 0
 
-        # Airport remuneration (dodatni servis)
+        # Airport remunerations (dodatni servis) = total service items (qty) × 10 KM
         for row in range(header_row, ws.max_row + 1):
             label = ws.cell(row=row, column=block["fee_types"]).value
             if isinstance(label, str) and label.strip().lower().startswith("airport remunerations"):
-                total_airport_rem = sum(
-                    float(txn.get("airportRemunerationKm") or 0)
-                    for txn in data["carriers"][carrier]["bookings"].get("transactions", [])
-                )
-                ws.cell(row=row, column=block["qty"]).value = total_airport_rem
+                total_service_items = sum(float(s.get("qty") or 0) for s in services)
+                airport_rem_value = total_service_items * 10
+                value_col = find_row_value_column(ws, row, block["amount"])
+                set_cell_value_safe(ws, row, value_col, airport_rem_value)
                 break
 
         # Bookings section
@@ -242,14 +294,15 @@ def main():
                 ws.cell(row=row, column=block["fee_types"] + 1).value = txn.get("pnr") or ""
                 ws.cell(row=row, column=block["fee_types"] + 2).value = float(txn.get("pax") or 0)
 
-    # Ticket commission row
-    commission_row = find_label_row(ws, "Airport remuneration (Provizija na kartu)")
-    if commission_row:
-        total_commission = 0.0
+    # Booking remuneration row (provizija na kartu)
+    booking_rem_row = find_label_row(ws, "Airport remuneration (Provizija na kartu)")
+    total_booking_rem = 0.0
+    if booking_rem_row:
         for carrier in carriers:
             for txn in data["carriers"][carrier]["bookings"].get("transactions", []):
-                total_commission += float(txn.get("commissionKm") or 0)
-        ws.cell(row=commission_row, column=5).value = total_commission
+                total_booking_rem += float(txn.get("airportRemunerationKm") or 0)
+        value_col = find_row_value_column(ws, booking_rem_row, 5)
+        set_cell_value_safe(ws, booking_rem_row, value_col, total_booking_rem)
 
     # Airport services rows
     service_lookup = {item.get("id"): item for item in airport_services}
@@ -266,7 +319,6 @@ def main():
         "4. Higijenske Maske": "airport_masks",
         "5. Internet kodovi": "airport_internet",
         "6. Dječija nedelja": "airport_donation",
-        "7. Dodatni Aerodromski servis": "airport_total",
     }
 
     airport_total = 0.0
@@ -275,23 +327,47 @@ def main():
         if svc:
             airport_total += service_amount(svc)
 
+    remove_row = find_label_row(ws, "7. Dodatni Aerodromski servis")
+    if remove_row:
+        for col in range(2, 8):
+            set_cell_value_safe(ws, remove_row, col, None)
+
     for label, key in mapping.items():
         row = find_label_row(ws, label)
         if not row:
             continue
-        if key == "airport_total":
-            ws.cell(row=row, column=5).value = airport_total + adjustments_amount
-            continue
         svc = service_lookup.get(key)
         if not svc:
+            set_cell_value_safe(ws, row, 4, 0)
+            set_cell_value_safe(ws, row, 5, 0)
             continue
-        if key == "airport_internet":
-            ws.cell(row=row, column=4).value = float(svc.get("qty") or 0)
-        ws.cell(row=row, column=5).value = service_amount(svc)
+        if key == "airport_donation":
+            donation_amount = float(svc.get("amountOverride") or 0)
+            if donation_amount == 0:
+                donation_amount = float(svc.get("qty") or 0)
+            set_cell_value_safe(ws, row, 4, 0)
+            set_cell_value_safe(ws, row, 5, donation_amount)
+            value_col = find_row_value_column(ws, row, 5)
+            if value_col != 5:
+                set_cell_value_safe(ws, row, value_col, 0)
+            continue
+        set_cell_value_safe(ws, row, 4, float(svc.get("qty") or 0))
+        set_cell_value_safe(ws, row, 5, service_amount(svc))
 
     korekcije_row = find_label_row(ws, "Korekcije")
     if korekcije_row:
-        ws.cell(row=korekcije_row, column=5).value = adjustments_amount
+        set_cell_value_safe(ws, korekcije_row, 5, adjustments_amount)
+
+    amount_airport_row = find_label_row(ws, "Amount for Airport Tuzla")
+    if amount_airport_row:
+        total_service_items = 0.0
+        for carrier in carriers:
+            for svc in data["carriers"][carrier].get("services", []):
+                total_service_items += float(svc.get("qty") or 0)
+        airport_rem_value = total_service_items * 10
+        total_airport_amount = airport_rem_value + total_booking_rem + airport_total
+        value_col = find_row_value_column(ws, amount_airport_row, 4)
+        set_cell_value_safe(ws, amount_airport_row, value_col, total_airport_amount)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
