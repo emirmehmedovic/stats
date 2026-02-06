@@ -33,8 +33,7 @@ const emptyBookingDraft = {
   pnr: '',
   pax: 1,
   amountEur: 0,
-  airportRemunerationKm: 0,
-  commissionKm: 0,
+  airportRemunerationKm: 30,
 };
 
 export default function DnevniIzvjestajiPage() {
@@ -54,7 +53,6 @@ export default function DnevniIzvjestajiPage() {
     pax: number;
     amountEur: number;
     airportRemunerationKm: number;
-    commissionKm: number;
   }>>({});
   const [donationDraft, setDonationDraft] = useState<{ open: boolean; amount: string }>({
     open: false,
@@ -66,7 +64,12 @@ export default function DnevniIzvjestajiPage() {
   const [deleteDateSingle, setDeleteDateSingle] = useState('');
   const [deleteDateFrom, setDeleteDateFrom] = useState('');
   const [deleteDateTo, setDeleteDateTo] = useState('');
+  const [isRecapOpen, setIsRecapOpen] = useState(false);
+  const [recapUserName, setRecapUserName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string>('');
+  const skipAutoSaveRef = useRef(true);
 
   const carrierKeys = useMemo(
     () => (Array.isArray(report.carrierOrder) && report.carrierOrder.length
@@ -106,10 +109,28 @@ export default function DnevniIzvjestajiPage() {
   }, [carrierKeys]);
 
   useEffect(() => {
-    setReport(createEmptyDailyReport(selectedDate));
+    const emptyReport = createEmptyDailyReport(selectedDate);
+    setReport(emptyReport);
+    lastSavedRef.current = JSON.stringify(emptyReport);
+    skipAutoSaveRef.current = true;
     setImportWarnings([]);
     void loadReport(selectedDate);
   }, [selectedDate]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (response.ok && data?.authenticated && data?.user?.name) {
+          setRecapUserName(data.user.name);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchUser();
+  }, []);
 
   const loadReport = async (date: string) => {
     try {
@@ -120,7 +141,10 @@ export default function DnevniIzvjestajiPage() {
       }
       const data = await response.json();
       if (data?.report?.data) {
-        setReport(normalizeDailyReport(data.report.data));
+        const normalized = normalizeDailyReport(data.report.data);
+        setReport(normalized);
+        lastSavedRef.current = JSON.stringify(normalized);
+        skipAutoSaveRef.current = true;
       }
     } catch (error) {
       console.error('Error loading report:', error);
@@ -146,6 +170,7 @@ export default function DnevniIzvjestajiPage() {
         const data = await response.json();
         throw new Error(data?.error || 'Greška pri čuvanju');
       }
+      lastSavedRef.current = JSON.stringify(report);
       showToast('Dnevni izvještaj je sačuvan', 'success');
     } catch (error: any) {
       console.error('Error saving report:', error);
@@ -196,7 +221,10 @@ export default function DnevniIzvjestajiPage() {
         throw new Error(data?.error || 'Greška pri importu');
       }
       if (data?.report) {
-        setReport(normalizeDailyReport(data.report));
+        const normalized = normalizeDailyReport(data.report);
+        setReport(normalized);
+        lastSavedRef.current = JSON.stringify(normalized);
+        skipAutoSaveRef.current = true;
         if (data.report.date && data.report.date !== selectedDate) {
           setSelectedDate(data.report.date);
         }
@@ -213,6 +241,48 @@ export default function DnevniIzvjestajiPage() {
       }
     }
   };
+
+  useEffect(() => {
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false;
+      return;
+    }
+    if (isLoading || isImporting) return;
+    const serialized = JSON.stringify(report);
+    if (serialized === lastSavedRef.current) return;
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        const response = await fetch('/api/naplate/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'DAILY',
+            date: selectedDate,
+            data: report,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data?.error || 'Greška pri čuvanju');
+        }
+        lastSavedRef.current = serialized;
+      } catch (error: any) {
+        console.error('Auto-save error:', error);
+        showToast(error?.message || 'Greška pri automatskom čuvanju', 'error');
+      } finally {
+        setIsSaving(false);
+      }
+    }, 800);
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [report, selectedDate, isLoading, isImporting]);
 
   const updateService = (carrier: CarrierKey, id: string, updates: Partial<ServiceItem>) => {
     setReport((prev) => ({
@@ -384,7 +454,6 @@ export default function DnevniIzvjestajiPage() {
       pax: number;
       amountEur: number;
       airportRemunerationKm: number;
-      commissionKm: number;
       open: boolean;
     }>
   ) => {
@@ -410,7 +479,7 @@ export default function DnevniIzvjestajiPage() {
       pax: draft.pax || 0,
       amountEur: draft.amountEur || 0,
       airportRemunerationKm: draft.airportRemunerationKm || 0,
-      commissionKm: draft.commissionKm || 0,
+      commissionKm: 0,
     });
     setReport((prev) => ({
       ...prev,
@@ -455,6 +524,20 @@ export default function DnevniIzvjestajiPage() {
     () => report.airportServices.reduce((sum, item) => sum + getServiceAmount(item), 0),
     [report.airportServices]
   );
+
+  const saveRecap = async () => {
+    const now = new Date().toISOString();
+    setReport((prev) => ({
+      ...prev,
+      recap: {
+        cashKm: prev.recap?.cashKm || 0,
+        cardsKm: prev.recap?.cardsKm || 0,
+        updatedAt: now,
+        updatedBy: recapUserName || prev.recap?.updatedBy,
+      },
+    }));
+    await saveReport();
+  };
 
   const addCarrier = () => {
     const label = newCarrierName.trim();
@@ -583,12 +666,200 @@ export default function DnevniIzvjestajiPage() {
               <FileText className="w-4 h-4 mr-2" />
               {isExporting ? 'Eksportujem...' : 'Eksport XLSX'}
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.open(`/api/naplate/export-pdf?date=${selectedDate}`, '_blank')}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Eksport PDF
+            </Button>
+            <Button variant="outline" onClick={() => setIsRecapOpen(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              Rekapitulacija
+            </Button>
           </div>
         </div>
       </div>
 
+      {isRecapOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-soft-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">Rekapitulacija</h2>
+              <button
+                className="text-slate-500 hover:text-slate-700"
+                onClick={() => setIsRecapOpen(false)}
+                aria-label="Zatvori"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Gotovina (KM)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={report.recap?.cashKm ?? 0}
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 0;
+                    setReport((prev) => ({
+                      ...prev,
+                      recap: { cashKm: value, cardsKm: prev.recap?.cardsKm || 0 },
+                    }));
+                  }}
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Kartice (KM)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={report.recap?.cardsKm ?? 0}
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 0;
+                    setReport((prev) => ({
+                      ...prev,
+                      recap: { cashKm: prev.recap?.cashKm || 0, cardsKm: value },
+                    }));
+                  }}
+                  className="h-12"
+                />
+              </div>
+
+              {(() => {
+                const recapTotal = (report.recap?.cashKm || 0) + (report.recap?.cardsKm || 0);
+                const diff = Math.abs(recapTotal - grandTotalKm);
+                const isOk = diff <= 2;
+                return (
+                  <div className={`rounded-2xl border p-4 text-sm ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+                    <div className="flex items-center justify-between">
+                      <span>Ukupno (Gotovina + Kartice)</span>
+                      <span className="font-bold">{recapTotal.toFixed(2)} KM</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span>Ukupno KM (Finansijski sažetak)</span>
+                      <span className="font-bold">{grandTotalKm.toFixed(2)} KM</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span>Razlika</span>
+                      <span className="font-bold">{diff.toFixed(2)} KM</span>
+                    </div>
+                    {!isOk && (
+                      <div className="mt-2 text-xs font-semibold">
+                        Razlika je veća od 2 KM — provjerite unos.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsRecapOpen(false)}>
+                Zatvori
+              </Button>
+              <Button onClick={saveRecap} disabled={isSaving}>
+                {isSaving ? 'Čuvam...' : 'Sačuvaj rekapitulaciju'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-8">
         <div className="space-y-6">
+          {/* Summary Card - Dashboard style */}
+          <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl border border-dark-700 shadow-soft-xl p-7 space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-12 -mb-12"></div>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Finansijski sažetak</h2>
+                  <p className="text-xs text-dark-300 uppercase tracking-wide">Pregled</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                {carrierKeys.map((carrier, idx) => (
+                  <div key={carrier} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-primary-400"></div>
+                      <span className="text-dark-200 font-medium">{report.carriers[carrier]?.label || carrierLabels[carrier] || carrier}</span>
+                    </div>
+                    <span className="font-bold text-white">{getCarrierTotalEur(report, carrier).toFixed(2)} EUR</span>
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10 mt-4">
+                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno EUR</span>
+                  <span className="font-bold text-2xl text-white">{totalEur.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10">
+                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno KM</span>
+                  <span className="font-bold text-2xl text-white">{grandTotalKm.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <span className="text-dark-200 font-medium">Airport Tuzla (KM)</span>
+                  <span className="font-bold text-blue-200">{totalAirportKm.toFixed(2)} KM</span>
+                </div>
+                <div className="rounded-2xl bg-emerald-500/15 border border-emerald-300/40 p-3 shadow-soft">
+                  <div className="text-[11px] uppercase tracking-wider font-bold text-emerald-200 mb-2">
+                    Rekapitulacija
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Gotovina)</span>
+                    <span className="font-bold text-white">{(report.recap?.cashKm || 0).toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Kartice)</span>
+                    <span className="font-bold text-white">{(report.recap?.cardsKm || 0).toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija ukupno</span>
+                    <span className="font-bold text-white">{((report.recap?.cashKm || 0) + (report.recap?.cardsKm || 0)).toFixed(2)} KM</span>
+                  </div>
+                  {report.recap?.updatedAt && (
+                    <div className="text-xs text-dark-300 mt-2">
+                      {(() => {
+                        const date = new Date(report.recap.updatedAt);
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const yyyy = date.getFullYear();
+                        const hh = String(date.getHours()).padStart(2, '0');
+                        const min = String(date.getMinutes()).padStart(2, '0');
+                        return `Zadnja provjera: ${dd}.${mm}.${yyyy} ${hh}:${min}`;
+                      })()}{report.recap?.updatedBy ? ` — ${report.recap.updatedBy}` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <Label className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-primary-400 rounded-full"></span>
+                  Kurs EUR → KM
+                </Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  value={report.fxRateEurToKm}
+                  readOnly
+                  className="h-12 bg-white/10 border border-white/20 text-white font-bold text-lg text-center rounded-2xl"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Import Card - Dashboard style */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-soft-lg p-7 space-y-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
@@ -781,65 +1052,6 @@ export default function DnevniIzvjestajiPage() {
                     Ova akcija je trajna i ne može se poništiti. Svi podaci za odabrani datum ili period će biti trajno obrisani.
                   </p>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary Card - Dashboard style */}
-          <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl border border-dark-700 shadow-soft-xl p-7 space-y-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-12 -mb-12"></div>
-
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Finansijski sažetak</h2>
-                  <p className="text-xs text-dark-300 uppercase tracking-wide">Pregled</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                {carrierKeys.map((carrier, idx) => (
-                  <div key={carrier} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary-400"></div>
-                      <span className="text-dark-200 font-medium">{report.carriers[carrier]?.label || carrierLabels[carrier] || carrier}</span>
-                    </div>
-                    <span className="font-bold text-white">{getCarrierTotalEur(report, carrier).toFixed(2)} EUR</span>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10 mt-4">
-                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno EUR</span>
-                  <span className="font-bold text-2xl text-white">{totalEur.toFixed(2)}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <span className="text-dark-200 font-medium">Airport Tuzla (KM)</span>
-                  <span className="font-bold text-blue-200">{totalAirportKm.toFixed(2)} KM</span>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10">
-                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno KM</span>
-                  <span className="font-bold text-2xl text-white">{grandTotalKm.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="mt-6 p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
-                <Label className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-primary-400 rounded-full"></span>
-                  Kurs EUR → KM
-                </Label>
-                <Input
-                  type="number"
-                  step="0.0001"
-                  value={report.fxRateEurToKm}
-                  onChange={(e) => setReport((prev) => ({ ...prev, fxRateEurToKm: Number(e.target.value) || 0 }))}
-                  className="h-12 bg-white/10 border border-white/20 text-white font-bold text-lg text-center rounded-2xl"
-                />
               </div>
             </div>
           </div>
@@ -1449,7 +1661,7 @@ export default function DnevniIzvjestajiPage() {
                 </div>
 
                 {/* Booking Stats */}
-                <div className="relative z-10 grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                   <div className="rounded-2xl p-5 border-2 shadow-soft bg-white/80 border-slate-200">
                     <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Bookings (PAX)</p>
                     <p className="text-2xl font-bold text-slate-900">{getBookingTotals(report, carrier).pax}</p>
@@ -1461,10 +1673,6 @@ export default function DnevniIzvjestajiPage() {
                   <div className="rounded-2xl p-5 border-2 shadow-soft bg-white/80 border-slate-200">
                     <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Airport remun.</p>
                     <p className="text-2xl font-bold text-slate-900">{getBookingTotals(report, carrier).airportRemunerationKm.toFixed(2)} <span className="text-base font-semibold text-slate-600">KM</span></p>
-                  </div>
-                  <div className="rounded-2xl p-5 border-2 shadow-soft bg-white/80 border-slate-200">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Provizija</p>
-                    <p className="text-2xl font-bold text-slate-900">{getBookingTotals(report, carrier).commissionKm.toFixed(2)} <span className="text-base font-semibold text-slate-600">KM</span></p>
                   </div>
                 </div>
 
@@ -1498,7 +1706,7 @@ export default function DnevniIzvjestajiPage() {
                         <div className="w-2 h-2 rounded-full animate-pulse bg-slate-500"></div>
                         <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Nova booking transakcija</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
                           <Label className="text-[10px] uppercase tracking-wider text-slate-600 font-bold">PNR</Label>
                           <Input
@@ -1515,7 +1723,10 @@ export default function DnevniIzvjestajiPage() {
                             min="0"
                             placeholder="0"
                             value={bookingDraft.pax}
-                            onChange={(e) => updateBookingDraft(carrier, { pax: Number(e.target.value) || 0 })}
+                            onChange={(e) => {
+                              const pax = Number(e.target.value) || 0;
+                              updateBookingDraft(carrier, { pax, airportRemunerationKm: pax * 30 });
+                            }}
                             className="h-12 border-2 rounded-xl font-semibold border-slate-300"
                           />
                         </div>
@@ -1539,21 +1750,7 @@ export default function DnevniIzvjestajiPage() {
                             min="0"
                             placeholder="0.00"
                             value={bookingDraft.airportRemunerationKm}
-                            onChange={(e) =>
-                              updateBookingDraft(carrier, { airportRemunerationKm: Number(e.target.value) || 0 })
-                            }
-                            className="h-12 border-2 rounded-xl font-semibold border-slate-300"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] uppercase tracking-wider text-slate-600 font-bold">Provizija (KM)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            value={bookingDraft.commissionKm}
-                            onChange={(e) => updateBookingDraft(carrier, { commissionKm: Number(e.target.value) || 0 })}
+                            readOnly
                             className="h-12 border-2 rounded-xl font-semibold border-slate-300"
                           />
                         </div>
@@ -1583,14 +1780,13 @@ export default function DnevniIzvjestajiPage() {
                           <th className="py-4 px-3 text-right text-xs uppercase tracking-wider font-bold text-slate-700 bg-slate-50">PAX</th>
                           <th className="py-4 px-3 text-right text-xs uppercase tracking-wider font-bold text-slate-700 bg-slate-50">Iznos (EUR)</th>
                           <th className="py-4 px-3 text-right text-xs uppercase tracking-wider font-bold text-slate-700 bg-slate-50">Airport (KM)</th>
-                          <th className="py-4 px-3 text-right text-xs uppercase tracking-wider font-bold text-slate-700 bg-slate-50">Provizija (KM)</th>
                           <th className="py-4 px-3 text-right text-xs uppercase tracking-wider font-bold text-slate-700 rounded-tr-xl bg-slate-50">Akcija</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {report.carriers[carrier].bookings.transactions.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-8 text-center">
+                            <td colSpan={5} className="py-8 text-center">
                               <div className="flex flex-col items-center gap-2">
                                 <div className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-100">
                                   <FileText className="w-6 h-6 text-slate-600" />
@@ -1620,7 +1816,10 @@ export default function DnevniIzvjestajiPage() {
                                   type="number"
                                   min="0"
                                   value={txn.pax}
-                                  onChange={(e) => updateBookingTransaction(carrier, txn.id, { pax: Number(e.target.value) || 0 })}
+                                  onChange={(e) => {
+                                    const pax = Number(e.target.value) || 0;
+                                    updateBookingTransaction(carrier, txn.id, { pax, airportRemunerationKm: pax * 30 });
+                                  }}
                                   className="h-11 text-right border-2 rounded-xl font-semibold border-slate-200"
                                 />
                               ) : (
@@ -1648,25 +1847,11 @@ export default function DnevniIzvjestajiPage() {
                                   step="0.01"
                                   min="0"
                                   value={txn.airportRemunerationKm}
-                                  onChange={(e) => updateBookingTransaction(carrier, txn.id, { airportRemunerationKm: Number(e.target.value) || 0 })}
+                                  readOnly
                                   className="h-11 text-right border-2 rounded-xl font-semibold border-slate-200"
                                 />
                               ) : (
                                 <span className="font-bold text-slate-900">{txn.airportRemunerationKm.toFixed(2)}</span>
-                              )}
-                            </td>
-                            <td className="py-4 px-3 text-right">
-                              {editingCarriers[carrier] ? (
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={txn.commissionKm}
-                                  onChange={(e) => updateBookingTransaction(carrier, txn.id, { commissionKm: Number(e.target.value) || 0 })}
-                                  className="h-11 text-right border-2 rounded-xl font-semibold border-slate-200"
-                                />
-                              ) : (
-                                <span className="font-bold text-slate-900">{txn.commissionKm.toFixed(2)}</span>
                               )}
                             </td>
                             <td className="py-4 px-3 text-right">

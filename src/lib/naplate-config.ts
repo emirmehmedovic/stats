@@ -36,6 +36,12 @@ export type DailyReport = {
   carriers: Record<CarrierKey, CarrierReport>;
   airportServices: ServiceItem[];
   adjustmentsAmount: number;
+  recap?: {
+    cashKm: number;
+    cardsKm: number;
+    updatedAt?: string;
+    updatedBy?: string;
+  };
 };
 
 export type BookingTransaction = {
@@ -96,6 +102,20 @@ export function createServiceItem(overrides?: Partial<ServiceItem>): ServiceItem
   };
 }
 
+function createOtherServices(count = 4): ServiceItem[] {
+  return Array.from({ length: count }, (_, idx) =>
+    createServiceItem({
+      id: `other-${idx + 1}`,
+      label: 'Ostalo',
+      code: `Ostalo ${idx + 1}`,
+      unit: '',
+      price: 0,
+      currency: 'EUR',
+      qty: 0,
+    })
+  );
+}
+
 export function createEmptyCarrierReport(label = ''): CarrierReport {
   return {
     label,
@@ -111,11 +131,20 @@ export function createEmptyDailyReport(date: string): DailyReport {
     carrierOrder: [...defaultCarrierOrder],
     carriers: {
       wizz: createEmptyCarrierReport(carrierLabels.wizz),
-      pegasus: createEmptyCarrierReport(carrierLabels.pegasus),
-      ajet: createEmptyCarrierReport(carrierLabels.ajet),
+      pegasus: {
+        label: carrierLabels.pegasus,
+        services: createOtherServices(4),
+        bookings: { transactions: [] },
+      },
+      ajet: {
+        label: carrierLabels.ajet,
+        services: createOtherServices(4),
+        bookings: { transactions: [] },
+      },
     },
     airportServices: defaultAirportServices.map((item) => ({ ...item })),
     adjustmentsAmount: 0,
+    recap: { cashKm: 0, cardsKm: 0 },
   };
 }
 
@@ -136,18 +165,23 @@ export function getCarrierTotalEur(report: DailyReport, carrier: CarrierKey): nu
 
 export function getAirportTotalKm(report: DailyReport): number {
   const servicesTotal = report.airportServices.reduce((sum, item) => sum + getServiceAmount(item), 0);
+  const carrierServiceItemsKm = Object.keys(report.carriers).reduce((sum, carrier) => {
+    const items = report.carriers[carrier]?.services || [];
+    const qtyTotal = items.reduce((acc, item) => acc + Number(item.qty || 0), 0);
+    return sum + qtyTotal * 10;
+  }, 0);
   const commissions = Object.keys(report.carriers).reduce((sum, carrier) => {
     const totals = getBookingTotals(report, carrier);
-    return sum + totals.airportRemunerationKm + totals.commissionKm;
+    return sum + totals.airportRemunerationKm;
   }, 0);
-  return Number((servicesTotal + report.adjustmentsAmount + commissions).toFixed(2));
+  return Number((servicesTotal + report.adjustmentsAmount + commissions + carrierServiceItemsKm).toFixed(2));
 }
 
 export function getGrandTotalKm(report: DailyReport): number {
   const eurTotal = Object.keys(report.carriers).reduce(
     (sum, carrier) => sum + getCarrierTotalEur(report, carrier),
     0
-  ) * report.fxRateEurToKm;
+  ) * defaultFxRate;
   return Number((eurTotal + getAirportTotalKm(report)).toFixed(2));
 }
 
@@ -188,6 +222,7 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
   const merged: DailyReport = {
     ...base,
     ...data,
+    fxRateEurToKm: defaultFxRate,
     carrierOrder,
     airportServices: Array.isArray(data?.airportServices)
       ? data?.airportServices.map((service: ServiceItem) => ({
@@ -198,13 +233,19 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
     adjustmentsAmount: typeof data?.adjustmentsAmount === 'number'
       ? data.adjustmentsAmount
       : ((data as any)?.extras?.adjustmentsAmount || 0),
+    recap: {
+      cashKm: Number((data as any)?.recap?.cashKm || 0),
+      cardsKm: Number((data as any)?.recap?.cardsKm || 0),
+      updatedAt: (data as any)?.recap?.updatedAt || undefined,
+      updatedBy: (data as any)?.recap?.updatedBy || undefined,
+    },
     carriers: {},
   };
 
   carrierOrder.forEach((carrier) => {
     const incoming = (incomingCarriers as any)[carrier] || {};
     const baseCarrier = base.carriers[carrier] || createEmptyCarrierReport(carrierLabels[carrier] || carrier);
-    const services = Array.isArray(incoming.services)
+    const incomingServices = Array.isArray(incoming.services)
       ? incoming.services.map((service: ServiceItem) => {
           const fallback = createServiceItem();
           return {
@@ -214,6 +255,12 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
           };
         })
       : baseCarrier.services;
+    const isOtherCarrier = carrier === 'pegasus' || carrier === 'ajet';
+    const wizzCodes = new Set(defaultServices.map((service: ServiceItem) => service.code));
+    const hasWizzDefaults = incomingServices.some((service: ServiceItem) => wizzCodes.has(service.code));
+    const services = isOtherCarrier && hasWizzDefaults
+      ? createOtherServices(4)
+      : incomingServices;
 
     merged.carriers[carrier] = {
       ...baseCarrier,

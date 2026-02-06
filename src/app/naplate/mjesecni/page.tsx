@@ -214,6 +214,22 @@ export default function MjesecniIzvjestajiPage() {
     }
   };
 
+  const exportMonthlyPdf = async () => {
+    try {
+      setIsExporting(true);
+      const params = new URLSearchParams({
+        from: rangeFrom,
+        to: rangeTo,
+      });
+      window.open(`/api/naplate/export-monthly-pdf?${params.toString()}`, '_blank');
+    } catch (error: any) {
+      console.error('Monthly PDF export error:', error);
+      showToast(error?.message || 'Greška pri eksportu PDF-a', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-soft-lg p-8 relative overflow-hidden">
@@ -333,6 +349,15 @@ export default function MjesecniIzvjestajiPage() {
                   >
                     <Download className="w-4 h-4" />
                     <span className="flex-1 text-left">Generalni izvještaj</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 hover:bg-blue-50 hover:border-blue-200 transition-all"
+                    disabled={isExporting}
+                    onClick={exportMonthlyPdf}
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="flex-1 text-left">PDF izvještaj</span>
                   </Button>
                 </div>
               </div>
