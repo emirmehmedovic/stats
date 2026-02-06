@@ -176,44 +176,6 @@ export default function MjesecniIzvjestajiPage() {
     return totals || { pax: 0, amountEur: 0, airportRemunerationKm: 0, commissionKm: 0 };
   };
 
-  const exportMonthly = async (mode: 'sky-speed' | 'carrier-airport' | 'general') => {
-    try {
-      setIsExporting(true);
-      const params = new URLSearchParams({
-        from: rangeFrom,
-        to: rangeTo,
-        mode,
-      });
-      if (mode !== 'general') {
-        if (!carrierSelection) {
-          showToast('Odaberite aviokompaniju za eksport', 'error');
-          return;
-        }
-        params.set('carrier', carrierSelection);
-      }
-      const response = await fetch(`/api/naplate/export-monthly?${params.toString()}`);
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data?.error || 'Greška pri eksportu');
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const filename = response.headers.get('Content-Disposition')?.split('filename=')?.[1]?.replace(/"/g, '') || 'mjesecni-izvjestaj.xlsx';
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Monthly export error:', error);
-      showToast(error?.message || 'Greška pri eksportu', 'error');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   const exportMonthlyPdf = async () => {
     try {
       setIsExporting(true);
@@ -224,6 +186,27 @@ export default function MjesecniIzvjestajiPage() {
       window.open(`/api/naplate/export-monthly-pdf?${params.toString()}`, '_blank');
     } catch (error: any) {
       console.error('Monthly PDF export error:', error);
+      showToast(error?.message || 'Greška pri eksportu PDF-a', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportCarrierPdf = async () => {
+    try {
+      if (!carrierSelection) {
+        showToast('Odaberite aviokompaniju za eksport', 'error');
+        return;
+      }
+      setIsExporting(true);
+      const params = new URLSearchParams({
+        from: rangeFrom,
+        to: rangeTo,
+        carrier: carrierSelection,
+      });
+      window.open(`/api/naplate/export-monthly-carrier-pdf?${params.toString()}`, '_blank');
+    } catch (error: any) {
+      console.error('Carrier PDF export error:', error);
       showToast(error?.message || 'Greška pri eksportu PDF-a', 'error');
     } finally {
       setIsExporting(false);
@@ -298,13 +281,13 @@ export default function MjesecniIzvjestajiPage() {
                   <Download className="w-6 h-6 text-blue-600" />
                 </div>
                 <span className="px-3 py-1 bg-dark-50 rounded-full text-[10px] font-bold text-dark-500 uppercase tracking-wide">
-                  XLSX
+                  PDF
                 </span>
               </div>
 
               <div>
                 <h2 className="text-2xl font-bold text-dark-900 mb-1">Eksport mjesečnih izvještaja</h2>
-                <p className="text-sm text-dark-500">Preuzmi izvještaje u različitim formatima</p>
+                <p className="text-sm text-dark-500">Preuzmi PDF izvještaje za odabrani period</p>
               </div>
 
               <div className="space-y-3">
@@ -328,27 +311,10 @@ export default function MjesecniIzvjestajiPage() {
                     variant="outline"
                     className="w-full justify-start gap-2 hover:bg-blue-50 hover:border-blue-200 transition-all"
                     disabled={isExporting}
-                    onClick={() => exportMonthly('sky-speed')}
+                    onClick={exportCarrierPdf}
                   >
                     <Download className="w-4 h-4" />
-                    <span className="flex-1 text-left">Sky speed only</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2 hover:bg-blue-50 hover:border-blue-200 transition-all"
-                    disabled={isExporting}
-                    onClick={() => exportMonthly('carrier-airport')}
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="flex-1 text-left">Wizz + airport format</span>
-                  </Button>
-                  <Button
-                    className="w-full justify-start gap-2 bg-blue-600 hover:bg-blue-700 transition-all"
-                    disabled={isExporting}
-                    onClick={() => exportMonthly('general')}
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="flex-1 text-left">Generalni izvještaj</span>
+                    <span className="flex-1 text-left">PDF izvještaj po aviokompaniji</span>
                   </Button>
                   <Button
                     variant="outline"

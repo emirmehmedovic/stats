@@ -200,7 +200,9 @@ function generatePDFHTML(report: DailyReport): string {
 
   const recapCash = Number(report.recap?.cashKm || 0);
   const recapCards = Number(report.recap?.cardsKm || 0);
-  const recapTotal = recapCash + recapCards;
+  const recapVirman = Number(report.recap?.virmanKm || 0);
+  const recapReklamirani = Number(report.recap?.reklamiraniKm || 0);
+  const recapTotal = recapCash + recapCards + recapVirman - recapReklamirani;
 
   return `
 <!DOCTYPE html>
@@ -294,6 +296,16 @@ function generatePDFHTML(report: DailyReport): string {
         <tr>
           <td>Kartice</td>
           <td class="right">${formatMoney(recapCards)}</td>
+          <td>KM</td>
+        </tr>
+        <tr>
+          <td>Virman</td>
+          <td class="right">${formatMoney(recapVirman)}</td>
+          <td>KM</td>
+        </tr>
+        <tr>
+          <td>Reklamirani iznos</td>
+          <td class="right">-${formatMoney(recapReklamirani)}</td>
           <td>KM</td>
         </tr>
         <tr>

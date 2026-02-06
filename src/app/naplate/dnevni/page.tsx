@@ -41,7 +41,6 @@ export default function DnevniIzvjestajiPage() {
   const [report, setReport] = useState<DailyReport>(() => createEmptyDailyReport(getTodayDateString()));
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [editingCarriers, setEditingCarriers] = useState<Record<CarrierKey, boolean>>({});
@@ -177,32 +176,6 @@ export default function DnevniIzvjestajiPage() {
       showToast(error?.message || 'Greška pri čuvanju izvještaja', 'error');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const exportReport = async () => {
-    try {
-      setIsExporting(true);
-      const response = await fetch(`/api/naplate/export?date=${selectedDate}`);
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data?.error || 'Greška pri eksportu');
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Dnevni-izvjestaj-${selectedDate}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      showToast('Eksport je spreman', 'success');
-    } catch (error: any) {
-      console.error('Export error:', error);
-      showToast(error?.message || 'Greška pri eksportu', 'error');
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -524,6 +497,12 @@ export default function DnevniIzvjestajiPage() {
     () => report.airportServices.reduce((sum, item) => sum + getServiceAmount(item), 0),
     [report.airportServices]
   );
+  const recapTotal = useMemo(() => (
+    (report.recap?.cashKm || 0)
+    + (report.recap?.cardsKm || 0)
+    + (report.recap?.virmanKm || 0)
+    - (report.recap?.reklamiraniKm || 0)
+  ), [report.recap]);
 
   const saveRecap = async () => {
     const now = new Date().toISOString();
@@ -532,6 +511,8 @@ export default function DnevniIzvjestajiPage() {
       recap: {
         cashKm: prev.recap?.cashKm || 0,
         cardsKm: prev.recap?.cardsKm || 0,
+        virmanKm: prev.recap?.virmanKm || 0,
+        reklamiraniKm: prev.recap?.reklamiraniKm || 0,
         updatedAt: now,
         updatedBy: recapUserName || prev.recap?.updatedBy,
       },
@@ -662,10 +643,6 @@ export default function DnevniIzvjestajiPage() {
               <Save className="w-4 h-4 mr-2" />
               {isSaving ? 'Čuvam...' : 'Sačuvaj'}
             </Button>
-            <Button variant="outline" onClick={exportReport} disabled={isExporting}>
-              <FileText className="w-4 h-4 mr-2" />
-              {isExporting ? 'Eksportujem...' : 'Eksport XLSX'}
-            </Button>
             <Button
               variant="outline"
               onClick={() => window.open(`/api/naplate/export-pdf?date=${selectedDate}`, '_blank')}
@@ -706,7 +683,14 @@ export default function DnevniIzvjestajiPage() {
                     const value = Number(e.target.value) || 0;
                     setReport((prev) => ({
                       ...prev,
-                      recap: { cashKm: value, cardsKm: prev.recap?.cardsKm || 0 },
+                      recap: {
+                        cashKm: value,
+                        cardsKm: prev.recap?.cardsKm || 0,
+                        virmanKm: prev.recap?.virmanKm || 0,
+                        reklamiraniKm: prev.recap?.reklamiraniKm || 0,
+                        updatedAt: prev.recap?.updatedAt,
+                        updatedBy: prev.recap?.updatedBy,
+                      },
                     }));
                   }}
                   className="h-12"
@@ -723,7 +707,62 @@ export default function DnevniIzvjestajiPage() {
                     const value = Number(e.target.value) || 0;
                     setReport((prev) => ({
                       ...prev,
-                      recap: { cashKm: prev.recap?.cashKm || 0, cardsKm: value },
+                      recap: {
+                        cashKm: prev.recap?.cashKm || 0,
+                        cardsKm: value,
+                        virmanKm: prev.recap?.virmanKm || 0,
+                        reklamiraniKm: prev.recap?.reklamiraniKm || 0,
+                        updatedAt: prev.recap?.updatedAt,
+                        updatedBy: prev.recap?.updatedBy,
+                      },
+                    }));
+                  }}
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Virman (KM)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={report.recap?.virmanKm ?? 0}
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 0;
+                    setReport((prev) => ({
+                      ...prev,
+                      recap: {
+                        cashKm: prev.recap?.cashKm || 0,
+                        cardsKm: prev.recap?.cardsKm || 0,
+                        virmanKm: value,
+                        reklamiraniKm: prev.recap?.reklamiraniKm || 0,
+                        updatedAt: prev.recap?.updatedAt,
+                        updatedBy: prev.recap?.updatedBy,
+                      },
+                    }));
+                  }}
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Reklamirani iznos (KM)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={report.recap?.reklamiraniKm ?? 0}
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 0;
+                    setReport((prev) => ({
+                      ...prev,
+                      recap: {
+                        cashKm: prev.recap?.cashKm || 0,
+                        cardsKm: prev.recap?.cardsKm || 0,
+                        virmanKm: prev.recap?.virmanKm || 0,
+                        reklamiraniKm: value,
+                        updatedAt: prev.recap?.updatedAt,
+                        updatedBy: prev.recap?.updatedBy,
+                      },
                     }));
                   }}
                   className="h-12"
@@ -731,13 +770,12 @@ export default function DnevniIzvjestajiPage() {
               </div>
 
               {(() => {
-                const recapTotal = (report.recap?.cashKm || 0) + (report.recap?.cardsKm || 0);
                 const diff = Math.abs(recapTotal - grandTotalKm);
                 const isOk = diff <= 2;
                 return (
                   <div className={`rounded-2xl border p-4 text-sm ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
                     <div className="flex items-center justify-between">
-                      <span>Ukupno (Gotovina + Kartice)</span>
+                      <span>Ukupno (Gotovina + Kartice + Virman - Reklamirani)</span>
                       <span className="font-bold">{recapTotal.toFixed(2)} KM</span>
                     </div>
                     <div className="flex items-center justify-between mt-2">
@@ -825,8 +863,16 @@ export default function DnevniIzvjestajiPage() {
                     <span className="font-bold text-white">{(report.recap?.cardsKm || 0).toFixed(2)} KM</span>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Virman)</span>
+                    <span className="font-bold text-white">{(report.recap?.virmanKm || 0).toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Reklamirani iznos</span>
+                    <span className="font-bold text-white">-{(report.recap?.reklamiraniKm || 0).toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
                     <span className="text-dark-200 font-medium">Rekapitulacija ukupno</span>
-                    <span className="font-bold text-white">{((report.recap?.cashKm || 0) + (report.recap?.cardsKm || 0)).toFixed(2)} KM</span>
+                    <span className="font-bold text-white">{recapTotal.toFixed(2)} KM</span>
                   </div>
                   {report.recap?.updatedAt && (
                     <div className="text-xs text-dark-300 mt-2">

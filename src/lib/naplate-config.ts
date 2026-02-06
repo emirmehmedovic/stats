@@ -39,6 +39,8 @@ export type DailyReport = {
   recap?: {
     cashKm: number;
     cardsKm: number;
+    virmanKm: number;
+    reklamiraniKm: number;
     updatedAt?: string;
     updatedBy?: string;
   };
@@ -144,7 +146,7 @@ export function createEmptyDailyReport(date: string): DailyReport {
     },
     airportServices: defaultAirportServices.map((item) => ({ ...item })),
     adjustmentsAmount: 0,
-    recap: { cashKm: 0, cardsKm: 0 },
+    recap: { cashKm: 0, cardsKm: 0, virmanKm: 0, reklamiraniKm: 0 },
   };
 }
 
@@ -236,6 +238,8 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
     recap: {
       cashKm: Number((data as any)?.recap?.cashKm || 0),
       cardsKm: Number((data as any)?.recap?.cardsKm || 0),
+      virmanKm: Number((data as any)?.recap?.virmanKm || 0),
+      reklamiraniKm: Number((data as any)?.recap?.reklamiraniKm || 0),
       updatedAt: (data as any)?.recap?.updatedAt || undefined,
       updatedBy: (data as any)?.recap?.updatedBy || undefined,
     },

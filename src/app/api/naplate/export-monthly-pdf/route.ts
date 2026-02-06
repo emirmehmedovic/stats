@@ -64,8 +64,10 @@ export async function GET(request: NextRequest) {
     const aggregated = aggregateDailyReports(normalized, rangeLabel);
     const recapCash = normalized.reduce((sum, rep) => sum + Number(rep.recap?.cashKm || 0), 0);
     const recapCards = normalized.reduce((sum, rep) => sum + Number(rep.recap?.cardsKm || 0), 0);
+    const recapVirman = normalized.reduce((sum, rep) => sum + Number(rep.recap?.virmanKm || 0), 0);
+    const recapReklamirani = normalized.reduce((sum, rep) => sum + Number(rep.recap?.reklamiraniKm || 0), 0);
 
-    const html = generatePDFHTML(aggregated, rangeLabel, { recapCash, recapCards });
+    const html = generatePDFHTML(aggregated, rangeLabel, { recapCash, recapCards, recapVirman, recapReklamirani });
     const fileName = `Mjesecni-izvjestaj-${from}-${to}.html`;
     const encodedFilename = encodeURIComponent(fileName);
 
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
 function generatePDFHTML(
   report: DailyReport,
   rangeLabel: string,
-  recap: { recapCash: number; recapCards: number }
+  recap: { recapCash: number; recapCards: number; recapVirman: number; recapReklamirani: number }
 ): string {
   const carrierSections = Object.keys(report.carriers).map((carrierKey) => {
     const carrier = report.carriers[carrierKey];
@@ -222,7 +224,9 @@ function generatePDFHTML(
 
   const recapCash = recap.recapCash;
   const recapCards = recap.recapCards;
-  const recapTotal = recapCash + recapCards;
+  const recapVirman = recap.recapVirman;
+  const recapReklamirani = recap.recapReklamirani;
+  const recapTotal = recapCash + recapCards + recapVirman - recapReklamirani;
 
   return `
 <!DOCTYPE html>
@@ -317,6 +321,16 @@ function generatePDFHTML(
         <tr>
           <td>Kartice</td>
           <td class="right">${formatMoney(recapCards)}</td>
+          <td>KM</td>
+        </tr>
+        <tr>
+          <td>Virman</td>
+          <td class="right">${formatMoney(recapVirman)}</td>
+          <td>KM</td>
+        </tr>
+        <tr>
+          <td>Reklamirani iznos</td>
+          <td class="right">-${formatMoney(recapReklamirani)}</td>
           <td>KM</td>
         </tr>
         <tr>
