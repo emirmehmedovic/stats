@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Package,
   DollarSign,
-  Briefcase
+  Briefcase,
+  MapPin
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -212,6 +213,12 @@ const adminItems: MenuItem[] = [
     label: 'Audit log',
     icon: Shield,
     href: '/admin/audit-logs',
+  },
+  {
+    id: 'ac-places',
+    label: 'AC Lokacije',
+    icon: MapPin,
+    href: '/admin/access-control/places',
   },
 ];
 

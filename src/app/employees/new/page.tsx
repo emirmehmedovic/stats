@@ -26,6 +26,15 @@ export default function NewEmployeePage() {
     position: '',
     department: '',
     status: 'ACTIVE',
+    workScheduleType: 'STANDARD',
+    standardStartTime: '08:00',
+    standardEndTime: '16:00',
+    expectedHoursPerDay: '8',
+    shiftStartTime1: '06:00',
+    shiftEndTime1: '14:00',
+    shiftStartTime2: '14:00',
+    shiftEndTime2: '22:00',
+    shiftRotationStart: '',
   });
 
   const handleSubmit = async (e: FormEvent) => {
@@ -185,6 +194,116 @@ export default function NewEmployeePage() {
                 className="mt-1"
               />
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-dark-100 p-6">
+          <h2 className="text-lg font-semibold text-dark-900 mb-6">Radno vrijeme</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="workScheduleType">Tip radnog vremena</Label>
+              <select
+                id="workScheduleType"
+                value={formData.workScheduleType}
+                onChange={(e) => handleChange('workScheduleType', e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="STANDARD">08:00 - 16:00 (Pon-Pet)</option>
+                <option value="SHIFT_WORK">Smjenski rad (2-2-2)</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="expectedHoursPerDay">Očekivani sati po danu</Label>
+              <Input
+                id="expectedHoursPerDay"
+                type="number"
+                min="0"
+                step="0.5"
+                value={formData.expectedHoursPerDay}
+                onChange={(e) => handleChange('expectedHoursPerDay', e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            {formData.workScheduleType === 'STANDARD' ? (
+              <>
+                <div>
+                  <Label htmlFor="standardStartTime">Početak rada</Label>
+                  <Input
+                    id="standardStartTime"
+                    type="time"
+                    value={formData.standardStartTime}
+                    onChange={(e) => handleChange('standardStartTime', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="standardEndTime">Kraj rada</Label>
+                  <Input
+                    id="standardEndTime"
+                    type="time"
+                    value={formData.standardEndTime}
+                    onChange={(e) => handleChange('standardEndTime', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="shiftStartTime1">Prva smjena - početak</Label>
+                  <Input
+                    id="shiftStartTime1"
+                    type="time"
+                    value={formData.shiftStartTime1}
+                    onChange={(e) => handleChange('shiftStartTime1', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shiftEndTime1">Prva smjena - kraj</Label>
+                  <Input
+                    id="shiftEndTime1"
+                    type="time"
+                    value={formData.shiftEndTime1}
+                    onChange={(e) => handleChange('shiftEndTime1', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shiftStartTime2">Druga smjena - početak</Label>
+                  <Input
+                    id="shiftStartTime2"
+                    type="time"
+                    value={formData.shiftStartTime2}
+                    onChange={(e) => handleChange('shiftStartTime2', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shiftEndTime2">Druga smjena - kraj</Label>
+                  <Input
+                    id="shiftEndTime2"
+                    type="time"
+                    value={formData.shiftEndTime2}
+                    onChange={(e) => handleChange('shiftEndTime2', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shiftRotationStart">Početak ciklusa (2-2-2)</Label>
+                  <Input
+                    id="shiftRotationStart"
+                    type="date"
+                    value={formData.shiftRotationStart}
+                    onChange={(e) => handleChange('shiftRotationStart', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 

@@ -1,2 +1,8 @@
 -- Add OPERATIONS role to enum
+DO $$ BEGIN
+    CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MANAGER', 'VIEWER');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'OPERATIONS';

@@ -14,6 +14,18 @@ export const createEmployeeSchema = z.object({
   sectorId: z.string().optional().nullable(),
   photo: z.string().optional().nullable(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'ON_LEAVE']).default('ACTIVE'),
+  workScheduleType: z.enum(['STANDARD', 'SHIFT_WORK']).optional(),
+  standardStartTime: z.string().optional().nullable(),
+  standardEndTime: z.string().optional().nullable(),
+  expectedHoursPerDay: z.preprocess(
+    (value) => (value === '' || value === null || value === undefined ? null : Number(value)),
+    z.number().nonnegative().nullable().optional()
+  ),
+  shiftStartTime1: z.string().optional().nullable(),
+  shiftEndTime1: z.string().optional().nullable(),
+  shiftStartTime2: z.string().optional().nullable(),
+  shiftEndTime2: z.string().optional().nullable(),
+  shiftRotationStart: z.string().optional().nullable(), // ISO date
 });
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();

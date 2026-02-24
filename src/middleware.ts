@@ -62,10 +62,11 @@ export async function middleware(request: NextRequest) {
     const publicApiRoutes = ['/api/auth/login', '/api/auth/logout', '/api/auth/session'];
     const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
     const isCronRoute = pathname.startsWith('/api/cron/');
+    const isAccessControlRoute = pathname.startsWith('/api/access-control/');
 
     const method = request.method.toUpperCase();
     const isWriteMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method);
-    if (isWriteMethod && !isPublicApiRoute && !isCronRoute) {
+    if (isWriteMethod && !isPublicApiRoute && !isCronRoute && !isAccessControlRoute) {
       const origin = request.headers.get('origin');
       const referer = request.headers.get('referer');
       const allowedOrigins = [
@@ -92,7 +93,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    if (isPublicApiRoute || isCronRoute) {
+    if (isPublicApiRoute || isCronRoute || isAccessControlRoute) {
       const response = NextResponse.next();
       return applySecurityHeaders(ensureCsrfCookie(response));
     }

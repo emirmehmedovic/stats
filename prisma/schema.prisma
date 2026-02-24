@@ -98,6 +98,29 @@ enum ReportStatus {
   FAILED
 }
 
+enum WorkScheduleType {
+  STANDARD     // Standardno radno vrijeme (npr. 08:00-16:00)
+  SHIFT_WORK   // Smjenski rad (druga smjena, noćna, itd.)
+}
+
+enum PlaceType {
+  ENTRY_EXIT   // Ulaz/Izlaz - računa se kao check-in/check-out
+  INTERNAL     // Interno kretanje - ne računa se
+}
+
+enum WorkDayStatus {
+  IN_PROGRESS   // Radnik je trenutno na poslu
+  COMPLETED     // Radni dan završen
+  INCOMPLETE    // Nedostaje check-out
+  ABSENT        // Nije došao na posao
+}
+
+enum OvertimeStatus {
+  PENDING       // Čeka approval
+  APPROVED      // Odobreno
+  REJECTED      // Odbijeno
+}
+
 // ---------------------------------------------------------
 // MODUL 1 - STATISTIKA SAOBRAĆAJA
 // ---------------------------------------------------------
@@ -492,10 +515,25 @@ model Employee {
   jobPositionId  String?
   photo          String?               // URL to photo
   status         String                @default("ACTIVE") // ACTIVE, INACTIVE, ON_LEAVE
+
+  // Work Schedule Configuration
+  workScheduleType    WorkScheduleType  @default(STANDARD)  // STANDARD (08-16) ili SHIFT_WORK
+  standardStartTime   String?           // npr. "08:00" za standardno radno vrijeme
+  standardEndTime     String?           // npr. "16:00" za standardno radno vrijeme
+  expectedHoursPerDay Decimal?          @default(8.0)       // Očekivano sati po danu
+  shiftStartTime1     String?           // npr. "06:00" za prvu smjenu
+  shiftEndTime1       String?           // npr. "14:00" za prvu smjenu
+  shiftStartTime2     String?           // npr. "14:00" za drugu smjenu
+  shiftEndTime2       String?           // npr. "22:00" za drugu smjenu
+  shiftRotationStart  DateTime? @db.Date // Datum od kojeg kreće 2-2-2 ciklus
+
+  // Relacije
   licenses       License[]
   documents      EmployeeDocument[]
   notifications  LicenseNotification[]
   equipmentAssignments EquipmentAssignment[]
+  accessControlMappings AccessControlMapping[]
+  workDays       WorkDay[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -634,6 +672,237 @@ model LicenseNotification {
 
   @@index([employeeId])
   @@index([licenseId])
+}
+
+// ---------------------------------------------------------
+// MODUL 3 - ACCESS CONTROL
+// ---------------------------------------------------------
+
+// Access Control User - sync sa SQLite Users tabele
+model AccessControlUser {
+  id              String   @id @default(cuid())
+  externalUserId  Int      @unique // UserId iz SQLite
+  firstname       String?
+  lastname        String?
+  card            String?
+  deleted         Boolean  @default(false)
+
+  // Veze
+  events          AccessControlEvent[]
+  mappings        AccessControlMapping[]
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSyncAt      DateTime @default(now())
+
+  @@index([externalUserId])
+  @@index([lastname, firstname])
+  @@map("access_control_users")
+}
+
+// Access Control Place - lokacije čitača
+model AccessControlPlace {
+  id              String   @id @default(cuid())
+  externalPlaceId Int      @unique // PlaceId iz SQLite
+  placeName       String
+
+  // Veze
+  events          AccessControlEvent[]
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSyncAt      DateTime @default(now())
+
+  @@index([externalPlaceId])
+  @@map("access_control_places")
+}
+
+// Access Control Event - hardware events
+model AccessControlEvent {
+  id                String   @id @default(cuid())
+  externalEventId   Int      @unique // Id iz HardwareEvents
+
+  // Foreign keys
+  userId            String?
+  user              AccessControlUser? @relation(fields: [userId], references: [id])
+  placeId           String?
+  place             AccessControlPlace? @relation(fields: [placeId], references: [id])
+
+  // Event data
+  eventTime         DateTime
+  eventId           Int?      // EventId iz HardwareEvents (20, 22, etc.)
+  controllerId      Int?
+  reader            Int?
+  userToken         String?
+  username          String?
+  userLastname      String?
+
+  // Raw data (JSON za buduće potrebe)
+  rawData           Json?
+
+  // Relacije
+  workDayEvents     WorkDayEvent[]
+
+  // Audit
+  createdAt         DateTime @default(now())
+  syncedAt          DateTime @default(now())
+
+  @@index([userId, eventTime])
+  @@index([placeId, eventTime])
+  @@index([eventTime])
+  @@map("access_control_events")
+}
+
+// Sync Log - praćenje sinhronizacija
+model AccessControlSyncLog {
+  id              String    @id @default(cuid())
+  status          String    // SUCCESS, ERROR, PARTIAL
+  recordsSynced   Int       @default(0)
+  recordsInserted Int       @default(0)
+  recordsUpdated  Int       @default(0)
+  recordsFailed   Int       @default(0)
+  errorMessage    String?   @db.Text
+  syncDuration    Int?      // u milisekundama
+
+  // Metadata
+  sourceDatabase  String?   // Path to SQLite db
+  lastEventTime   DateTime? // Posljednji EventTime u batch-u
+
+  createdAt       DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("access_control_sync_logs")
+}
+
+// ---------------------------------------------------------
+// WORK TIME TRACKING
+// ---------------------------------------------------------
+
+// Employee ↔ Access Control User Mapping
+model AccessControlMapping {
+  id                   String   @id @default(cuid())
+
+  // Employee veza
+  employeeId           String
+  employee             Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Access Control User veza
+  accessControlUserId  String
+  accessControlUser    AccessControlUser @relation(fields: [accessControlUserId], references: [id])
+
+  // Metadata
+  isPrimary            Boolean  @default(true)  // Glavna kartica
+  isActive             Boolean  @default(true)  // Aktivna kartica
+  assignedAt           DateTime @default(now())
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([employeeId, accessControlUserId])
+  @@index([employeeId])
+  @@index([accessControlUserId])
+  @@map("access_control_mappings")
+}
+
+// Place Configuration - Tipovi lokacija
+model PlaceConfiguration {
+  id              String     @id @default(cuid())
+  externalPlaceId Int        @unique  // PlaceId iz Access Control
+
+  // Konfiguracija
+  type            PlaceType
+  name            String
+  description     String?
+
+  // Metadata
+  isActive        Boolean    @default(true)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([type])
+  @@index([externalPlaceId])
+  @@map("place_configurations")
+}
+
+// Work Day - Evidencija radnog dana
+model WorkDay {
+  id              String         @id @default(cuid())
+
+  // Employee veza
+  employeeId      String
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Radni dan info
+  date            DateTime       @db.Date  // Datum radnog dana
+  checkInTime     DateTime?      // Prvi ulaz (entry_exit event)
+  checkOutTime    DateTime?      // Posljednji izlaz (entry_exit event)
+
+  // Expected times (za računanje late/early)
+  expectedStartTime DateTime?    // Očekivano vrijeme početka
+  expectedEndTime   DateTime?    // Očekivano vrijeme završetka
+
+  // Računanje vremena
+  totalHours       Decimal?   @db.Decimal(5, 2)  // Ukupno sati (check-out - check-in)
+  expectedHours    Decimal?   @db.Decimal(5, 2)  // Očekivano sati
+  lateMinutes      Int?       @default(0)        // Kasnjenje u minutama
+  earlyLeaveMinutes Int?      @default(0)        // Ranije napuštanje u minutama
+
+  // Overtime
+  overtimeMinutes  Int?       @default(0)        // Prekovremeni rad u minutama
+  overtimeStatus   OvertimeStatus?               // Status overtime-a
+  overtimeApprovedBy String?                     // Ko je odobrio
+  overtimeApprovedAt DateTime?                   // Kada je odobreno
+  overtimeNotes    String?    @db.Text           // Razlog/napomena
+
+  // Status
+  status           WorkDayStatus  @default(IN_PROGRESS)
+
+  // Napomene
+  notes            String?    @db.Text
+  isManualEntry    Boolean    @default(false)    // Da li je ručno unesen
+  manualEntryBy    String?                        // Ko je ručno unio
+
+  // Relacije
+  events           WorkDayEvent[]                 // Svi eventi tog dana
+
+  // Audit
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  calculatedAt     DateTime?                      // Kada je izračunato
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+  @@index([date])
+  @@index([status])
+  @@index([employeeId, status])
+  @@map("work_days")
+}
+
+// Work Day Event - Link između WorkDay i AccessControlEvent
+model WorkDayEvent {
+  id              String              @id @default(cuid())
+
+  workDayId       String
+  workDay         WorkDay             @relation(fields: [workDayId], references: [id], onDelete: Cascade)
+
+  eventId         String
+  event           AccessControlEvent  @relation(fields: [eventId], references: [id])
+
+  // Event tip
+  isCheckIn       Boolean             @default(false)  // Da li je ovo check-in
+  isCheckOut      Boolean             @default(false)  // Da li je ovo check-out
+  isInternal      Boolean             @default(true)   // Interno kretanje
+
+  createdAt       DateTime            @default(now())
+
+  @@index([workDayId])
+  @@index([eventId])
+  @@unique([workDayId, eventId])
+  @@map("work_day_events")
 }
 
 // ---------------------------------------------------------

@@ -24,6 +24,7 @@ import {
   Shield,
   Briefcase,
   DollarSign,
+  MapPin,
 } from 'lucide-react';
 
 interface NavItem {
@@ -147,6 +148,8 @@ const adminSection: NavSection = {
   items: [
     { label: 'Admin Panel', href: '/admin/users', icon: Settings2 },
     { label: 'Audit log', href: '/admin/audit-logs', icon: Shield },
+    { label: 'Access Control', href: '/access-control', icon: Shield },
+    { label: 'AC Lokacije', href: '/admin/access-control/places', icon: MapPin },
   ],
 };
 
