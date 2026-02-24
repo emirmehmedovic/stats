@@ -11,7 +11,7 @@ CREATE TYPE "WorkDayStatus" AS ENUM ('IN_PROGRESS', 'COMPLETED', 'INCOMPLETE', '
 CREATE TYPE "OvertimeStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- AlterTable - Add work schedule fields to Employee
-ALTER TABLE "employees" ADD COLUMN "workScheduleType" "WorkScheduleType" NOT NULL DEFAULT 'STANDARD',
+ALTER TABLE "Employee" ADD COLUMN "workScheduleType" "WorkScheduleType" NOT NULL DEFAULT 'STANDARD',
 ADD COLUMN "standardStartTime" TEXT,
 ADD COLUMN "standardEndTime" TEXT,
 ADD COLUMN "expectedHoursPerDay" DECIMAL(5,2) DEFAULT 8.0;
@@ -129,13 +129,13 @@ CREATE INDEX "work_day_events_eventId_idx" ON "work_day_events"("eventId");
 CREATE UNIQUE INDEX "work_day_events_workDayId_eventId_key" ON "work_day_events"("workDayId", "eventId");
 
 -- AddForeignKey
-ALTER TABLE "access_control_mappings" ADD CONSTRAINT "access_control_mappings_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "access_control_mappings" ADD CONSTRAINT "access_control_mappings_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "access_control_mappings" ADD CONSTRAINT "access_control_mappings_accessControlUserId_fkey" FOREIGN KEY ("accessControlUserId") REFERENCES "access_control_users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "work_days" ADD CONSTRAINT "work_days_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "work_days" ADD CONSTRAINT "work_days_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "work_day_events" ADD CONSTRAINT "work_day_events_workDayId_fkey" FOREIGN KEY ("workDayId") REFERENCES "work_days"("id") ON DELETE CASCADE ON UPDATE CASCADE;
