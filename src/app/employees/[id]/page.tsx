@@ -23,6 +23,7 @@ import EditLicenseModal from '@/components/employees/EditLicenseModal';
 import { LicenseDocuments } from '@/components/employees/LicenseDocuments';
 import { DocumentsSection } from '@/components/employees/DocumentsSection';
 import { ActivitySection } from '@/components/employees/ActivitySection';
+import { WorkTimeSection } from '@/components/employees/WorkTimeSection';
 import { showToast } from '@/components/ui/toast';
 import { dateOnlyToUtc, formatDateDisplay, getDateStringInTimeZone, getTodayDateString, TIME_ZONE_SARAJEVO } from '@/lib/dates';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -92,12 +93,16 @@ export default function EmployeeDetailPage() {
   const [error, setError] = useState('');
   const [photoError, setPhotoError] = useState(false);
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'licenses' | 'documents' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'licenses' | 'documents' | 'activity' | 'work-time'>('overview');
   const [isAddLicenseModalOpen, setIsAddLicenseModalOpen] = useState(false);
   const [editingLicense, setEditingLicense] = useState<License | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployee();
+    // Get user role from localStorage
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
   }, [employeeId]);
 
   const fetchEmployee = async () => {
@@ -383,6 +388,25 @@ export default function EmployeeDetailPage() {
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t" />
                 )}
               </button>
+
+              {userRole === 'ADMIN' && (
+                <button
+                  onClick={() => setActiveTab('work-time')}
+                  className={`px-6 py-4 font-medium transition-all relative ${
+                    activeTab === 'work-time'
+                      ? 'text-blue-600'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Evidencija radnog vremena</span>
+                  </div>
+                  {activeTab === 'work-time' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t" />
+                  )}
+                </button>
+              )}
             </div>
             </div>
           </div>
@@ -416,6 +440,7 @@ export default function EmployeeDetailPage() {
         <div className="px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sidebar */}
+          {activeTab !== 'work-time' && (
           <div className="lg:col-span-1">
             <div className="bg-white rounded-3xl shadow-soft p-8 space-y-8 sticky top-24 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white/70 to-indigo-100/30 opacity-70 group-hover:opacity-90 transition-all"></div>
@@ -516,9 +541,10 @@ export default function EmployeeDetailPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className={activeTab === 'work-time' ? 'lg:col-span-3' : 'lg:col-span-2'}>
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-3xl shadow-soft p-8 relative overflow-hidden group">
@@ -749,6 +775,10 @@ export default function EmployeeDetailPage() {
 
             {activeTab === 'activity' && (
               <ActivitySection employeeId={employeeId} employee={employee} />
+            )}
+
+            {activeTab === 'work-time' && userRole === 'ADMIN' && (
+              <WorkTimeSection employeeId={employeeId} />
             )}
           </div>
         </div>

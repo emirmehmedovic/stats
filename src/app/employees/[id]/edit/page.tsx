@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Upload, X, Camera } from 'lucide-react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Save, Upload, X, Camera, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,12 +32,23 @@ type Employee = {
   sectorId: string | null;
   photo: string | null;
   status: string;
+  workScheduleType: 'STANDARD' | 'SHIFT_WORK';
+  standardStartTime: string | null;
+  standardEndTime: string | null;
+  expectedHoursPerDay: number | null;
+  shiftStartTime1: string | null;
+  shiftEndTime1: string | null;
+  shiftStartTime2: string | null;
+  shiftEndTime2: string | null;
+  shiftRotationStart: string | null;
 };
 
 export default function EmployeeEditPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const employeeId = params.id as string;
+  const isWorkTimeOnly = searchParams.get('section') === 'work-time';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -59,6 +70,15 @@ export default function EmployeeEditPage() {
     position: '',
     sectorId: '',
     status: 'ACTIVE',
+    workScheduleType: 'STANDARD',
+    standardStartTime: '08:00',
+    standardEndTime: '16:00',
+    expectedHoursPerDay: '8',
+    shiftStartTime1: '06:00',
+    shiftEndTime1: '14:00',
+    shiftStartTime2: '14:00',
+    shiftEndTime2: '22:00',
+    shiftRotationStart: '',
   });
 
   useEffect(() => {
@@ -71,21 +91,30 @@ export default function EmployeeEditPage() {
       const response = await fetch(`/api/employees/${employeeId}`);
       const result = await response.json();
 
-      if (result.success) {
-        const emp = result.data;
-        setEmployee(emp);
-        setFormData({
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          email: emp.email,
-          phone: emp.phone || '',
-          nationalId: emp.nationalId || '',
-          dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
-          hireDate: emp.hireDate.split('T')[0],
-          position: emp.position,
-          sectorId: emp.sectorId || '',
-          status: emp.status,
-        });
+        if (result.success) {
+          const emp = result.data;
+          setEmployee(emp);
+          setFormData({
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            email: emp.email,
+            phone: emp.phone || '',
+            nationalId: emp.nationalId || '',
+            dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
+            hireDate: emp.hireDate.split('T')[0],
+            position: emp.position,
+            sectorId: emp.sectorId || '',
+            status: emp.status,
+            workScheduleType: emp.workScheduleType || 'STANDARD',
+            standardStartTime: emp.standardStartTime || '08:00',
+            standardEndTime: emp.standardEndTime || '16:00',
+            expectedHoursPerDay: emp.expectedHoursPerDay?.toString() || '8',
+            shiftStartTime1: emp.shiftStartTime1 || '06:00',
+            shiftEndTime1: emp.shiftEndTime1 || '14:00',
+            shiftStartTime2: emp.shiftStartTime2 || '14:00',
+            shiftEndTime2: emp.shiftEndTime2 || '22:00',
+            shiftRotationStart: emp.shiftRotationStart ? emp.shiftRotationStart.split('T')[0] : '',
+          });
         if (emp.photo) {
           setPhotoPreview(emp.photo);
         }
@@ -242,9 +271,9 @@ export default function EmployeeEditPage() {
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="font-medium">Nazad na profil</span>
+            <span className="font-medium">{isWorkTimeOnly ? 'Nazad na evidenciju' : 'Nazad na profil'}</span>
           </button>
-          <h1 className="text-3xl font-bold text-slate-900">Uredi radnika</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{isWorkTimeOnly ? 'Podesi smjene' : 'Uredi radnika'}</h1>
           <p className="text-slate-600 mt-1">
             {employee.firstName} {employee.lastName}
           </p>
@@ -252,7 +281,7 @@ export default function EmployeeEditPage() {
 
         <form onSubmit={handleSubmit} className="max-w-4xl">
           <div className="space-y-6">
-            {/* Photo Upload Section */}
+            {!isWorkTimeOnly && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Profilna slika</h3>
               <div className="flex items-center gap-6">
@@ -303,8 +332,9 @@ export default function EmployeeEditPage() {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Basic Information */}
+            {!isWorkTimeOnly && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Osnovne informacije</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -375,8 +405,9 @@ export default function EmployeeEditPage() {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Employment Details */}
+            {!isWorkTimeOnly && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Detalji zaposlenja</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -433,6 +464,170 @@ export default function EmployeeEditPage() {
                     <option value="ON_LEAVE">Na odsustvu</option>
                   </select>
                 </div>
+              </div>
+            </div>
+            )}
+
+            <div className="bg-white rounded-3xl shadow-soft border-[6px] border-white p-8 relative overflow-hidden group" id="work-time-settings">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white/70 to-indigo-100/50 opacity-70 group-hover:opacity-90 transition-all pointer-events-none rounded-3xl"></div>
+              <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-all pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-60 group-hover:opacity-90 transition-all pointer-events-none"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-blue-100 rounded-2xl shadow-soft">
+                    <Clock className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-dark-900">Radno vrijeme i smjene</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="workScheduleType" className="text-sm font-bold text-dark-700">Tip radnog vremena</Label>
+                    <select
+                      id="workScheduleType"
+                      value={formData.workScheduleType}
+                      onChange={(e) => handleChange('workScheduleType', e.target.value)}
+                      className="mt-2 w-full px-4 py-3 border-2 border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                    >
+                      <option value="STANDARD">08:00 - 16:00 (Pon-Pet)</option>
+                      <option value="SHIFT_WORK">Smjenski rad (2-2-2)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="expectedHoursPerDay" className="text-sm font-bold text-dark-700">Očekivani sati po danu</Label>
+                    <Input
+                      id="expectedHoursPerDay"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={formData.expectedHoursPerDay}
+                      onChange={(e) => handleChange('expectedHoursPerDay', e.target.value)}
+                      className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                    />
+                  </div>
+
+                {formData.workScheduleType === 'STANDARD' ? (
+                  <div className="col-span-full">
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-soft border-2 border-green-200">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-green-100 rounded-xl">
+                          <Clock className="w-4 h-4 text-green-600" />
+                        </div>
+                        <h4 className="font-bold text-dark-900">Standardno radno vrijeme</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="standardStartTime" className="text-sm font-bold text-dark-700">Početak rada</Label>
+                          <Input
+                            id="standardStartTime"
+                            type="time"
+                            value={formData.standardStartTime}
+                            onChange={(e) => handleChange('standardStartTime', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="standardEndTime" className="text-sm font-bold text-dark-700">Kraj rada</Label>
+                          <Input
+                            id="standardEndTime"
+                            type="time"
+                            value={formData.standardEndTime}
+                            onChange={(e) => handleChange('standardEndTime', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="col-span-full space-y-4">
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-soft border-2 border-blue-200">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-blue-100 rounded-xl">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <h4 className="font-bold text-dark-900">Prva smjena</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="shiftStartTime1" className="text-sm font-bold text-dark-700">Početak</Label>
+                          <Input
+                            id="shiftStartTime1"
+                            type="time"
+                            value={formData.shiftStartTime1}
+                            onChange={(e) => handleChange('shiftStartTime1', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="shiftEndTime1" className="text-sm font-bold text-dark-700">Kraj</Label>
+                          <Input
+                            id="shiftEndTime1"
+                            type="time"
+                            value={formData.shiftEndTime1}
+                            onChange={(e) => handleChange('shiftEndTime1', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-soft border-2 border-violet-200">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-violet-100 rounded-xl">
+                          <Clock className="w-4 h-4 text-violet-600" />
+                        </div>
+                        <h4 className="font-bold text-dark-900">Druga smjena</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="shiftStartTime2" className="text-sm font-bold text-dark-700">Početak</Label>
+                          <Input
+                            id="shiftStartTime2"
+                            type="time"
+                            value={formData.shiftStartTime2}
+                            onChange={(e) => handleChange('shiftStartTime2', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="shiftEndTime2" className="text-sm font-bold text-dark-700">Kraj</Label>
+                          <Input
+                            id="shiftEndTime2"
+                            type="time"
+                            value={formData.shiftEndTime2}
+                            onChange={(e) => handleChange('shiftEndTime2', e.target.value)}
+                            className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-soft border-2 border-orange-200">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-orange-100 rounded-xl">
+                          <Calendar className="w-4 h-4 text-orange-600" />
+                        </div>
+                        <h4 className="font-bold text-dark-900">Rotacija</h4>
+                      </div>
+                      <div>
+                        <Label htmlFor="shiftRotationStart" className="text-sm font-bold text-dark-700">Početak ciklusa (2-2-2)</Label>
+                        <Input
+                          id="shiftRotationStart"
+                          type="date"
+                          value={formData.shiftRotationStart}
+                          onChange={(e) => handleChange('shiftRotationStart', e.target.value)}
+                          className="mt-2 border-2 border-dark-200 rounded-xl shadow-soft hover:shadow-soft-lg transition-all font-medium"
+                        />
+                        <p className="text-xs text-dark-500 mt-2">
+                          Ciklus: 2 dana prva smjena → 2 dana slobodno → 2 dana druga smjena
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               </div>
             </div>
 

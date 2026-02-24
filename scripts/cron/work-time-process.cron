@@ -1,0 +1,2 @@
+# Daily work-time processing at 04:00
+0 4 * * * cd /Users/emir_mw/stats && WORK_TIME_API_KEY=your-api-key /usr/local/bin/npm run work-time:process >> /var/log/work-time-process.log 2>&1

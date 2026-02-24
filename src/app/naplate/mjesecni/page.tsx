@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { CalendarRange, Download, ChevronDown, Users, Euro, Wallet, TrendingUp, Plane, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { CalendarRange, Download, ChevronDown, Users, TrendingUp, Plane, BarChart3, PieChart as PieChartIcon, Euro, Wallet } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +104,45 @@ export default function MjesecniIzvjestajiPage() {
     () => report.airportServices.reduce((sum, item) => sum + getServiceAmount(item), 0),
     [report.airportServices]
   );
+  const recapTotals = useMemo(() => (
+    dailyReports.reduce(
+      (acc, rep) => {
+        acc.cash += Number(rep.recap?.cashKm || 0);
+        acc.cards += Number(rep.recap?.cardsKm || 0);
+        acc.virman += Number(rep.recap?.virmanKm || 0);
+        acc.reklamirani += Number(rep.recap?.reklamiraniKm || 0);
+        return acc;
+      },
+      { cash: 0, cards: 0, virman: 0, reklamirani: 0 }
+    )
+  ), [dailyReports]);
+  const recapTotal = useMemo(
+    () => recapTotals.cash + recapTotals.cards + recapTotals.virman - recapTotals.reklamirani,
+    [recapTotals]
+  );
+  const recapLast: { at: string; ts: number; by?: string } | null = useMemo(() => {
+    let latest: { at: string; ts: number; by?: string } | null = null;
+    dailyReports.forEach((rep) => {
+      const updatedAt = rep.recap?.updatedAt;
+      if (!updatedAt) return;
+      const ts = new Date(updatedAt).getTime();
+      if (!latest || ts > latest.ts) {
+        latest = { at: updatedAt, ts, by: rep.recap?.updatedBy };
+      }
+    });
+    return latest;
+  }, [dailyReports]);
+  const recapLastSafe = recapLast as { at: string; ts: number; by?: string } | null;
+  const recapLastFormatted = useMemo(() => {
+    if (!recapLastSafe) return null;
+    const date = new Date(recapLastSafe.at);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `Zadnja provjera: ${dd}.${mm}.${yyyy} ${hh}:${min}`;
+  }, [recapLastSafe]);
 
   // Chart data
   const pieChartData = useMemo(() => {
@@ -330,47 +369,89 @@ export default function MjesecniIzvjestajiPage() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl p-6 text-white shadow-soft-xl hover:shadow-2xl transition-all group relative overflow-hidden border-[6px] border-dark-800">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:opacity-10 group-hover:scale-110 transition-all"></div>
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-12 -mb-12 group-hover:opacity-20 group-hover:scale-110 transition-all"></div>
+          <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl border border-dark-700 shadow-soft-xl p-7 space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-12 -mb-12"></div>
 
-            <div className="relative z-10 space-y-5">
-              <div className="flex justify-between items-start">
-                <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md group-hover:scale-110 transition-transform">
-                  <TrendingUp className="w-6 h-6 text-white" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+                  <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold text-white uppercase tracking-wide backdrop-blur-md">
-                  TOTALI
-                </span>
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-1">Ukupni promet</h2>
-                <p className="text-sm text-dark-200">Sveukupni pregled naplate</p>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Finansijski sažetak</h2>
+                  <p className="text-xs text-dark-300 uppercase tracking-wide">Mjesečni period</p>
+                </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2">
-                    <Euro className="w-4 h-4 text-green-300" />
-                    <span className="text-dark-200">Ukupno EUR</span>
+                {carrierKeys.map((carrier) => (
+                  <div key={carrier} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-primary-400"></div>
+                      <span className="text-dark-200 font-medium">{report.carriers[carrier]?.label || carrierLabels[carrier] || carrier}</span>
+                    </div>
+                    <span className="font-bold text-white">{getCarrierTotalEur(report, carrier).toFixed(2)} EUR</span>
                   </div>
-                  <span className="font-bold text-white text-lg">{totalEur.toFixed(2)}</span>
+                ))}
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10 mt-4">
+                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno EUR</span>
+                  <span className="font-bold text-2xl text-white">{totalEur.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-blue-300" />
-                    <span className="text-dark-200">Airport Tuzla (KM)</span>
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/10">
+                  <span className="font-bold text-dark-200 uppercase tracking-wide text-xs">Ukupno KM</span>
+                  <span className="font-bold text-2xl text-white">{grandTotalKm.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <span className="text-dark-200 font-medium">Airport Tuzla (KM)</span>
+                  <span className="font-bold text-blue-200">{totalAirportKm.toFixed(2)} KM</span>
+                </div>
+                <div className="rounded-2xl bg-emerald-500/15 border border-emerald-300/40 p-3 shadow-soft">
+                  <div className="text-[11px] uppercase tracking-wider font-bold text-emerald-200 mb-2">
+                    Rekapitulacija
                   </div>
-                  <span className="font-bold text-blue-200 text-lg">{totalAirportKm.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-white/15 to-white/5 border border-white/20 hover:from-white/20 hover:to-white/10 transition-all">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-green-300" />
-                    <span className="uppercase tracking-wide text-xs font-bold text-dark-300">Ukupno KM</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Gotovina)</span>
+                    <span className="font-bold text-white">{recapTotals.cash.toFixed(2)} KM</span>
                   </div>
-                  <span className="font-bold text-3xl text-white">{grandTotalKm.toFixed(2)}</span>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Kartice)</span>
+                    <span className="font-bold text-white">{recapTotals.cards.toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija (Virman)</span>
+                    <span className="font-bold text-white">{recapTotals.virman.toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Reklamirani iznos</span>
+                    <span className="font-bold text-white">-{recapTotals.reklamirani.toFixed(2)} KM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-dark-200 font-medium">Rekapitulacija ukupno</span>
+                    <span className="font-bold text-white">{recapTotal.toFixed(2)} KM</span>
+                  </div>
+                  {recapLastSafe && (
+                    <div className="text-xs text-dark-300 mt-2">
+                      {recapLastFormatted}{recapLastSafe.by ? ` — ${recapLastSafe.by}` : ''}
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <Label className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-primary-400 rounded-full"></span>
+                  Kurs EUR → KM
+                </Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  value={report.fxRateEurToKm}
+                  readOnly
+                  className="h-12 bg-white/10 border border-white/20 text-white font-bold text-lg text-center rounded-2xl"
+                />
               </div>
             </div>
           </div>
