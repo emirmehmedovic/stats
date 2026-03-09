@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Plane, Clock, Users, Package, Mail, Calendar, Building2, MapPin, Settings, AlertCircle, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ type Flight = {
   arrivalScheduledTime: string | null;
   arrivalActualTime: string | null;
   arrivalEnginesOffTime: string | null;
+  arrivalStatus?: string | null;
   arrivalPassengers: number | null;
   arrivalLoadFactor: number | null;
   arrivalFerryIn: boolean;
@@ -60,6 +61,7 @@ type Flight = {
   departureFlightNumber: string | null;
   departureScheduledTime: string | null;
   departureActualTime: string | null;
+  departureStatus?: string | null;
   departurePassengers: number | null;
   departureLoadFactor: number | null;
   departureFerryOut: boolean;
@@ -125,6 +127,8 @@ export default function FlightDataEntryPage() {
   const [isArrivalExpanded, setIsArrivalExpanded] = useState(false);
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null>(null);
   const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
+  const airlinesRequestSeq = useRef(0);
+  const aircraftTypesRequestSeq = useRef(0);
 
   const [formData, setFormData] = useState({
     // Basic info (editable)
@@ -187,8 +191,7 @@ export default function FlightDataEntryPage() {
     : '';
   const maxTodayDateTimeLocal = `${getTodayDateString()}T23:59`;
 
-  // Check if arrival or departure data exists
-  const hasArrivalData = flight && (
+  const hasArrivalValues = !!flight && (
     flight.arrivalFlightNumber ||
     flight.arrivalScheduledTime ||
     flight.arrivalActualTime ||
@@ -199,8 +202,7 @@ export default function FlightDataEntryPage() {
     flight.arrivalCargo !== null ||
     flight.arrivalMail !== null
   );
-
-  const hasDepartureData = flight && (
+  const hasDepartureValues = !!flight && (
     flight.departureFlightNumber ||
     flight.departureScheduledTime ||
     flight.departureActualTime ||
@@ -210,6 +212,8 @@ export default function FlightDataEntryPage() {
     flight.departureCargo !== null ||
     flight.departureMail !== null
   );
+  const hasArrivalData = !!flight && (flight.arrivalStatus !== 'NOT_OPERATED' || hasArrivalValues);
+  const hasDepartureData = !!flight && (flight.departureStatus !== 'NOT_OPERATED' || hasDepartureValues);
 
   useEffect(() => {
     fetchFormData();
@@ -298,6 +302,7 @@ export default function FlightDataEntryPage() {
   }, [flight]);
 
   const fetchAirlines = async (search?: string) => {
+    const requestSeq = ++airlinesRequestSeq.current;
     try {
       const allAirlines: Array<{ id: string; name: string; icaoCode: string }> = [];
       let page = 1;
@@ -321,13 +326,25 @@ export default function FlightDataEntryPage() {
         page += 1;
       }
 
-      setAirlines(allAirlines);
+      const selectedAirline = airlines.find((airline) => airline.id === formData.airlineId);
+      const airlinesList =
+        selectedAirline && !allAirlines.find((airline) => airline.id === selectedAirline.id)
+          ? [selectedAirline, ...allAirlines]
+          : allAirlines;
+
+      // Ignore stale responses from older searches
+      if (requestSeq !== airlinesRequestSeq.current) {
+        return;
+      }
+
+      setAirlines(airlinesList);
     } catch (error) {
       console.error('Error fetching airlines:', error);
     }
   };
 
   const fetchAircraftTypes = async (search?: string) => {
+    const requestSeq = ++aircraftTypesRequestSeq.current;
     try {
       const params = new URLSearchParams();
       if (search) {
@@ -338,7 +355,29 @@ export default function FlightDataEntryPage() {
       if (!res.ok) return;
 
       const data = await res.json();
-      setAircraftTypes(data.data || []);
+      let aircraftTypesList = data.data || [];
+
+      const selectedAircraftType =
+        aircraftTypes.find((type) => type.id === formData.aircraftTypeId) ||
+        (flight?.aircraftType && flight.aircraftType.id === formData.aircraftTypeId
+          ? {
+              id: flight.aircraftType.id,
+              model: flight.aircraftType.model,
+              seats: flight.aircraftType.seats,
+              mtow: flight.aircraftType.mtow,
+            }
+          : null);
+
+      if (selectedAircraftType && !aircraftTypesList.find((type: { id: string }) => type.id === selectedAircraftType.id)) {
+        aircraftTypesList = [selectedAircraftType, ...aircraftTypesList];
+      }
+
+      // Ignore stale responses from older searches
+      if (requestSeq !== aircraftTypesRequestSeq.current) {
+        return;
+      }
+
+      setAircraftTypes(aircraftTypesList);
     } catch (error) {
       console.error('Error fetching aircraft types:', error);
     }
@@ -418,7 +457,7 @@ export default function FlightDataEntryPage() {
           aircraftTypeId: flightData.aircraftType?.id || '',
           route: resolvedRoute,
           registration: flightData.registration || '',
-          availableSeats: flightData.availableSeats?.toString() || '',
+          availableSeats: flightData.availableSeats?.toString() || flightData.aircraftType?.seats?.toString() || '',
           operationTypeId: flightData.operationType?.id || flightData.operationTypeId || '',
           flightTypeId: flightData.flightType?.id || flightData.flightTypeId || '',
           arrivalFlightNumber: flightData.arrivalFlightNumber || '',
@@ -507,10 +546,60 @@ export default function FlightDataEntryPage() {
     }
   };
 
+  const hasValidAircraftTypeSelection = useMemo(
+    () => !!formData.aircraftTypeId && aircraftTypes.some((type) => type.id === formData.aircraftTypeId),
+    [formData.aircraftTypeId, aircraftTypes]
+  );
+  const groupedAirlineRoutes = useMemo(() => {
+    const baseRoutes = airlineRoutes.filter((item) =>
+      item.route?.trim().toUpperCase().startsWith('TZL')
+    );
+    const otherRoutes = airlineRoutes.filter(
+      (item) => !item.route?.trim().toUpperCase().startsWith('TZL')
+    );
+
+    return { baseRoutes, otherRoutes };
+  }, [airlineRoutes]);
+
+  const verificationMissingFields = useMemo(() => {
+    const missing: string[] = [];
+    const registration = formData.registration?.trim() || '';
+    const seats = formData.availableSeats?.trim() || '';
+
+    if (!formData.airlineId) missing.push('Aviokompanija / ICAO kod');
+    if (!formData.route?.trim()) missing.push('Ruta');
+    if (!hasValidAircraftTypeSelection) missing.push('Tip aviona');
+    if (!registration || registration.toUpperCase() === 'N/A') missing.push('Registracija');
+    if (!seats || Number.isNaN(Number(seats))) missing.push('Raspoloživa mjesta');
+    if (!formData.operationTypeId) missing.push('Tip operacije');
+    if (!formData.flightTypeId) missing.push('Tip leta');
+
+    return missing;
+  }, [
+    formData.airlineId,
+    formData.route,
+    hasValidAircraftTypeSelection,
+    formData.registration,
+    formData.availableSeats,
+    formData.operationTypeId,
+    formData.flightTypeId,
+  ]);
+  const canEnableVerification = verificationMissingFields.length === 0;
+  const verificationWarningText =
+    !canEnableVerification && !formData.isVerified
+      ? `Za verifikaciju popunite: ${verificationMissingFields.join(', ')}`
+      : '';
+
   const handleSubmit = async (e: FormEvent, bypassWarnings = false) => {
     e.preventDefault();
-    setIsSaving(true);
     setError('');
+
+    if (formData.isVerified && !canEnableVerification) {
+      setError(`Za verifikaciju popunite: ${verificationMissingFields.join(', ')}`);
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
       // Build payload - only include fields that have values
@@ -711,7 +800,23 @@ export default function FlightDataEntryPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAircraftTypeChange = (value: string) => {
+    setFormData((prev) => {
+      const nextTypeSeats = aircraftTypes.find((t) => t.id === value)?.seats;
+
+      return {
+        ...prev,
+        aircraftTypeId: value,
+        availableSeats: nextTypeSeats !== undefined ? nextTypeSeats.toString() : '',
+      };
+    });
+  };
+
   const handleBooleanChange = (field: string, value: boolean) => {
+    if (field === 'isVerified' && value && !hasValidAircraftTypeSelection) {
+      setError('Za verifikaciju je obavezno odabrati tip aviona.');
+      return;
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -1006,7 +1111,7 @@ export default function FlightDataEntryPage() {
         <form id={formId} onSubmit={handleSubmit} className="space-y-8">
           <fieldset disabled={isReadOnly} className="space-y-8">
             {/* Basic Information Section */}
-            <div className="relative overflow-hidden bg-white rounded-3xl shadow-soft border border-slate-200">
+            <div className="relative overflow-visible bg-white rounded-3xl shadow-soft border border-slate-200">
               {/* Decorative blob */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-slate-100 opacity-50 rounded-full blur-3xl -mr-20 -mt-20"></div>
 
@@ -1110,11 +1215,24 @@ export default function FlightDataEntryPage() {
                   disabled={isReadOnly}
                 >
                   <option value="">Odaberi rutu</option>
-                  {airlineRoutes.map((route) => (
-                    <option key={route.route} value={route.route}>
-                      {route.route} - {route.destination}, {route.country}
-                    </option>
-                  ))}
+                  {groupedAirlineRoutes.baseRoutes.length > 0 && (
+                    <optgroup label="Bazne rute (TZL)">
+                      {groupedAirlineRoutes.baseRoutes.map((route) => (
+                        <option key={route.route} value={route.route}>
+                          {route.route} - {route.destination}, {route.country}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {groupedAirlineRoutes.otherRoutes.length > 0 && (
+                    <optgroup label="Ostale rute">
+                      {groupedAirlineRoutes.otherRoutes.map((route) => (
+                        <option key={route.route} value={route.route}>
+                          {route.route} - {route.destination}, {route.country}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               ) : (
                 <Input
@@ -1144,7 +1262,7 @@ export default function FlightDataEntryPage() {
                   subtitle: `${type.seats} sjedišta`,
                 }))}
                 value={formData.aircraftTypeId}
-                onChange={(value) => handleChange('aircraftTypeId', value)}
+                onChange={handleAircraftTypeChange}
                 onSearchChange={setAircraftTypeSearch}
                 placeholder="Izaberite tip aviona"
                 searchPlaceholder="Pretraga tipa aviona..."
@@ -1178,7 +1296,7 @@ export default function FlightDataEntryPage() {
               <Input
                 type="number"
                 min="0"
-                value={formData.availableSeats || aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats?.toString() || ''}
+                value={formData.availableSeats}
                 onChange={(e) => handleChange('availableSeats', e.target.value)}
                 placeholder={aircraftTypes.find(t => t.id === formData.aircraftTypeId)?.seats?.toString() || "186"}
               />
@@ -2107,16 +2225,25 @@ export default function FlightDataEntryPage() {
               <p className="text-sm text-slate-600">
                 💡 Provjerite sve podatke prije čuvanja, posebno <strong>vrijeme zatvaranja vrata</strong>
               </p>
-              <label className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm">
-                <input
-                  type="checkbox"
-                  checked={formData.isVerified}
-                  onChange={(e) => handleBooleanChange('isVerified', e.target.checked)}
-                  className="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
-                  disabled={isReadOnly}
-                />
-                <span>Verifikovano — podaci za ovaj let su pregledani</span>
-              </label>
+              <div className="relative group">
+                <label className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={formData.isVerified}
+                    onChange={(e) => handleBooleanChange('isVerified', e.target.checked)}
+                    className="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                    disabled={isReadOnly || (!canEnableVerification && !formData.isVerified)}
+                  />
+                  <span className={verificationWarningText ? 'cursor-help' : ''}>
+                    Verifikovano — podaci za ovaj let su pregledani
+                  </span>
+                </label>
+                {verificationWarningText && (
+                  <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-md group-hover:block">
+                    {verificationWarningText}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button

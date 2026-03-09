@@ -115,6 +115,7 @@ function NewFlightContent() {
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitLabel="Kreiraj let"
+          minimalMode
           defaultValues={
             defaultDate
               ? {

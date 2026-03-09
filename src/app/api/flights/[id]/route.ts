@@ -43,6 +43,29 @@ const ensureFlightTypeAllowed = async (operationTypeId: string, flightTypeId?: s
   }
 };
 
+const getVerificationMissingFields = (input: {
+  airlineId?: string | null;
+  route?: string | null;
+  aircraftTypeId?: string | null;
+  registration?: string | null;
+  availableSeats?: number | null;
+  operationTypeId?: string | null;
+  flightTypeId?: string | null;
+}) => {
+  const missing: string[] = [];
+  const registration = input.registration?.trim() || '';
+
+  if (!input.airlineId) missing.push('Aviokompanija / ICAO kod');
+  if (!input.route?.trim()) missing.push('Ruta');
+  if (!input.aircraftTypeId) missing.push('Tip aviona');
+  if (!registration || registration.toUpperCase() === 'N/A') missing.push('Registracija');
+  if (input.availableSeats === null || input.availableSeats === undefined) missing.push('Raspoloživa mjesta');
+  if (!input.operationTypeId) missing.push('Tip operacije');
+  if (!input.flightTypeId) missing.push('Tip leta');
+
+  return missing;
+};
+
 // GET /api/flights/[id] - Pojedinačni let
 export async function GET(
   request: NextRequest,
@@ -122,7 +145,11 @@ export async function PUT(
         isLocked: true,
         isVerified: true,
         airlineId: true,
+        aircraftTypeId: true,
         date: true,
+        route: true,
+        registration: true,
+        availableSeats: true,
         operationTypeId: true,
         flightTypeId: true,
       },
@@ -275,6 +302,38 @@ export async function PUT(
     const resolvedOperationTypeId = operationTypeId || existingFlight.operationTypeId;
     const resolvedFlightTypeId =
       normalizedFlightTypeId !== undefined ? normalizedFlightTypeId : existingFlight.flightTypeId;
+    const resolvedAircraftTypeId = aircraftTypeId || existingFlight.aircraftTypeId;
+
+    if (isVerified === true) {
+      const hasValidAircraftType =
+        !!resolvedAircraftTypeId &&
+        !!(await prisma.aircraftType.findUnique({
+          where: { id: resolvedAircraftTypeId },
+          select: { id: true },
+        }));
+
+      const missingVerificationFields = getVerificationMissingFields({
+        airlineId: airlineId || existingFlight.airlineId,
+        route: flightUpdate.route ?? existingFlight.route,
+        aircraftTypeId: hasValidAircraftType ? resolvedAircraftTypeId : null,
+        registration: flightUpdate.registration ?? existingFlight.registration,
+        availableSeats: flightUpdate.availableSeats ?? existingFlight.availableSeats,
+        operationTypeId: resolvedOperationTypeId,
+        flightTypeId: resolvedFlightTypeId,
+      });
+
+      if (missingVerificationFields.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Validacione greške',
+            validationErrors: [`Za verifikaciju popunite: ${missingVerificationFields.join(', ')}`],
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (resolvedOperationTypeId && resolvedFlightTypeId) {
       await ensureFlightTypeAllowed(resolvedOperationTypeId, resolvedFlightTypeId);
     }

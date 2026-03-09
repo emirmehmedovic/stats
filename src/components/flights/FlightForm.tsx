@@ -15,6 +15,7 @@ interface FlightFormProps {
   onSubmit: (data: CreateFlightInput) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  minimalMode?: boolean;
 }
 
 interface Airline {
@@ -33,6 +34,14 @@ interface OperationType {
   id: string;
   code: string;
   name: string;
+  flightTypeLinks?: Array<{
+    flightType: {
+      id: string;
+      code: string;
+      name: string;
+      isActive: boolean;
+    };
+  }>;
 }
 
 export function FlightForm({
@@ -40,10 +49,17 @@ export function FlightForm({
   onSubmit,
   isSubmitting = false,
   submitLabel = 'Sačuvaj let',
+  minimalMode = false,
 }: FlightFormProps) {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [aircraftTypes, setAircraftTypes] = useState<AircraftType[]>([]);
   const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
+  const [availableFlightTypes, setAvailableFlightTypes] = useState<Array<{
+    id: string;
+    code: string;
+    name: string;
+    isActive: boolean;
+  }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [flightMode, setFlightMode] = useState<'both' | 'arrival-only' | 'departure-only'>('both');
   const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
@@ -74,6 +90,8 @@ export function FlightForm({
   const arrivalFerryIn = watch('arrivalFerryIn');
   const departureFerryOut = watch('departureFerryOut');
   const airlineId = watch('airlineId');
+  const operationTypeId = watch('operationTypeId');
+  const flightTypeId = watch('flightTypeId');
 
   useEffect(() => {
     fetchFormData();
@@ -102,6 +120,23 @@ export function FlightForm({
     }, 300);
     return () => clearTimeout(timer);
   }, [aircraftTypeSearch]);
+
+  useEffect(() => {
+    if (!operationTypeId) {
+      setAvailableFlightTypes([]);
+      setValue('flightTypeId', null);
+      return;
+    }
+
+    const currentOperationType = operationTypes.find((type) => type.id === operationTypeId);
+    const linkedFlightTypes = currentOperationType?.flightTypeLinks?.map((link) => link.flightType) || [];
+    const activeFlightTypes = linkedFlightTypes.filter((type) => type.isActive);
+    setAvailableFlightTypes(activeFlightTypes);
+
+    if (flightTypeId && !activeFlightTypes.some((type) => type.id === flightTypeId)) {
+      setValue('flightTypeId', null);
+    }
+  }, [operationTypeId, operationTypes, flightTypeId, setValue]);
 
   const fetchAirlines = async (search?: string) => {
     try {
@@ -155,7 +190,7 @@ export function FlightForm({
   const fetchFormData = async () => {
     try {
       const [operationTypesRes] = await Promise.all([
-        fetch('/api/operation-types?activeOnly=true'),
+        fetch('/api/operation-types?activeOnly=true&includeFlightTypes=true'),
       ]);
 
       await fetchAirlines();
@@ -210,8 +245,41 @@ export function FlightForm({
   }
 
   const onFormSubmit = (data: CreateFlightInput) => {
-    console.log('Form submitted with data:', data);
-    onSubmit(data);
+    const payload: CreateFlightInput = { ...data };
+
+    if (minimalMode) {
+      if (flightMode === 'arrival-only') {
+        payload.arrivalStatus = payload.arrivalStatus || 'OPERATED';
+        payload.departureStatus = 'NOT_OPERATED';
+        payload.departureFlightNumber = null;
+        payload.departureScheduledTime = null;
+        payload.departureActualTime = null;
+        payload.departurePassengers = null;
+        payload.departureInfants = null;
+        payload.departureBaggage = null;
+        payload.departureCargo = null;
+        payload.departureMail = null;
+        payload.departureFerryOut = false;
+      } else if (flightMode === 'departure-only') {
+        payload.departureStatus = payload.departureStatus || 'OPERATED';
+        payload.arrivalStatus = 'NOT_OPERATED';
+        payload.arrivalFlightNumber = null;
+        payload.arrivalScheduledTime = null;
+        payload.arrivalActualTime = null;
+        payload.arrivalPassengers = null;
+        payload.arrivalInfants = null;
+        payload.arrivalBaggage = null;
+        payload.arrivalCargo = null;
+        payload.arrivalMail = null;
+        payload.arrivalFerryIn = false;
+      } else {
+        payload.arrivalStatus = payload.arrivalStatus || 'OPERATED';
+        payload.departureStatus = payload.departureStatus || 'OPERATED';
+      }
+    }
+
+    console.log('Form submitted with data:', payload);
+    onSubmit(payload);
   };
 
   const onFormError = (errors: any) => {
@@ -362,6 +430,31 @@ export function FlightForm({
             )}
           </div>
 
+          {/* Flight Type */}
+          <div>
+            <Label htmlFor="flightTypeId">Tip leta *</Label>
+            <select
+              id="flightTypeId"
+              {...register('flightTypeId')}
+              disabled={!operationTypeId}
+              className={`h-10 w-full rounded-xl border ${
+                errors.flightTypeId ? 'border-red-500' : 'border-borderSoft'
+              } bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:bg-slate-50 disabled:text-slate-400`}
+            >
+              <option value="">
+                {operationTypeId ? 'Izaberite tip leta' : 'Prvo izaberite tip operacije'}
+              </option>
+              {availableFlightTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name} ({type.code})
+                </option>
+              ))}
+            </select>
+            {errors.flightTypeId && (
+              <p className="text-xs text-red-600 mt-1">{errors.flightTypeId.message}</p>
+            )}
+          </div>
+
           {/* Available Seats */}
           <div>
             <Label htmlFor="availableSeats">Raspoloživa sjedišta</Label>
@@ -382,7 +475,7 @@ export function FlightForm({
 
       {/* Flight Mode Selection */}
       <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <h3 className="text-lg font-semibold text-textMain mb-4">Tip leta</h3>
+        <h3 className="text-lg font-semibold text-textMain mb-4">Dio operacije</h3>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-dark-600">Izaberite koji dio leta želite dodati:</p>
           <div className="flex gap-4">
@@ -447,6 +540,8 @@ export function FlightForm({
         </div>
       </div>
 
+      {!minimalMode && (
+      <>
       {/* Arrival Information */}
       {(flightMode === 'both' || flightMode === 'arrival-only') && (
         <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
@@ -763,6 +858,8 @@ export function FlightForm({
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-3">
@@ -772,7 +869,7 @@ export function FlightForm({
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="bg-brand-primary hover:bg-brand-primary/90 text-white"
+          className="bg-dark-900 hover:bg-dark-800 text-white border border-dark-900"
         >
           {isSubmitting ? 'Čuvam...' : submitLabel}
         </Button>
