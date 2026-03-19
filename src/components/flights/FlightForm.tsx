@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { FlightStatus } from '@prisma/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface FlightFormProps {
   defaultValues?: Partial<CreateFlightInput>;
@@ -67,6 +67,8 @@ export function FlightForm({
   const [aircraftTypeSearch, setAircraftTypeSearch] = useState('');
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
   const [selectedAircraftType, setSelectedAircraftType] = useState<AircraftType | null>(null);
+  const selectedAirlineRef = useRef<Airline | null>(null);
+  const selectedAircraftTypeRef = useRef<AircraftType | null>(null);
 
   const {
     register,
@@ -92,6 +94,14 @@ export function FlightForm({
   const airlineId = watch('airlineId');
   const operationTypeId = watch('operationTypeId');
   const flightTypeId = watch('flightTypeId');
+
+  useEffect(() => {
+    selectedAirlineRef.current = selectedAirline;
+  }, [selectedAirline]);
+
+  useEffect(() => {
+    selectedAircraftTypeRef.current = selectedAircraftType;
+  }, [selectedAircraftType]);
 
   useEffect(() => {
     fetchFormData();
@@ -153,8 +163,8 @@ export function FlightForm({
       let airlinesList = data.data || [];
 
       // Always include the selected airline in the list if it's not there
-      if (selectedAirline && !airlinesList.find((a: Airline) => a.id === selectedAirline.id)) {
-        airlinesList = [selectedAirline, ...airlinesList];
+      if (selectedAirlineRef.current && !airlinesList.find((a: Airline) => a.id === selectedAirlineRef.current?.id)) {
+        airlinesList = [selectedAirlineRef.current, ...airlinesList];
       }
 
       setAirlines(airlinesList);
@@ -177,8 +187,8 @@ export function FlightForm({
       let aircraftTypesList = data.data || [];
 
       // Always include the selected aircraft type in the list if it's not there
-      if (selectedAircraftType && !aircraftTypesList.find((a: AircraftType) => a.id === selectedAircraftType.id)) {
-        aircraftTypesList = [selectedAircraftType, ...aircraftTypesList];
+      if (selectedAircraftTypeRef.current && !aircraftTypesList.find((a: AircraftType) => a.id === selectedAircraftTypeRef.current?.id)) {
+        aircraftTypesList = [selectedAircraftTypeRef.current, ...aircraftTypesList];
       }
 
       setAircraftTypes(aircraftTypesList);

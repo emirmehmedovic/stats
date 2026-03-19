@@ -37,6 +37,7 @@ type Flight = {
   } | null;
   availableSeats: number | null;
   airline: {
+    id: string;
     name: string;
     icaoCode: string;
   };
@@ -129,6 +130,10 @@ export default function FlightDataEntryPage() {
   const [airlineRoutes, setAirlineRoutes] = useState<Array<{ route: string; destination: string; country: string }>>([]);
   const airlinesRequestSeq = useRef(0);
   const aircraftTypesRequestSeq = useRef(0);
+  const currentAirlineIdRef = useRef('');
+  const currentAircraftTypeIdRef = useRef('');
+  const currentFlightAirlineRef = useRef<Flight['airline'] | null>(null);
+  const currentFlightAircraftTypeRef = useRef<Flight['aircraftType'] | null>(null);
 
   const [formData, setFormData] = useState({
     // Basic info (editable)
@@ -249,6 +254,16 @@ export default function FlightDataEntryPage() {
   }, [formData.airlineId]);
 
   useEffect(() => {
+    currentAirlineIdRef.current = formData.airlineId;
+    currentAircraftTypeIdRef.current = formData.aircraftTypeId;
+  }, [formData.airlineId, formData.aircraftTypeId]);
+
+  useEffect(() => {
+    currentFlightAirlineRef.current = flight?.airline || null;
+    currentFlightAircraftTypeRef.current = flight?.aircraftType || null;
+  }, [flight]);
+
+  useEffect(() => {
     if (!formData.operationTypeId) {
       setAvailableFlightTypes([]);
       if (formData.flightTypeId) {
@@ -326,7 +341,16 @@ export default function FlightDataEntryPage() {
         page += 1;
       }
 
-      const selectedAirline = airlines.find((airline) => airline.id === formData.airlineId);
+      const currentAirlineId = currentAirlineIdRef.current;
+      const selectedAirline =
+        airlines.find((airline) => airline.id === currentAirlineId) ||
+        (currentFlightAirlineRef.current && currentFlightAirlineRef.current.id === currentAirlineId
+          ? {
+              id: currentAirlineId,
+              name: currentFlightAirlineRef.current.name,
+              icaoCode: currentFlightAirlineRef.current.icaoCode,
+            }
+          : null);
       const airlinesList =
         selectedAirline && !allAirlines.find((airline) => airline.id === selectedAirline.id)
           ? [selectedAirline, ...allAirlines]
@@ -357,14 +381,15 @@ export default function FlightDataEntryPage() {
       const data = await res.json();
       let aircraftTypesList = data.data || [];
 
+      const currentAircraftTypeId = currentAircraftTypeIdRef.current;
       const selectedAircraftType =
-        aircraftTypes.find((type) => type.id === formData.aircraftTypeId) ||
-        (flight?.aircraftType && flight.aircraftType.id === formData.aircraftTypeId
+        aircraftTypes.find((type) => type.id === currentAircraftTypeId) ||
+        (currentFlightAircraftTypeRef.current && currentFlightAircraftTypeRef.current.id === currentAircraftTypeId
           ? {
-              id: flight.aircraftType.id,
-              model: flight.aircraftType.model,
-              seats: flight.aircraftType.seats,
-              mtow: flight.aircraftType.mtow,
+              id: currentFlightAircraftTypeRef.current.id,
+              model: currentFlightAircraftTypeRef.current.model,
+              seats: currentFlightAircraftTypeRef.current.seats,
+              mtow: currentFlightAircraftTypeRef.current.mtow,
             }
           : null);
 
