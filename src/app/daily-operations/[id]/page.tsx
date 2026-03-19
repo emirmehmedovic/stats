@@ -508,6 +508,23 @@ export default function FlightDataEntryPage() {
           });
         }
 
+        if (flightData.aircraftType?.id) {
+          setAircraftTypes(prev => {
+            if (prev.some(type => type.id === flightData.aircraftType?.id)) {
+              return prev;
+            }
+            return [
+              {
+                id: flightData.aircraftType.id,
+                model: flightData.aircraftType.model,
+                seats: flightData.aircraftType.seats,
+                mtow: flightData.aircraftType.mtow,
+              },
+              ...prev,
+            ];
+          });
+        }
+
         // Populate delays
         if (flightData.delays && Array.isArray(flightData.delays)) {
           const arrDelays = flightData.delays
