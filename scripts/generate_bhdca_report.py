@@ -12,6 +12,7 @@ Izvještaj sadrži 3 sheet-a:
 import sys
 import os
 import re
+from copy import copy
 from datetime import datetime
 from pathlib import Path
 import openpyxl
@@ -29,7 +30,7 @@ OUTPUT_DIR = PROJECT_ROOT / "izvještaji" / "generated"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Konstante za header informacije
-CONTACT_PERSON = "Haris Tufekčić"
+CONTACT_PERSON = "Tuzla Airport Operations Center"
 ORGANIZATION = "Tuzla International Airport"
 PHONE = "387 35 814 605"
 FAX = "387 35 745 750"
@@ -430,6 +431,55 @@ def find_row_by_label(ws, label, column=4):
     return None
 
 
+def apply_cell_style(source_cell, target_cell):
+    target_cell._style = copy(source_cell._style)
+    if source_cell.number_format:
+        target_cell.number_format = source_cell.number_format
+
+
+def merge_identical_values(ws, start_row, end_row, column):
+    merge_start = None
+    merge_value = None
+
+    for row in range(start_row, end_row + 1):
+        value = ws.cell(row=row, column=column).value
+        if value is None:
+            if merge_start is not None and row - merge_start > 1:
+                ws.merge_cells(
+                    start_row=merge_start,
+                    start_column=column,
+                    end_row=row - 1,
+                    end_column=column,
+                )
+            merge_start = None
+            merge_value = None
+            continue
+
+        if merge_start is None:
+            merge_start = row
+            merge_value = value
+            continue
+
+        if value != merge_value:
+            if row - merge_start > 1:
+                ws.merge_cells(
+                    start_row=merge_start,
+                    start_column=column,
+                    end_row=row - 1,
+                    end_column=column,
+                )
+            merge_start = row
+            merge_value = value
+
+    if merge_start is not None and end_row - merge_start >= 1:
+        ws.merge_cells(
+            start_row=merge_start,
+            start_column=column,
+            end_row=end_row,
+            end_column=column,
+        )
+
+
 def write_city_pairs_sheet(ws, city_pairs, start_row=23):
     """
     Write city-pair data to worksheet, safely handling merged cells.
@@ -447,13 +497,18 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
         remarks_row += rows_needed - available_rows
 
     end_row = remarks_row - 1
+    style_templates = {
+        4: copy(ws.cell(row=start_row, column=4)),
+        5: copy(ws.cell(row=start_row, column=5)),
+        9: copy(ws.cell(row=start_row, column=9)),
+        14: copy(ws.cell(row=start_row, column=14)),
+        15: copy(ws.cell(row=start_row, column=15)),
+    }
+    default_row_height = ws.row_dimensions[start_row].height
 
-    # AGGRESSIVE: Unmerge ALL merged cells in the entire data range first
-    # This prevents MergedCell read-only errors
     print(f"[DEBUG] Unmerging cells in range rows {start_row}-{end_row}...")
     merged_ranges_to_remove = []
     for merged_range in list(ws.merged_cells.ranges):
-        # If any part of this merged range is in our data rows, unmerge it
         if (merged_range.min_row >= start_row and merged_range.min_row <= end_row) or \
            (merged_range.max_row >= start_row and merged_range.max_row <= end_row):
             merged_ranges_to_remove.append(str(merged_range))
@@ -465,10 +520,14 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
         except Exception as e:
             print(f"[WARNING] Could not unmerge {range_str}: {e}")
 
-    # Clear values in data columns
+    # Clear and normalize data area styles
     for row in range(start_row, end_row + 1):
+        if default_row_height is not None:
+            ws.row_dimensions[row].height = default_row_height
         for col in [4, 5, 9, 14, 15]:
-            ws.cell(row=row, column=col).value = None
+            cell = ws.cell(row=row, column=col)
+            cell.value = None
+            apply_cell_style(style_templates[col], cell)
 
     # Write new data
     row_num = start_row
@@ -479,6 +538,11 @@ def write_city_pairs_sheet(ws, city_pairs, start_row=23):
         ws.cell(row=row_num, column=14).value = data['freight']
         ws.cell(row=row_num, column=15).value = data['mail']
         row_num += 1
+
+    written_end_row = row_num - 1
+    if written_end_row >= start_row:
+        merge_identical_values(ws, start_row, written_end_row, 4)
+        merge_identical_values(ws, start_row, written_end_row, 5)
 
 
 def aggregate_city_pair_data(flights, scheduled_only=True):
@@ -631,7 +695,8 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws1 = wb['Sheet1']
 
     # Header informacije
-    ws1['D10'] = year
+    ws1['D6'] = CONTACT_PERSON
+    ws1['N10'] = year
     ws1['N11'] = MONTH_NAMES[month]
 
     # Podaci
@@ -702,8 +767,9 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws2 = wb['Sheet2']
 
     # Header
-    ws2['N9'] = MONTH_NAMES[month]
-    ws2['N10'] = year
+    ws2['E8'] = CONTACT_PERSON
+    ws2['O9'] = MONTH_NAMES[month]
+    ws2['O10'] = year
 
     # Očistiti stare podatke (redovi 23-35) - skip merged cells
     write_city_pairs_sheet(ws2, city_pairs_scheduled, start_row=23)
@@ -713,8 +779,9 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws3 = wb['Sheet3']
 
     # Header
-    ws3['N9'] = MONTH_NAMES[month]
-    ws3['N10'] = year
+    ws3['E8'] = CONTACT_PERSON
+    ws3['O9'] = MONTH_NAMES[month]
+    ws3['O10'] = year
 
     # Očistiti stare podatke (redovi 23-35) - skip merged cells
     write_city_pairs_sheet(ws3, city_pairs_non_scheduled, start_row=23)

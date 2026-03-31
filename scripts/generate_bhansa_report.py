@@ -194,23 +194,51 @@ def get_flight_data(year: int, month: int):
     return flights
 
 
-def parse_route(route_str):
+def parse_route_codes(route_str):
     """
-    Parse route string to extract airport IATA code.
-    Route format in DB: "DTM-Dortmund", "FMM-Memmingen", "MMX-Malmö-Sturup"
-    Returns: IATA code (first part before dash) or None
+    Parse route string into uppercase route segments.
 
-    Since this is Tuzla airport database, the route represents the OTHER airport.
-    TZL is always one end of the journey.
+    Supports both old formats like "FMM-Memmingen" and newer route strings
+    like "TZL-FMM-TZL".
     """
-    if not route_str or '-' not in route_str:
-        return None
+    if not route_str:
+        return []
 
-    # Take only the first part (IATA code)
-    parts = route_str.strip().split('-')
-    iata_code = parts[0].strip()
+    cleaned = route_str.replace('–', '-').replace('—', '-')
+    codes = []
 
-    return iata_code if iata_code else None
+    for part in cleaned.split('-'):
+        normalized = part.strip().upper()
+        if re.fullmatch(r'[A-Z]{3,4}', normalized):
+            codes.append(normalized)
+
+    return codes
+
+
+def get_route_from_to(flight):
+    """
+    Resolve FROM/TO airport pair from the route order.
+
+    Examples:
+    - TZL-FMM-TZL -> (TZL, FMM)
+    - MLH-TZL-MLH -> (MLH, TZL)
+    - TZL-BEG -> (TZL, BEG)
+    - BEG-TZL -> (BEG, TZL)
+
+    If the route string does not contain at least two usable segments, fall
+    back to explicit departure/arrival airport links from the database.
+    """
+    route_codes = parse_route_codes(flight.get('route'))
+    if len(route_codes) >= 2:
+        return route_codes[0], route_codes[1]
+
+    departure_iata = sanitize_text(flight.get('departure_airport_iata'))
+    arrival_iata = sanitize_text(flight.get('arrival_airport_iata'))
+
+    if departure_iata and arrival_iata:
+        return departure_iata.upper(), arrival_iata.upper()
+
+    return None, None
 
 
 def format_pax_with_infants(pax, infants):
@@ -286,27 +314,24 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
     row_idx = 3
     flight_counter = 1
 
-    TZL_IATA = 'TZL'
-
     for flight in flights:
-        # Parse route to get OTHER airport (TZL is always one end)
-        other_airport = None
+        # Resolve FROM/TO directly from route order
         route = flight.get('route')
-        if route:
-            other_airport = parse_route(route)
+        from_airport, to_airport = get_route_from_to(flight)
 
         # Debug first 3 flights
         if flight_counter <= 3:
             print(f"\n[DEBUG] Flight {flight_counter}:")
             print(f"  route: {route}")
-            print(f"  other_airport: {other_airport}")
+            print(f"  from_airport: {from_airport}")
+            print(f"  to_airport: {to_airport}")
             print(f"  departurePassengers: {flight.get('departurePassengers')}")
             print(f"  arrivalPassengers: {flight.get('arrivalPassengers')}")
             print(f"  departureFlightNumber: {flight.get('departureFlightNumber')}")
             print(f"  arrivalFlightNumber: {flight.get('arrivalFlightNumber')}")
 
         # Skip if we can't determine the route
-        if not other_airport:
+        if not from_airport or not to_airport:
             continue
 
         # Determine if this is departure or arrival (or both)
@@ -322,7 +347,7 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
         if not has_departure and not has_arrival:
             has_departure = True
 
-        # Departure leg (TZL -> Other)
+        # Departure leg
         if has_departure:
             ws.cell(row=row_idx, column=1).value = flight_counter  # Nr
             ws.cell(row=row_idx, column=2).value = flight['date'].strftime('%d/%m/%Y')  # DATE
@@ -331,9 +356,8 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
             ws.cell(row=row_idx, column=5).value = sanitize_text(flight['registration'])  # REG
             ws.cell(row=row_idx, column=6).value = flight['aircraft_mtow'] / 1000 if flight['aircraft_mtow'] else None  # MTOW in tonnes
             ws.cell(row=row_idx, column=7).value = sanitize_text(flight['departureFlightNumber'] or '')  # FLT.NMB
-            # Za DEPARTURE: FROM=TZL, TO=other_airport
-            ws.cell(row=row_idx, column=8).value = sanitize_text(TZL_IATA)  # FROM
-            ws.cell(row=row_idx, column=9).value = sanitize_text(other_airport)  # TO
+            ws.cell(row=row_idx, column=8).value = sanitize_text(from_airport)  # FROM
+            ws.cell(row=row_idx, column=9).value = sanitize_text(to_airport)  # TO
             ws.cell(row=row_idx, column=10).value = sanitize_text(flight['airline_address'] or '')  # ADDRESS
             ws.cell(row=row_idx, column=11).value = sanitize_text(format_pax_with_infants(
                 flight.get('departurePassengers'),
@@ -356,7 +380,7 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
             row_idx += 1
             flight_counter += 1
 
-        # Arrival leg (Other -> TZL)
+        # Arrival leg
         if has_arrival:
             # Samo dodaj arrival ako je različit od departure (ne dupliramo isti let)
             if has_arrival and not has_departure:  # Samo arrival, bez departure
@@ -367,9 +391,8 @@ def generate_bhansa_report(year: int, month: int, output_path: Path = None):
                 ws.cell(row=row_idx, column=5).value = sanitize_text(flight['registration'])
                 ws.cell(row=row_idx, column=6).value = flight['aircraft_mtow'] / 1000 if flight['aircraft_mtow'] else None
                 ws.cell(row=row_idx, column=7).value = sanitize_text(flight['arrivalFlightNumber'] or '')
-                # Za ARRIVAL: FROM=other_airport, TO=TZL
-                ws.cell(row=row_idx, column=8).value = sanitize_text(other_airport)
-                ws.cell(row=row_idx, column=9).value = sanitize_text(TZL_IATA)
+                ws.cell(row=row_idx, column=8).value = sanitize_text(from_airport)
+                ws.cell(row=row_idx, column=9).value = sanitize_text(to_airport)
                 ws.cell(row=row_idx, column=10).value = sanitize_text(flight['airline_address'] or '')
                 ws.cell(row=row_idx, column=11).value = ''  # DEP PAX (empty for arrival)
                 ws.cell(row=row_idx, column=12).value = sanitize_text(format_pax_with_infants(
