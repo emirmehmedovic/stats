@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Plane, Users, Building2, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { Plane, Users, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
+import { formatDateDisplay } from '@/lib/dates';
 
 interface DashboardStats {
   today: {
@@ -47,6 +47,27 @@ interface DashboardStats {
     type: string;
     count: number;
   }>;
+  yearlyPassengers: {
+    total: number;
+    arrivals: number;
+    departures: number;
+    periodLabel: string;
+    start: string;
+    end: string;
+  };
+}
+
+interface YearlyTrendResponse {
+  data: {
+    period: string;
+    start: string;
+    end: string;
+    summary: {
+      passengers: number;
+      arrivalPassengers: number;
+      departurePassengers: number;
+    };
+  };
 }
 
 export default function DashboardPage() {
@@ -99,14 +120,35 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/dashboard/stats');
+      const [dashboardResponse, yearlyTrendResponse] = await Promise.all([
+        fetch('/api/dashboard/stats'),
+        fetch('/api/comparison/trends?type=yearly'),
+      ]);
 
-      if (!response.ok) {
+      if (!dashboardResponse.ok) {
         throw new Error('Greška pri učitavanju statistike');
       }
 
-      const result = await response.json();
-      setStats(result.data);
+      if (!yearlyTrendResponse.ok) {
+        throw new Error('Greška pri učitavanju godišnjeg pregleda putnika');
+      }
+
+      const [dashboardResult, yearlyTrendResult]: [{ data: Omit<DashboardStats, 'yearlyPassengers'> }, YearlyTrendResponse] = await Promise.all([
+        dashboardResponse.json(),
+        yearlyTrendResponse.json(),
+      ]);
+
+      setStats({
+        ...dashboardResult.data,
+        yearlyPassengers: {
+          total: yearlyTrendResult.data.summary.passengers || 0,
+          arrivals: yearlyTrendResult.data.summary.arrivalPassengers || 0,
+          departures: yearlyTrendResult.data.summary.departurePassengers || 0,
+          periodLabel: yearlyTrendResult.data.period,
+          start: yearlyTrendResult.data.start,
+          end: yearlyTrendResult.data.end,
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nepoznata greška');
     } finally {
@@ -140,9 +182,6 @@ export default function DashboardPage() {
       </MainLayout>
     );
   }
-
-  const todayLabel = formatDateDisplay(getTodayDateString());
-
   return (
     <MainLayout>
       <div className="p-8 space-y-8">
@@ -155,9 +194,9 @@ export default function DashboardPage() {
             <div className="relative z-10 space-y-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-dark-300 text-sm font-medium mb-1">Današnji promet</p>
-                  <h3 className="text-3xl sm:text-4xl font-bold tracking-tight">{stats.today.passengers.toLocaleString('bs-BA')}</h3>
-                  <p className="text-xs text-dark-300 mt-1">Putnici (dolazak + odlazak)</p>
+                  <p className="text-dark-300 text-sm font-medium mb-1">Putnici od 1. januara do danas</p>
+                  <h3 className="text-3xl sm:text-4xl font-bold tracking-tight">{stats.yearlyPassengers.total.toLocaleString('bs-BA')}</h3>
+                  <p className="text-xs text-dark-300 mt-1">Ukupno putnika od početka godine do danas (dolazak + odlazak)</p>
                 </div>
                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
                   <Users className="w-6 h-6 text-white" />
@@ -166,9 +205,9 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-3 gap-4 text-sm">
                 {[
-                  { label: 'Letova danas', value: stats.today.flights, accent: 'text-primary-200' },
-                  { label: 'Pros. popunjenost', value: `${stats.today.loadFactor}%`, accent: 'text-blue-200' },
-                  { label: 'Aktivne aviokompanije', value: stats.activeAirlines, accent: 'text-amber-200' },
+                  { label: 'Ukupno', value: stats.yearlyPassengers.total.toLocaleString('bs-BA'), accent: 'text-primary-200' },
+                  { label: 'Odlazni', value: stats.yearlyPassengers.departures.toLocaleString('bs-BA'), accent: 'text-blue-200' },
+                  { label: 'Dolazni', value: stats.yearlyPassengers.arrivals.toLocaleString('bs-BA'), accent: 'text-amber-200' },
                 ].map((item) => (
                   <div key={item.label} className="p-3 rounded-2xl bg-white/5 border border-white/10">
                     <p className="text-[11px] uppercase tracking-wide text-dark-200 font-semibold">{item.label}</p>
@@ -179,14 +218,15 @@ export default function DashboardPage() {
             </div>
 
             <div className="relative z-10 mt-auto">
-              <p className="text-xs text-dark-300 mb-2">{todayLabel}</p>
+              <p className="text-xs text-dark-300 mb-2">
+                {formatDateDisplay(stats.yearlyPassengers.start)} - {formatDateDisplay(stats.yearlyPassengers.end)}
+              </p>
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-xl bg-white text-dark-900 flex items-center justify-center font-bold shadow-soft">
                   <Plane className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-dark-200">Praćenje prometa u realnom vremenu</p>
-                  <p className="text-xs text-dark-300">Automatski osvježeno</p>
+                  <p className="text-sm text-dark-200">Period: od početka godine do danas</p>
                 </div>
               </div>
             </div>
