@@ -73,6 +73,26 @@ const normalizeSearchValue = (value: string) =>
     .trim()
     .toUpperCase();
 
+const extractReaderNameTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const alphaChunks = normalized
+    .split(/[^A-Z0-9]+/)
+    .flatMap((chunk) => chunk.match(/[A-Z]{3,}/g) || []);
+
+  if (alphaChunks.length === 0) return [];
+
+  const filteredChunks = alphaChunks.filter(
+    (chunk) => !['BIH', 'IDBIH', 'M', 'F'].includes(chunk)
+  );
+
+  const source = filteredChunks.length > 0 ? filteredChunks : alphaChunks;
+  return [...new Set(source.slice(-2))];
+};
+
 const passengerMatchesQuery = (
   passenger: Passenger & { flight: Flight },
   rawQuery: string
@@ -101,6 +121,19 @@ const passengerMatchesQuery = (
   if (queryTokens.length === 0) return true;
 
   return queryTokens.every((token) => passengerName.includes(token));
+};
+
+const passengerMatchesDevicePayload = (
+  passenger: Passenger & { flight: Flight },
+  rawPayload: string
+) => {
+  const nameTokens = extractReaderNameTokens(rawPayload);
+  if (nameTokens.length === 0) {
+    return passengerMatchesQuery(passenger, rawPayload);
+  }
+
+  const passengerName = normalizeSearchValue(passenger.passengerName);
+  return nameTokens.every((token) => passengerName.includes(token));
 };
 
 export default function ActiveBoardingPage() {
@@ -286,11 +319,13 @@ export default function ActiveBoardingPage() {
       return;
     }
 
-    const pendingMatches = allPassengers.filter(
-      (passenger) =>
-        passenger.boardingStatus === 'NO_SHOW' &&
-        passengerMatchesQuery(passenger, query)
-    );
+    const pendingMatches = allPassengers.filter((passenger) => {
+      if (passenger.boardingStatus !== 'NO_SHOW') return false;
+
+      return searchMode === 'MANUAL'
+        ? passengerMatchesQuery(passenger, query)
+        : passengerMatchesDevicePayload(passenger, query);
+    });
 
     if (pendingMatches.length === 1) {
       const passenger = pendingMatches[0];
@@ -325,7 +360,14 @@ export default function ActiveBoardingPage() {
 
   const filteredPassengers = allPassengers.filter((passenger) => {
     // Search filter
-    if (activeSearchTerm && !passengerMatchesQuery(passenger, activeSearchTerm)) {
+    if (
+      activeSearchTerm &&
+      !(
+        searchMode === 'MANUAL'
+          ? passengerMatchesQuery(passenger, activeSearchTerm)
+          : passengerMatchesDevicePayload(passenger, activeSearchTerm)
+      )
+    ) {
       return false;
     }
 
