@@ -6,7 +6,7 @@ import { getTodayDateString, dateOnlyToUtc } from '@/lib/dates';
 /**
  * GET /api/predboarding/today-flights
  *
- * Vraća današnje odlazne letove koji još nisu odleteli (za predboarding)
+ * Vraća sve današnje odlazne letove za predboarding pregled
  * Auth: requireSTW (STW ili ADMIN)
  */
 export async function GET(request: Request) {
@@ -16,18 +16,11 @@ export async function GET(request: Request) {
   try {
     const today = getTodayDateString();
     const todayUtc = dateOnlyToUtc(today);
-    const now = new Date();
-
-    // Get today's departure flights that haven't departed yet
+    // Get all today's departure flights for predboarding overview
     const flights = await prisma.flight.findMany({
       where: {
         date: todayUtc,
-        departureScheduledTime: { not: null }, // Has a departure scheduled
-        // Only show flights that haven't departed yet
-        OR: [
-          { departureActualTime: null },
-          { departureActualTime: { gt: now } }
-        ]
+        departureScheduledTime: { not: null } // Has a departure scheduled
       },
       select: {
         id: true,

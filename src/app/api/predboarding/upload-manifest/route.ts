@@ -29,10 +29,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const lowerFileName = file.name.toLowerCase();
+    const allowedExtensions = ['.txt', '.oxps', '.xps', '.pdf'];
+    const matchedExtension = allowedExtensions.find((extension) => lowerFileName.endsWith(extension));
+
     // Validate file type
-    if (!file.name.endsWith('.txt')) {
+    if (!matchedExtension) {
       return NextResponse.json(
-        { error: 'Fajl mora biti .txt format' },
+        { error: 'Fajl mora biti .txt, .oxps, .xps ili .pdf format' },
         { status: 400 }
       );
     }
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     const timestamp = Date.now();
-    const filename = `${flightId}-${timestamp}.txt`;
+    const filename = `${flightId}-${timestamp}${matchedExtension}`;
     const filepath = join(uploadsDir, filename);
     await writeFile(filepath, buffer);
 

@@ -2,6 +2,7 @@
 
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ToastContainer } from '@/components/ui/toast';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <main className="ml-[280px] pt-24">
         {children}
       </main>
+      <ToastContainer />
     </div>
   );
 }

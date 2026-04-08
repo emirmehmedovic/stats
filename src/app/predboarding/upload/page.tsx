@@ -82,8 +82,9 @@ function UploadManifestContent() {
     }
 
     // Validate file type
-    if (!file.name.endsWith('.txt')) {
-      setUploadError('Samo .txt fajlovi su dozvoljeni');
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.txt') && !lowerName.endsWith('.oxps') && !lowerName.endsWith('.xps') && !lowerName.endsWith('.pdf')) {
+      setUploadError('Dozvoljeni su .txt, .oxps, .xps i .pdf fajlovi');
       setSelectedFile(null);
       return;
     }
@@ -278,7 +279,7 @@ function UploadManifestContent() {
                       Kliknite da izaberete fajl
                     </p>
                     <p className="text-sm text-dark-500">
-                      Samo .txt fajlovi, maksimalno 5MB
+                      .txt, .oxps, .xps ili .pdf fajlovi, maksimalno 5MB
                     </p>
                   </div>
                 )}
@@ -287,7 +288,7 @@ function UploadManifestContent() {
             <input
               id="manifest-file"
               type="file"
-              accept=".txt"
+              accept=".txt,.oxps,.xps,.pdf"
               onChange={handleFileChange}
               className="hidden"
               disabled={isUploading}
@@ -344,7 +345,7 @@ function UploadManifestContent() {
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
             <h4 className="text-sm font-semibold text-blue-900 mb-2">Informacije o manifest fajlu:</h4>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Format: .txt fajl sa liste putnika</li>
+              <li>• Format: .txt, .oxps, .xps ili .pdf fajl sa liste putnika</li>
               <li>• Maksimalna veličina: 5MB</li>
               <li>• Fajl će biti automatski parsiran nakon uploada</li>
               <li>• Nakon parsiranja, bićete preusmjereni na boarding interfejs</li>

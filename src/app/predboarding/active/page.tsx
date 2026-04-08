@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2, ScanLine, CreditCard, Keyboard } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { showToast } from '@/components/ui/toast';
 import { formatTimeDisplay, formatDateStringWithDay, getTodayDateString } from '@/lib/dates';
 
 interface Passenger {
@@ -62,14 +63,57 @@ interface ActiveBoardingData {
 }
 
 type StatusFilter = 'ALL' | 'NOT_BOARDED' | 'BOARDED';
+type SearchMode = 'MANUAL' | 'READER' | 'SCANNER';
+
+const normalizeSearchValue = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, ' ')
+    .trim()
+    .toUpperCase();
+
+const passengerMatchesQuery = (
+  passenger: Passenger & { flight: Flight },
+  rawQuery: string
+) => {
+  const query = normalizeSearchValue(rawQuery);
+  if (!query) return true;
+
+  const compactQuery = query.replace(/\s+/g, '');
+  const passengerName = normalizeSearchValue(passenger.passengerName);
+  const nameNoSeparators = passengerName.replace(/\s+/g, '').replace(/\//g, '');
+  const seat = normalizeSearchValue(passenger.seatNumber || '');
+  const route = normalizeSearchValue(passenger.flight.route);
+  const flightNumber = normalizeSearchValue(passenger.flight.departureFlightNumber || '');
+
+  if (
+    passengerName.includes(query) ||
+    nameNoSeparators.includes(compactQuery) ||
+    seat.includes(query) ||
+    route.includes(query) ||
+    flightNumber.includes(query)
+  ) {
+    return true;
+  }
+
+  const queryTokens = query.split(/\s+/).filter(Boolean);
+  if (queryTokens.length === 0) return true;
+
+  return queryTokens.every((token) => passengerName.includes(token));
+};
 
 export default function ActiveBoardingPage() {
   const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [data, setData] = useState<ActiveBoardingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('MANUAL');
+  const [deviceInput, setDeviceInput] = useState('');
+  const [deviceFeedback, setDeviceFeedback] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('NOT_BOARDED');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPassengers, setSelectedPassengers] = useState<Set<string>>(new Set());
@@ -77,10 +121,18 @@ export default function ActiveBoardingPage() {
 
   const today = getTodayDateString();
   const todayDisplay = formatDateStringWithDay(today);
+  const activeSearchTerm = searchMode === 'MANUAL' ? searchTerm : deviceInput;
 
   useEffect(() => {
     fetchActiveBoarding();
   }, []);
+
+  useEffect(() => {
+    if (searchMode !== 'MANUAL') {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+  }, [searchMode]);
 
   const fetchActiveBoarding = async () => {
     setIsLoading(true);
@@ -225,6 +277,44 @@ export default function ActiveBoardingPage() {
     }
   };
 
+  const attemptDeviceBoarding = async () => {
+    const query = activeSearchTerm.trim();
+    if (!query || !data) {
+      const message = 'Nema unosa sa readera/scannera. Pokušajte ponovo ili pređite na ručnu pretragu.';
+      setDeviceFeedback(message);
+      showToast(message, 'warning');
+      return;
+    }
+
+    const pendingMatches = allPassengers.filter(
+      (passenger) =>
+        passenger.boardingStatus === 'NO_SHOW' &&
+        passengerMatchesQuery(passenger, query)
+    );
+
+    if (pendingMatches.length === 1) {
+      const passenger = pendingMatches[0];
+      setDeviceFeedback(
+        `Pronađen putnik ${passenger.passengerName}. Boarding se evidentira automatski.`
+      );
+      showToast(`Pronađen putnik ${passenger.passengerName}. Boarding je evidentiran.`, 'success');
+      await updatePassengerStatus(passenger.manifestId, passenger.id, 'BOARDED');
+      setSelectedPassengers(new Set());
+      return;
+    }
+
+    if (pendingMatches.length === 0) {
+      const message = 'Putnik nije pronađen preko readera/scannera. Probajte ručno pretraživanje.';
+      setDeviceFeedback(message);
+      showToast(message, 'warning');
+      return;
+    }
+
+    const message = `Pronađeno je više kandidata (${pendingMatches.length}). Probajte ručno pretraživanje ili odaberite putnika iz liste.`;
+    setDeviceFeedback(message);
+    showToast(message, 'info');
+  };
+
   // Flatten all passengers from all manifests
   const allPassengers = data?.manifests.flatMap(m =>
     m.passengers.map(p => ({
@@ -235,13 +325,8 @@ export default function ActiveBoardingPage() {
 
   const filteredPassengers = allPassengers.filter((passenger) => {
     // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      const matchesName = passenger.passengerName.toLowerCase().includes(search);
-      const matchesSeat = passenger.seatNumber?.toLowerCase().includes(search);
-      const matchesRoute = passenger.flight.route.toLowerCase().includes(search);
-      const matchesFlight = passenger.flight.departureFlightNumber?.toLowerCase().includes(search);
-      if (!matchesName && !matchesSeat && !matchesRoute && !matchesFlight) return false;
+    if (activeSearchTerm && !passengerMatchesQuery(passenger, activeSearchTerm)) {
+      return false;
     }
 
     // Status filter
@@ -420,35 +505,119 @@ export default function ActiveBoardingPage() {
 
         {/* Search & Filters */}
         <div className="bg-white rounded-2xl p-4 shadow-soft">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
-              <input
-                type="text"
-                placeholder="Pretraži po imenu, sjedištu, broju leta, ruti..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-dark-50 border border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
               {([
-                { value: 'ALL', label: 'Svi' },
-                { value: 'NOT_BOARDED', label: 'Putnici' },
-                { value: 'BOARDED', label: 'Ukrcani' }
-              ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setStatusFilter(filter.value)}
-                  className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
-                    statusFilter === filter.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
+                { value: 'MANUAL', label: 'Ručno', icon: Keyboard },
+                { value: 'READER', label: 'Reader', icon: CreditCard },
+                { value: 'SCANNER', label: 'Scanner', icon: ScanLine }
+              ] as Array<{ value: SearchMode; label: string; icon: typeof Keyboard }>).map((mode) => {
+                const Icon = mode.icon;
+                return (
+                  <button
+                    key={mode.value}
+                    onClick={() => {
+                      setSearchMode(mode.value);
+                      setDeviceFeedback(null);
+                    }}
+                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                      searchMode === mode.value
+                        ? 'bg-dark-900 text-white'
+                        : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-4">
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={
+                      searchMode === 'MANUAL'
+                        ? 'Pretraži po imenu, sjedištu, broju leta, ruti...'
+                        : searchMode === 'READER'
+                        ? 'Reader može upisati ime i prezime sa dokumenta ili karte...'
+                        : 'Scanner može upisati barcode/string sa boarding karte...'
+                    }
+                    value={searchMode === 'MANUAL' ? searchTerm : deviceInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (searchMode === 'MANUAL') {
+                        setSearchTerm(value);
+                      } else {
+                        setDeviceInput(value);
+                        setDeviceFeedback(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchMode !== 'MANUAL') {
+                        void attemptDeviceBoarding();
+                      }
+                    }}
+                    className="w-full pl-12 pr-4 py-3 bg-dark-50 border border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+
+                {searchMode !== 'MANUAL' && (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-dark-500">
+                      Uređaj može poslati tekst direktno u ovo polje. Ako je pogodak jednoznačan, putnik će biti automatski ukrcan.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setDeviceInput('');
+                          setDeviceFeedback(null);
+                          searchInputRef.current?.focus();
+                        }}
+                        className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
+                      >
+                        Očisti
+                      </button>
+                      <button
+                        onClick={() => void attemptDeviceBoarding()}
+                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        Pretraži i ukrcaj
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deviceFeedback && searchMode !== 'MANUAL' && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                    <p className="text-sm text-blue-900">{deviceFeedback}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {([
+                  { value: 'ALL', label: 'Svi' },
+                  { value: 'NOT_BOARDED', label: 'Putnici' },
+                  { value: 'BOARDED', label: 'Ukrcani' }
+                ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setStatusFilter(filter.value)}
+                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
+                      statusFilter === filter.value
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -39,6 +39,8 @@ export default function PreboardingPage() {
 
   const today = getTodayDateString();
   const todayDisplay = formatDateStringWithDay(today);
+  const activeFlights = flights.filter((flight) => flight.boardingManifest?.boardingStatus !== 'COMPLETED');
+  const completedFlights = flights.filter((flight) => flight.boardingManifest?.boardingStatus === 'COMPLETED');
 
   useEffect(() => {
     fetchTodayFlights();
@@ -164,8 +166,8 @@ export default function PreboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Današnji letovi</p>
-                <p className="text-2xl font-bold text-primary-200">{flights.length}</p>
+                <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Otvoreni letovi</p>
+                <p className="text-2xl font-bold text-primary-200">{activeFlights.length}</p>
               </div>
               <div
                 className="p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all"
@@ -186,9 +188,7 @@ export default function PreboardingPage() {
               </div>
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Završeni</p>
-                <p className="text-2xl font-bold text-green-200">
-                  {flights.filter(f => f.boardingManifest?.boardingStatus === 'COMPLETED').length}
-                </p>
+                <p className="text-2xl font-bold text-green-200">{completedFlights.length}</p>
               </div>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function PreboardingPage() {
         <section>
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-dark-900">Današnji odlasci</h2>
-            <p className="text-sm text-dark-500 mt-1">Kliknite na let za upload manifesta ili nastavak boardinga</p>
+            <p className="text-sm text-dark-500 mt-1">Otvoreni letovi su odvojeni od onih sa završenim boardingom</p>
           </div>
 
           {flights.length === 0 ? (
@@ -235,127 +235,201 @@ export default function PreboardingPage() {
               <p className="text-dark-500">Trenutno nema zakazanih odlaznih letova za danas.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {flights.map((flight) => {
-                const isCompleted = flight.boardingManifest?.boardingStatus === 'COMPLETED';
-                return (
-                <div
-                  key={flight.id}
-                  onClick={() => handleFlightClick(flight)}
-                  className={`bg-white rounded-3xl p-6 shadow-soft transition-all border-4 border-white group relative overflow-hidden ${
-                    isCompleted
-                      ? 'opacity-60 cursor-not-allowed'
-                      : 'hover:shadow-soft-lg cursor-pointer hover:border-primary-100'
-                  }`}
-                >
-                  {!isCompleted && (
-                    <>
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary-50/40 via-white/70 to-primary-100/30 opacity-0 group-hover:opacity-100 transition-all"></div>
-                      <div className="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-primary-200 rounded-full blur-2xl opacity-0 group-hover:opacity-60 transition-all"></div>
-                    </>
-                  )}
-
-                  {isCompleted && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                      <div className="transform -rotate-12">
-                        <div className="relative">
-                          {/* Glow effect */}
-                          <div className="absolute inset-0 bg-green-500/20 rounded-3xl blur-xl"></div>
-                          {/* Main badge */}
-                          <div className="relative bg-green-600/95 border-4 border-green-700 rounded-3xl px-12 py-6 shadow-2xl">
-                            <p className="text-6xl font-black text-white uppercase tracking-widest" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                              Završeno
-                            </p>
-                            <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-3 shadow-lg">
-                              <CheckCircle2 className="w-8 h-8 text-white" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+            <div className="space-y-10">
+              {activeFlights.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-xl font-bold text-dark-900">Otvoreni za rad</h3>
+                      <p className="text-sm text-dark-500 mt-1">Upload manifesta ili nastavak boardinga</p>
                     </div>
-                  )}
-
-                  <div className="relative z-10">
-                    {/* Airline Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        {flight.airline.logoUrl ? (
-                          <img
-                            src={flight.airline.logoUrl}
-                            alt={flight.airline.name}
-                            className="w-12 h-12 rounded-xl object-contain bg-white border border-dark-100 p-1"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm">
-                            {flight.airline.icaoCode}
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-bold text-dark-900 text-sm leading-tight">{flight.airline.name}</p>
-                          <p className="text-xs text-dark-500 uppercase tracking-wide">{flight.airline.icaoCode}</p>
-                        </div>
-                      </div>
-                      {getStatusBadge(flight)}
-                    </div>
-
-                    {/* Flight Number & Route */}
-                    <div className="mb-4 p-4 rounded-2xl bg-dark-50 border border-dark-100">
-                      {flight.departureFlightNumber ? (
-                        <>
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide">Broj leta</p>
-                            <p className="text-lg font-bold text-dark-900">{flight.departureFlightNumber}</p>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide">Ruta</p>
-                            <p className="text-sm font-bold text-primary-600">{flight.route}</p>
-                          </div>
-                        </>
-                      ) : (
-                        <div>
-                          <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide mb-2">Ruta</p>
-                          <p className="text-lg font-bold text-primary-600">{flight.route}</p>
-                          <p className="text-xs text-dark-400 mt-1">Broj leta nije unesen</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Time & Aircraft */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className="w-3.5 h-3.5 text-blue-600" />
-                          <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Polazak</p>
-                        </div>
-                        <p className="text-lg font-bold text-blue-900">
-                          {flight.departureScheduledTime ? formatTimeDisplay(flight.departureScheduledTime) : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Plane className="w-3.5 h-3.5 text-indigo-600" />
-                          <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Avion</p>
-                        </div>
-                        <p className="text-sm font-bold text-indigo-900">
-                          {flight.aircraftType?.model || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action Hint */}
-                    <div className="mt-4 pt-4 border-t border-dark-100">
-                      <p className="text-xs text-dark-500 text-center">
-                        {isCompleted
-                          ? 'Boarding završen - manifest finalizovan'
-                          : flight.boardingManifest
-                          ? 'Kliknite za nastavak boardinga'
-                          : 'Kliknite za upload manifesta'}
-                      </p>
+                    <div className="px-4 py-2 rounded-full bg-primary-100 text-primary-700 text-sm font-bold">
+                      {activeFlights.length} let{activeFlights.length === 1 ? '' : 'a'}
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {activeFlights.map((flight) => (
+                      <div
+                        key={flight.id}
+                        onClick={() => handleFlightClick(flight)}
+                        className="bg-white rounded-3xl p-6 shadow-soft transition-all border-4 border-primary-50 group relative overflow-hidden hover:shadow-soft-lg cursor-pointer hover:border-primary-200"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-50/70 via-white to-blue-50/50 opacity-0 group-hover:opacity-100 transition-all"></div>
+                        <div className="absolute top-0 right-0 -mt-2 -mr-2 w-24 h-24 bg-primary-200 rounded-full blur-2xl opacity-0 group-hover:opacity-60 transition-all"></div>
+
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              {flight.airline.logoUrl ? (
+                                <img
+                                  src={flight.airline.logoUrl}
+                                  alt={flight.airline.name}
+                                  className="w-12 h-12 rounded-xl object-contain bg-white border border-dark-100 p-1"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm">
+                                  {flight.airline.icaoCode}
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-dark-900 text-sm leading-tight">{flight.airline.name}</p>
+                                <p className="text-xs text-dark-500 uppercase tracking-wide">{flight.airline.icaoCode}</p>
+                              </div>
+                            </div>
+                            {getStatusBadge(flight)}
+                          </div>
+
+                          <div className="mb-4 p-4 rounded-2xl bg-dark-50 border border-dark-100">
+                            {flight.departureFlightNumber ? (
+                              <>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide">Broj leta</p>
+                                  <p className="text-lg font-bold text-dark-900">{flight.departureFlightNumber}</p>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide">Ruta</p>
+                                  <p className="text-sm font-bold text-primary-600">{flight.route}</p>
+                                </div>
+                              </>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide mb-2">Ruta</p>
+                                <p className="text-lg font-bold text-primary-600">{flight.route}</p>
+                                <p className="text-xs text-dark-400 mt-1">Broj leta nije unesen</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Clock className="w-3.5 h-3.5 text-blue-600" />
+                                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Polazak</p>
+                              </div>
+                              <p className="text-lg font-bold text-blue-900">
+                                {flight.departureScheduledTime ? formatTimeDisplay(flight.departureScheduledTime) : 'N/A'}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Plane className="w-3.5 h-3.5 text-indigo-600" />
+                                <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Avion</p>
+                              </div>
+                              <p className="text-sm font-bold text-indigo-900">
+                                {flight.aircraftType?.model || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-dark-100">
+                            <p className="text-xs text-dark-500 text-center">
+                              {flight.boardingManifest
+                                ? 'Kliknite za nastavak boardinga'
+                                : 'Kliknite za upload manifesta'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              );
-              })}
+              )}
+
+              {completedFlights.length > 0 && (
+                <div className="rounded-3xl border border-green-200 bg-gradient-to-br from-green-50 via-white to-emerald-50 p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-xl font-bold text-green-900">Završeni boarding</h3>
+                      <p className="text-sm text-green-700/80 mt-1">Ovi letovi su finalizovani i zaključani za izmjene</p>
+                    </div>
+                    <div className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-bold">
+                      {completedFlights.length} završeno
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {completedFlights.map((flight) => (
+                      <div
+                        key={flight.id}
+                        className="rounded-3xl p-6 border border-green-200 bg-white/80 backdrop-blur-sm relative overflow-hidden opacity-85"
+                      >
+                        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,197,94,0.08),transparent_45%,rgba(22,163,74,0.12))]"></div>
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              {flight.airline.logoUrl ? (
+                                <img
+                                  src={flight.airline.logoUrl}
+                                  alt={flight.airline.name}
+                                  className="w-12 h-12 rounded-xl object-contain bg-white border border-green-100 p-1"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-green-100 text-green-700 font-bold flex items-center justify-center text-sm">
+                                  {flight.airline.icaoCode}
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-dark-900 text-sm leading-tight">{flight.airline.name}</p>
+                                <p className="text-xs text-dark-500 uppercase tracking-wide">{flight.airline.icaoCode}</p>
+                              </div>
+                            </div>
+                            {getStatusBadge(flight)}
+                          </div>
+
+                          <div className="mb-4 p-4 rounded-2xl bg-green-50 border border-green-100">
+                            {flight.departureFlightNumber ? (
+                              <>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs text-green-700 font-semibold uppercase tracking-wide">Broj leta</p>
+                                  <p className="text-lg font-bold text-green-950">{flight.departureFlightNumber}</p>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs text-green-700 font-semibold uppercase tracking-wide">Ruta</p>
+                                  <p className="text-sm font-bold text-green-800">{flight.route}</p>
+                                </div>
+                              </>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-green-700 font-semibold uppercase tracking-wide mb-2">Ruta</p>
+                                <p className="text-lg font-bold text-green-800">{flight.route}</p>
+                                <p className="text-xs text-green-700/70 mt-1">Broj leta nije unesen</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-2xl bg-white border border-green-100">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Clock className="w-3.5 h-3.5 text-green-600" />
+                                <p className="text-xs text-green-700 font-semibold uppercase tracking-wide">Polazak</p>
+                              </div>
+                              <p className="text-lg font-bold text-green-950">
+                                {flight.departureScheduledTime ? formatTimeDisplay(flight.departureScheduledTime) : 'N/A'}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-white border border-green-100">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Plane className="w-3.5 h-3.5 text-green-600" />
+                                <p className="text-xs text-green-700 font-semibold uppercase tracking-wide">Avion</p>
+                              </div>
+                              <p className="text-sm font-bold text-green-950">
+                                {flight.aircraftType?.model || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-green-100">
+                            <p className="text-xs text-green-800 text-center font-semibold">
+                              Boarding završen, manifest finalizovan
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
