@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getTokenFromCookie } from '@/lib/auth-utils';
 import { spawn } from 'child_process';
 import path from 'path';
+import { getProjectPythonPath } from '@/lib/python';
 
 export async function POST(request: NextRequest) {
   try {
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     const scriptPath = path.join(process.cwd(), 'scripts', 'advanced_projections.py');
     
     return new Promise<Response>((resolve) => {
-      const pythonProcess = spawn('python3', [scriptPath, JSON.stringify(pythonInput)]);
+      const pythonProcess = spawn(getProjectPythonPath(), [scriptPath, JSON.stringify(pythonInput)]);
       
       let outputData = '';
       let errorData = '';

@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { getProjectPythonPath } from '@/lib/python';
 import { aggregateDailyReports } from '@/lib/naplate-aggregate';
 import { normalizeDailyReport } from '@/lib/naplate-config';
 
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const pythonProcess = spawn('python3', [scriptPath, mode, jsonPath, templatePath, outputPath]);
+    const pythonProcess = spawn(getProjectPythonPath(), [scriptPath, mode, jsonPath, templatePath, outputPath]);
 
     let stderr = '';
     pythonProcess.stderr.on('data', (data) => {

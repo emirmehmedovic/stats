@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { prisma } from '@/lib/prisma';
 import { requireSTW } from '@/lib/route-guards';
 import { spawn } from 'child_process';
+import { getProjectPythonPath } from '@/lib/python';
 
 /**
  * POST /api/predboarding/upload-manifest
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
 
     // Parse manifest using Python script
     const scriptPath = join(process.cwd(), 'scripts', 'parse_manifest.py');
-    const pythonProcess = spawn('python3', [scriptPath, filepath]);
+    const pythonProcess = spawn(getProjectPythonPath(), [scriptPath, filepath]);
 
     let stdout = '';
     let stderr = '';

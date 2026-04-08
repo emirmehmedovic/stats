@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getTokenFromCookie } from '@/lib/auth-utils';
 import { spawn } from 'child_process';
 import path from 'path';
+import { getProjectPythonPath } from '@/lib/python';
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
 function runPythonScript(scriptPath: string, inputData: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    const python = spawn('python3', [scriptPath, inputData]);
+    const python = spawn(getProjectPythonPath(), [scriptPath, inputData]);
 
     let stdout = '';
     let stderr = '';

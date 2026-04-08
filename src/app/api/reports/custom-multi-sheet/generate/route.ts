@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
 import { writeReportMetadata } from '@/lib/report-metadata';
+import { getProjectPythonPath } from '@/lib/python';
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
@@ -39,7 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const scriptPath = path.join(process.cwd(), 'scripts', 'generate_custom_advanced_report.py');
 
     // Execute Python script
-    const pythonProcess = spawn('python3', [scriptPath, filters]);
+    const pythonProcess = spawn(getProjectPythonPath(), [scriptPath, filters]);
 
     let stdout = '';
     let stderr = '';

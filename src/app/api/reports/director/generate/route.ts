@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
 import { getTokenFromCookie, verifyToken } from '@/lib/auth-utils';
 import { writeReportMetadata } from '@/lib/report-metadata';
+import { getProjectPythonPath } from '@/lib/python';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * POST /api/reports/director/generate
@@ -52,8 +53,9 @@ export async function POST(request: NextRequest) {
     console.log(`Pokrećem Python skriptu: ${scriptPath} ${year} ${month}`);
 
     try {
-      const { stdout, stderr } = await execAsync(
-        `python3 "${scriptPath}" ${year} ${month}`,
+      const { stdout, stderr } = await execFileAsync(
+        getProjectPythonPath(),
+        [scriptPath, String(year), String(month)],
         {
           env: {
             ...process.env,

@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { getProjectPythonPath } from '@/lib/python';
 
 export const runtime = 'nodejs';
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     await fs.writeFile(jsonPath, JSON.stringify(report.data));
 
-    const pythonProcess = spawn('python3', [scriptPath, jsonPath, templatePath, outputPath]);
+    const pythonProcess = spawn(getProjectPythonPath(), [scriptPath, jsonPath, templatePath, outputPath]);
 
     let stderr = '';
     pythonProcess.stderr.on('data', (data) => {
