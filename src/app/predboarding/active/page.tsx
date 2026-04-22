@@ -73,7 +73,81 @@ const normalizeSearchValue = (value: string) =>
     .trim()
     .toUpperCase();
 
+const normalizeSeatValue = (value: string) => {
+  const normalized = normalizeSearchValue(value).replace(/\s+/g, '');
+  if (!normalized) return '';
+
+  const match = normalized.match(/^0*(\d+)([A-Z])$/);
+  if (!match) return normalized;
+
+  return `${match[1]}${match[2]}`;
+};
+
+const extractBoardingPassNameTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const match = normalized.match(/(?:^|\s)M\d([A-Z]+(?:[\/-][A-Z]+)+)(?=\s|$)/);
+  if (!match) return [];
+
+  return match[1]
+    .split(/[\/-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+};
+
+const extractBoardingPassFlightTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const chunks = normalized.split(/[^A-Z0-9]+/).filter(Boolean);
+  const flightTokens = new Set<string>();
+
+  for (const chunk of chunks) {
+    const exactMatch = chunk.match(/^[A-Z0-9]{2,3}\d{2,4}$/);
+    if (exactMatch) {
+      flightTokens.add(exactMatch[0]);
+      continue;
+    }
+
+    const embeddedMatch = chunk.match(/([A-Z0-9]{2,3}\d{2,4})/);
+    if (embeddedMatch) {
+      flightTokens.add(embeddedMatch[1]);
+    }
+  }
+
+  return [...flightTokens];
+};
+
+const extractBoardingPassSeatTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const seatTokens = new Set<string>();
+
+  for (const match of normalized.matchAll(/(\d{1,3}[A-F])(?=\d{4}\b)/g)) {
+    seatTokens.add(normalizeSeatValue(match[1]));
+  }
+
+  for (const match of normalized.matchAll(/\b(\d{1,3}[A-F])\b/g)) {
+    seatTokens.add(normalizeSeatValue(match[1]));
+  }
+
+  return [...seatTokens].filter(Boolean);
+};
+
 const extractReaderNameTokens = (rawValue: string): string[] => {
+  const boardingPassTokens = extractBoardingPassNameTokens(rawValue);
+  if (boardingPassTokens.length > 0) {
+    return [...new Set(boardingPassTokens.slice(0, 3))];
+  }
+
   const normalized = rawValue
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -90,7 +164,7 @@ const extractReaderNameTokens = (rawValue: string): string[] => {
   );
 
   const source = filteredChunks.length > 0 ? filteredChunks : alphaChunks;
-  return [...new Set(source.slice(-2))];
+  return [...new Set(source.slice(0, 3))];
 };
 
 const passengerMatchesQuery = (
@@ -128,12 +202,38 @@ const passengerMatchesDevicePayload = (
   rawPayload: string
 ) => {
   const nameTokens = extractReaderNameTokens(rawPayload);
+  const flightTokens = extractBoardingPassFlightTokens(rawPayload);
+  const seatTokens = extractBoardingPassSeatTokens(rawPayload);
+
   if (nameTokens.length === 0) {
     return passengerMatchesQuery(passenger, rawPayload);
   }
 
   const passengerName = normalizeSearchValue(passenger.passengerName);
-  return nameTokens.every((token) => passengerName.includes(token));
+  if (!nameTokens.every((token) => passengerName.includes(token))) {
+    return false;
+  }
+
+  const passengerFlightNumber = normalizeSearchValue(passenger.flight.departureFlightNumber || '').replace(/\s+/g, '');
+  if (flightTokens.length > 0 && passengerFlightNumber) {
+    const matchesFlight = flightTokens.some(
+      (token) => passengerFlightNumber.includes(token) || token.includes(passengerFlightNumber)
+    );
+
+    if (!matchesFlight) {
+      return false;
+    }
+  }
+
+  const passengerSeat = normalizeSeatValue(passenger.seatNumber || '');
+  if (seatTokens.length > 0 && passengerSeat) {
+    const matchesSeat = seatTokens.some((token) => token === passengerSeat);
+    if (!matchesSeat) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export default function ActiveBoardingPage() {

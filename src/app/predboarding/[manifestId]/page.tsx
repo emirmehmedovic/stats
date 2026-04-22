@@ -15,8 +15,12 @@ import {
   Baby,
   Filter,
   Trash2,
+  ScanLine,
+  CreditCard,
+  Keyboard,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { showToast } from '@/components/ui/toast';
 import { formatDateStringWithDay, formatTimeDisplay, formatDateTimeDisplay } from '@/lib/dates';
 
 interface Passenger {
@@ -77,6 +81,180 @@ interface ManifestData {
 }
 
 type StatusFilter = 'ALL' | 'NOT_BOARDED' | 'BOARDED' | 'NO_SHOW';
+type SearchMode = 'MANUAL' | 'READER' | 'SCANNER';
+
+const normalizeSearchValue = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, ' ')
+    .trim()
+    .toUpperCase();
+
+const normalizeSeatValue = (value: string) => {
+  const normalized = normalizeSearchValue(value).replace(/\s+/g, '');
+  if (!normalized) return '';
+
+  const match = normalized.match(/^0*(\d+)([A-Z])$/);
+  if (!match) return normalized;
+
+  return `${match[1]}${match[2]}`;
+};
+
+const extractBoardingPassNameTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const match = normalized.match(/(?:^|\s)M\d([A-Z]+(?:[\/-][A-Z]+)+)(?=\s|$)/);
+  if (!match) return [];
+
+  return match[1]
+    .split(/[\/-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+};
+
+const extractBoardingPassFlightTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const chunks = normalized.split(/[^A-Z0-9]+/).filter(Boolean);
+  const flightTokens = new Set<string>();
+
+  for (const chunk of chunks) {
+    const exactMatch = chunk.match(/^[A-Z0-9]{2,3}\d{2,4}$/);
+    if (exactMatch) {
+      flightTokens.add(exactMatch[0]);
+      continue;
+    }
+
+    const embeddedMatch = chunk.match(/([A-Z0-9]{2,3}\d{2,4})/);
+    if (embeddedMatch) {
+      flightTokens.add(embeddedMatch[1]);
+    }
+  }
+
+  return [...flightTokens];
+};
+
+const extractBoardingPassSeatTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const seatTokens = new Set<string>();
+
+  for (const match of normalized.matchAll(/(\d{1,3}[A-F])(?=\d{4}\b)/g)) {
+    seatTokens.add(normalizeSeatValue(match[1]));
+  }
+
+  for (const match of normalized.matchAll(/\b(\d{1,3}[A-F])\b/g)) {
+    seatTokens.add(normalizeSeatValue(match[1]));
+  }
+
+  return [...seatTokens].filter(Boolean);
+};
+
+const extractReaderNameTokens = (rawValue: string): string[] => {
+  const boardingPassTokens = extractBoardingPassNameTokens(rawValue);
+  if (boardingPassTokens.length > 0) {
+    return [...new Set(boardingPassTokens.slice(0, 3))];
+  }
+
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const alphaChunks = normalized
+    .split(/[^A-Z0-9]+/)
+    .flatMap((chunk) => chunk.match(/[A-Z]{3,}/g) || []);
+
+  if (alphaChunks.length === 0) return [];
+
+  const filteredChunks = alphaChunks.filter(
+    (chunk) => !['BIH', 'IDBIH', 'M', 'F'].includes(chunk)
+  );
+
+  const source = filteredChunks.length > 0 ? filteredChunks : alphaChunks;
+  return [...new Set(source.slice(0, 3))];
+};
+
+const passengerMatchesQuery = (
+  passenger: Passenger,
+  flight: Flight,
+  rawQuery: string
+) => {
+  const query = normalizeSearchValue(rawQuery);
+  if (!query) return true;
+
+  const compactQuery = query.replace(/\s+/g, '');
+  const passengerName = normalizeSearchValue(passenger.passengerName);
+  const nameNoSeparators = passengerName.replace(/\s+/g, '').replace(/\//g, '');
+  const seat = normalizeSeatValue(passenger.seatNumber || '');
+  const route = normalizeSearchValue(flight.route);
+  const flightNumber = normalizeSearchValue(flight.departureFlightNumber || '').replace(/\s+/g, '');
+
+  if (
+    passengerName.includes(query) ||
+    nameNoSeparators.includes(compactQuery) ||
+    seat.includes(compactQuery) ||
+    route.includes(query) ||
+    flightNumber.includes(compactQuery)
+  ) {
+    return true;
+  }
+
+  const queryTokens = query.split(/\s+/).filter(Boolean);
+  if (queryTokens.length === 0) return true;
+
+  return queryTokens.every((token) => passengerName.includes(token));
+};
+
+const passengerMatchesDevicePayload = (
+  passenger: Passenger,
+  flight: Flight,
+  rawPayload: string
+) => {
+  const nameTokens = extractReaderNameTokens(rawPayload);
+  const flightTokens = extractBoardingPassFlightTokens(rawPayload);
+  const seatTokens = extractBoardingPassSeatTokens(rawPayload);
+
+  if (nameTokens.length === 0) {
+    return passengerMatchesQuery(passenger, flight, rawPayload);
+  }
+
+  const passengerName = normalizeSearchValue(passenger.passengerName);
+  if (!nameTokens.every((token) => passengerName.includes(token))) {
+    return false;
+  }
+
+  const passengerFlightNumber = normalizeSearchValue(flight.departureFlightNumber || '').replace(/\s+/g, '');
+  if (flightTokens.length > 0 && passengerFlightNumber) {
+    const matchesFlight = flightTokens.some(
+      (token) => passengerFlightNumber.includes(token) || token.includes(passengerFlightNumber)
+    );
+
+    if (!matchesFlight) {
+      return false;
+    }
+  }
+
+  const passengerSeat = normalizeSeatValue(passenger.seatNumber || '');
+  if (seatTokens.length > 0 && passengerSeat) {
+    const matchesSeat = seatTokens.some((token) => token === passengerSeat);
+    if (!matchesSeat) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 export default function BoardingInterfacePage() {
   const router = useRouter();
@@ -88,6 +266,9 @@ export default function BoardingInterfacePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('MANUAL');
+  const [deviceInput, setDeviceInput] = useState('');
+  const [deviceFeedback, setDeviceFeedback] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('NOT_BOARDED');
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
@@ -196,6 +377,8 @@ export default function BoardingInterfacePage() {
     setSelectedPassengers(new Set());
   };
 
+  const activeSearchTerm = searchMode === 'MANUAL' ? searchTerm : deviceInput;
+
   const bulkUpdateStatus = async (status: 'BOARDED' | 'NO_SHOW') => {
     if (selectedPassengers.size === 0) return;
 
@@ -264,13 +447,57 @@ export default function BoardingInterfacePage() {
     }
   };
 
+  const attemptDeviceBoarding = async () => {
+    const query = activeSearchTerm.trim();
+    if (!query || !data) {
+      const message = 'Nema unosa sa readera/scannera. Pokušajte ponovo ili pređite na ručnu pretragu.';
+      setDeviceFeedback(message);
+      showToast(message, 'warning');
+      return;
+    }
+
+    const pendingMatches = data.manifest.passengers.filter((passenger) => {
+      if (passenger.boardingStatus !== 'NO_SHOW') return false;
+
+      return searchMode === 'MANUAL'
+        ? passengerMatchesQuery(passenger, data.manifest.flight, query)
+        : passengerMatchesDevicePayload(passenger, data.manifest.flight, query);
+    });
+
+    if (pendingMatches.length === 1) {
+      const passenger = pendingMatches[0];
+      setDeviceFeedback(
+        `Pronađen putnik ${passenger.passengerName}. Boarding se evidentira automatski.`
+      );
+      showToast(`Pronađen putnik ${passenger.passengerName}. Boarding je evidentiran.`, 'success');
+      await updatePassengerStatus(passenger.id, 'BOARDED');
+      setSelectedPassengers(new Set());
+      return;
+    }
+
+    if (pendingMatches.length === 0) {
+      const message = 'Putnik nije pronađen preko readera/scannera. Probajte ručno pretraživanje.';
+      setDeviceFeedback(message);
+      showToast(message, 'warning');
+      return;
+    }
+
+    const message = `Pronađeno je više kandidata (${pendingMatches.length}). Probajte ručno pretraživanje ili odaberite putnika iz liste.`;
+    setDeviceFeedback(message);
+    showToast(message, 'info');
+  };
+
   const filteredPassengers = data?.manifest.passengers.filter((passenger) => {
     // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      const matchesName = passenger.passengerName.toLowerCase().includes(search);
-      const matchesSeat = passenger.seatNumber?.toLowerCase().includes(search);
-      if (!matchesName && !matchesSeat) return false;
+    if (
+      activeSearchTerm &&
+      !(
+        searchMode === 'MANUAL'
+          ? passengerMatchesQuery(passenger, data.manifest.flight, activeSearchTerm)
+          : passengerMatchesDevicePayload(passenger, data.manifest.flight, activeSearchTerm)
+      )
+    ) {
+      return false;
     }
 
     // Status filter
@@ -497,36 +724,118 @@ export default function BoardingInterfacePage() {
 
         {/* Search & Filters */}
         <div className="bg-white rounded-2xl p-4 shadow-soft">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
-              <input
-                type="text"
-                placeholder="Pretraži po imenu ili sjedištu..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-dark-50 border border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
               {([
-                { value: 'ALL', label: 'Svi' },
-                { value: 'NOT_BOARDED', label: 'Putnici' },
-                { value: 'BOARDED', label: 'Boarded' },
-                { value: 'NO_SHOW', label: 'No-show' }
-              ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setStatusFilter(filter.value)}
-                  className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-                    statusFilter === filter.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
+                { value: 'MANUAL', label: 'Ručno', icon: Keyboard },
+                { value: 'READER', label: 'Reader', icon: CreditCard },
+                { value: 'SCANNER', label: 'Scanner', icon: ScanLine }
+              ] as Array<{ value: SearchMode; label: string; icon: typeof Keyboard }>).map((mode) => {
+                const Icon = mode.icon;
+                return (
+                  <button
+                    key={mode.value}
+                    onClick={() => {
+                      setSearchMode(mode.value);
+                      setDeviceFeedback(null);
+                    }}
+                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                      searchMode === mode.value
+                        ? 'bg-dark-900 text-white'
+                        : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
+                  <input
+                    type="text"
+                    placeholder={
+                      searchMode === 'MANUAL'
+                        ? 'Pretraži po imenu, sjedištu ili broju leta...'
+                        : searchMode === 'READER'
+                        ? 'Reader može upisati ime i prezime sa dokumenta ili karte...'
+                        : 'Scanner može upisati barcode/string sa boarding karte...'
+                    }
+                    value={searchMode === 'MANUAL' ? searchTerm : deviceInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (searchMode === 'MANUAL') {
+                        setSearchTerm(value);
+                      } else {
+                        setDeviceInput(value);
+                        setDeviceFeedback(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchMode !== 'MANUAL') {
+                        void attemptDeviceBoarding();
+                      }
+                    }}
+                    className="w-full pl-12 pr-4 py-3 bg-dark-50 border border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+
+                {searchMode !== 'MANUAL' && (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-dark-500">
+                      Uređaj može poslati tekst direktno u ovo polje. Ako je pogodak jednoznačan, putnik će biti automatski ukrcan.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setDeviceInput('');
+                          setDeviceFeedback(null);
+                        }}
+                        className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
+                      >
+                        Očisti
+                      </button>
+                      <button
+                        onClick={() => void attemptDeviceBoarding()}
+                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        Pretraži i ukrcaj
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deviceFeedback && searchMode !== 'MANUAL' && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                    <p className="text-sm text-blue-900">{deviceFeedback}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {([
+                  { value: 'ALL', label: 'Svi' },
+                  { value: 'NOT_BOARDED', label: 'Putnici' },
+                  { value: 'BOARDED', label: 'Boarded' },
+                  { value: 'NO_SHOW', label: 'No-show' }
+                ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setStatusFilter(filter.value)}
+                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                      statusFilter === filter.value
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
