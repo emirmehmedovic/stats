@@ -55,7 +55,7 @@ function UploadManifestContent() {
     setFlightError(null);
 
     try {
-      const response = await fetch(`/api/flights/${flightId}`);
+      const response = await fetch(`/api/predboarding/flights/${flightId}`);
 
       if (!response.ok) {
         const result = await response.json();

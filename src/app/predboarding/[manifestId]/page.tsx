@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -101,6 +101,15 @@ const normalizeSeatValue = (value: string) => {
   return `${match[1]}${match[2]}`;
 };
 
+const normalizeFlightValue = (value: string) =>
+  normalizeSearchValue(value).replace(/\s+/g, '');
+
+const extractFlightNumberDigits = (value: string) => {
+  const normalized = normalizeFlightValue(value);
+  const match = normalized.match(/(\d{2,4})$/);
+  return match ? match[1] : '';
+};
+
 const extractBoardingPassNameTokens = (rawValue: string): string[] => {
   const normalized = rawValue
     .normalize('NFD')
@@ -126,13 +135,13 @@ const extractBoardingPassFlightTokens = (rawValue: string): string[] => {
   const flightTokens = new Set<string>();
 
   for (const chunk of chunks) {
-    const exactMatch = chunk.match(/^[A-Z0-9]{2,3}\d{2,4}$/);
+    const exactMatch = chunk.match(/^[A-Z]{1,3}\d{2,4}$/);
     if (exactMatch) {
       flightTokens.add(exactMatch[0]);
       continue;
     }
 
-    const embeddedMatch = chunk.match(/([A-Z0-9]{2,3}\d{2,4})/);
+    const embeddedMatch = chunk.match(/^([A-Z]{1,3}\d{2,4})(?!\d)/);
     if (embeddedMatch) {
       flightTokens.add(embeddedMatch[1]);
     }
@@ -185,6 +194,24 @@ const extractReaderNameTokens = (rawValue: string): string[] => {
   return [...new Set(source.slice(0, 3))];
 };
 
+const matchesNameToken = (passengerName: string, token: string) => {
+  if (passengerName.includes(token)) return true;
+
+  const passengerTokens = passengerName.split(/\s+/).filter(Boolean);
+  return passengerTokens.some((passengerToken) => {
+    if (passengerToken.includes(token) || token.includes(passengerToken)) {
+      return true;
+    }
+
+    const minPrefixLength = Math.min(passengerToken.length, token.length);
+    if (minPrefixLength < 5) {
+      return false;
+    }
+
+    return passengerToken.slice(0, minPrefixLength) === token.slice(0, minPrefixLength);
+  });
+};
+
 const passengerMatchesQuery = (
   passenger: Passenger,
   flight: Flight,
@@ -230,14 +257,24 @@ const passengerMatchesDevicePayload = (
   }
 
   const passengerName = normalizeSearchValue(passenger.passengerName);
-  if (!nameTokens.every((token) => passengerName.includes(token))) {
+  if (!nameTokens.every((token) => matchesNameToken(passengerName, token))) {
     return false;
   }
 
-  const passengerFlightNumber = normalizeSearchValue(flight.departureFlightNumber || '').replace(/\s+/g, '');
+  const passengerFlightNumber = normalizeFlightValue(flight.departureFlightNumber || '');
+  const passengerFlightDigits = extractFlightNumberDigits(flight.departureFlightNumber || '');
   if (flightTokens.length > 0 && passengerFlightNumber) {
     const matchesFlight = flightTokens.some(
-      (token) => passengerFlightNumber.includes(token) || token.includes(passengerFlightNumber)
+      (token) => {
+        const normalizedToken = normalizeFlightValue(token);
+        const tokenDigits = extractFlightNumberDigits(token);
+
+        return (
+          passengerFlightNumber.includes(normalizedToken) ||
+          normalizedToken.includes(passengerFlightNumber) ||
+          (tokenDigits !== '' && tokenDigits === passengerFlightDigits)
+        );
+      }
     );
 
     if (!matchesFlight) {
@@ -260,6 +297,8 @@ export default function BoardingInterfacePage() {
   const router = useRouter();
   const params = useParams();
   const manifestId = params?.manifestId as string;
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastProcessedDeviceInputRef = useRef('');
 
   const [data, setData] = useState<ManifestData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -282,6 +321,30 @@ export default function BoardingInterfacePage() {
       fetchManifest();
     }
   }, [manifestId]);
+
+  useEffect(() => {
+    if (searchMode !== 'MANUAL') {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    } else {
+      lastProcessedDeviceInputRef.current = '';
+    }
+  }, [searchMode]);
+
+  useEffect(() => {
+    if (searchMode === 'MANUAL') return;
+
+    const query = deviceInput.trim();
+    if (query.length < 6) return;
+    if (query === lastProcessedDeviceInputRef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      lastProcessedDeviceInputRef.current = query;
+      void attemptDeviceBoarding(query);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [deviceInput, searchMode, data]);
 
   const fetchManifest = async () => {
     setIsLoading(true);
@@ -447,8 +510,8 @@ export default function BoardingInterfacePage() {
     }
   };
 
-  const attemptDeviceBoarding = async () => {
-    const query = activeSearchTerm.trim();
+  const attemptDeviceBoarding = async (rawQuery?: string) => {
+    const query = (rawQuery ?? activeSearchTerm).trim();
     if (!query || !data) {
       const message = 'Nema unosa sa readera/scannera. Pokušajte ponovo ili pređite na ručnu pretragu.';
       setDeviceFeedback(message);
@@ -472,6 +535,10 @@ export default function BoardingInterfacePage() {
       showToast(`Pronađen putnik ${passenger.passengerName}. Boarding je evidentiran.`, 'success');
       await updatePassengerStatus(passenger.id, 'BOARDED');
       setSelectedPassengers(new Set());
+      setDeviceInput('');
+      lastProcessedDeviceInputRef.current = '';
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
       return;
     }
 
@@ -479,12 +546,16 @@ export default function BoardingInterfacePage() {
       const message = 'Putnik nije pronađen preko readera/scannera. Probajte ručno pretraživanje.';
       setDeviceFeedback(message);
       showToast(message, 'warning');
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
       return;
     }
 
     const message = `Pronađeno je više kandidata (${pendingMatches.length}). Probajte ručno pretraživanje ili odaberite putnika iz liste.`;
     setDeviceFeedback(message);
     showToast(message, 'info');
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
   };
 
   const filteredPassengers = data?.manifest.passengers.filter((passenger) => {
@@ -738,6 +809,10 @@ export default function BoardingInterfacePage() {
                     onClick={() => {
                       setSearchMode(mode.value);
                       setDeviceFeedback(null);
+                      if (mode.value === 'MANUAL') {
+                        setDeviceInput('');
+                        lastProcessedDeviceInputRef.current = '';
+                      }
                     }}
                     className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
                       searchMode === mode.value
@@ -757,6 +832,7 @@ export default function BoardingInterfacePage() {
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder={
                       searchMode === 'MANUAL'
@@ -773,6 +849,9 @@ export default function BoardingInterfacePage() {
                       } else {
                         setDeviceInput(value);
                         setDeviceFeedback(null);
+                        if (!value.trim()) {
+                          lastProcessedDeviceInputRef.current = '';
+                        }
                       }
                     }}
                     onKeyDown={(e) => {
@@ -794,6 +873,8 @@ export default function BoardingInterfacePage() {
                         onClick={() => {
                           setDeviceInput('');
                           setDeviceFeedback(null);
+                          lastProcessedDeviceInputRef.current = '';
+                          searchInputRef.current?.focus();
                         }}
                         className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
                       >
