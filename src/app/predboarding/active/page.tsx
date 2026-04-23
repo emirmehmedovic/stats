@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2, ScanLine, CreditCard, Keyboard } from 'lucide-react';
+import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2, ScanLine, CreditCard, Keyboard, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { showToast } from '@/components/ui/toast';
-import { formatTimeDisplay, formatDateStringWithDay, getTodayDateString } from '@/lib/dates';
+import { formatTimeDisplay, formatDateStringWithDay, formatDateTimeDisplay, getTodayDateString } from '@/lib/dates';
 
 interface Passenger {
   id: string;
@@ -16,6 +16,7 @@ interface Passenger {
   title: string;
   isInfant: boolean;
   boardingStatus: 'PENDING' | 'BOARDED' | 'NO_SHOW';
+  boardedAt?: string | null;
   manifestId: string;
   passengerId?: string | null;
   fareClass?: string | null;
@@ -69,6 +70,16 @@ interface ActiveBoardingData {
 
 type StatusFilter = 'ALL' | 'NOT_BOARDED' | 'BOARDED';
 type SearchMode = 'MANUAL' | 'READER' | 'SCANNER';
+type ScanResultStatus = 'SUCCESS' | 'ALREADY_BOARDED' | 'NOT_ON_FLIGHT' | 'MULTIPLE' | 'EMPTY';
+type ActivePassenger = Passenger & { flight: Flight };
+
+type ScanResult = {
+  status: ScanResultStatus;
+  message: string;
+  passenger?: ActivePassenger | null;
+  matches?: number;
+  scannedValue?: string;
+};
 
 const normalizeSearchValue = (value: string) =>
   value
@@ -297,6 +308,7 @@ export default function ActiveBoardingPage() {
   const [searchMode, setSearchMode] = useState<SearchMode>('MANUAL');
   const [deviceInput, setDeviceInput] = useState('');
   const [deviceFeedback, setDeviceFeedback] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('NOT_BOARDED');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPassengers, setSelectedPassengers] = useState<Set<string>>(new Set());
@@ -370,7 +382,9 @@ export default function ActiveBoardingPage() {
     const updatedManifests = data.manifests.map(m => {
       if (m.manifest.id === manifestId) {
         const updatedPassengers = m.passengers.map(p =>
-          p.id === passengerId ? { ...p, boardingStatus: status } : p
+          p.id === passengerId
+            ? { ...p, boardingStatus: status, boardedAt: status === 'BOARDED' ? new Date().toISOString() : null }
+            : p
         );
         const boarded = updatedPassengers.filter(p => p.boardingStatus === 'BOARDED').length;
         const noShow = updatedPassengers.filter(p => p.boardingStatus === 'NO_SHOW').length;
@@ -483,24 +497,32 @@ export default function ActiveBoardingPage() {
     if (!query || !data) {
       const message = 'Nema unosa sa readera/scannera. Pokušajte ponovo ili pređite na ručnu pretragu.';
       setDeviceFeedback(message);
+      setScanResult({ status: 'EMPTY', message, scannedValue: query });
       showToast(message, 'warning');
       return;
     }
 
-    const pendingMatches = allPassengers.filter((passenger) => {
-      if (passenger.boardingStatus !== 'NO_SHOW') return false;
-
+    const allMatches = allPassengers.filter((passenger) => {
       return searchMode === 'MANUAL'
         ? passengerMatchesQuery(passenger, query)
         : passengerMatchesDevicePayload(passenger, query);
     });
+    const pendingMatches = allMatches.filter((passenger) => passenger.boardingStatus === 'NO_SHOW');
+    const boardedMatches = allMatches.filter((passenger) => passenger.boardingStatus === 'BOARDED');
 
     if (pendingMatches.length === 1) {
       const passenger = pendingMatches[0];
-      setDeviceFeedback(
-        `Pronađen putnik ${passenger.passengerName}. Boarding se evidentira automatski.`
-      );
-      showToast(`Pronađen putnik ${passenger.passengerName}. Boarding je evidentiran.`, 'success');
+      const boardedAt = new Date().toISOString();
+      const message = `Putnik ${formatPassengerDisplayName(passenger.passengerName)} je ukrcan na let ${passenger.flight.departureFlightNumber || passenger.flight.route}.`;
+      setDeviceFeedback(message);
+      setScanResult({
+        status: 'SUCCESS',
+        message,
+        passenger: { ...passenger, boardingStatus: 'BOARDED', boardedAt },
+        matches: allMatches.length,
+        scannedValue: query,
+      });
+      showToast(message, 'success');
       await updatePassengerStatus(passenger.manifestId, passenger.id, 'BOARDED');
       setSelectedPassengers(new Set());
       setDeviceInput('');
@@ -510,24 +532,54 @@ export default function ActiveBoardingPage() {
       return;
     }
 
-    if (pendingMatches.length === 0) {
-      const message = 'Putnik nije pronađen preko readera/scannera. Probajte ručno pretraživanje.';
+    if (boardedMatches.length === 1 && pendingMatches.length === 0 && allMatches.length === 1) {
+      const passenger = boardedMatches[0];
+      const message = `Putnik ${formatPassengerDisplayName(passenger.passengerName)} je već boardiran na letu ${passenger.flight.departureFlightNumber || passenger.flight.route}.`;
       setDeviceFeedback(message);
+      setScanResult({
+        status: 'ALREADY_BOARDED',
+        message,
+        passenger,
+        matches: 1,
+        scannedValue: query,
+      });
+      showToast(message, 'info');
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+      return;
+    }
+
+    if (allMatches.length === 0) {
+      const message = 'Putnik nije pronađen na aktivnim letovima ili nije u manifestima.';
+      setDeviceFeedback(message);
+      setScanResult({
+        status: 'NOT_ON_FLIGHT',
+        message,
+        scannedValue: query,
+      });
       showToast(message, 'warning');
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
       return;
     }
 
-    const message = `Pronađeno je više kandidata (${pendingMatches.length}). Probajte ručno pretraživanje ili odaberite putnika iz liste.`;
+    const candidateCount = pendingMatches.length > 0 ? pendingMatches.length : allMatches.length;
+    const message = `Pronađeno je više kandidata (${candidateCount}). Provjerite let i detalje putnika prije boardinga.`;
     setDeviceFeedback(message);
+    setScanResult({
+      status: 'MULTIPLE',
+      message,
+      passenger: pendingMatches[0] || allMatches[0],
+      matches: candidateCount,
+      scannedValue: query,
+    });
     showToast(message, 'info');
     searchInputRef.current?.focus();
     searchInputRef.current?.select();
   };
 
   // Flatten all passengers from all manifests
-  const allPassengers = data?.manifests.flatMap(m =>
+  const allPassengers: ActivePassenger[] = data?.manifests.flatMap(m =>
     m.passengers.map(p => ({
       ...p,
       flight: m.manifest.flight
@@ -556,6 +608,93 @@ export default function ActiveBoardingPage() {
 
     return true;
   });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'BOARDED':
+        return (
+          <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+            Ukrcan
+          </span>
+        );
+      case 'NO_SHOW':
+        return (
+          <span className="px-3 py-1 rounded-full bg-dark-100 text-dark-600 text-xs font-semibold">
+            Čeka
+          </span>
+        );
+      default:
+        return (
+          <span className="px-3 py-1 rounded-full bg-dark-100 text-dark-600 text-xs font-semibold">
+            Nepoznat
+          </span>
+        );
+    }
+  };
+
+  const getTitleBadge = (title: string) => {
+    const colors: Record<string, string> = {
+      MR: 'bg-blue-100 text-blue-700',
+      MS: 'bg-pink-100 text-pink-700',
+      MRS: 'bg-pink-100 text-pink-700',
+      MISS: 'bg-pink-100 text-pink-700',
+      MSTR: 'bg-blue-100 text-blue-700',
+      CHD: 'bg-purple-100 text-purple-700',
+    };
+
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${colors[title] || 'bg-dark-100 text-dark-700'}`}>
+        {title}
+      </span>
+    );
+  };
+
+  const getScanResultStyles = (status: ScanResultStatus) => {
+    switch (status) {
+      case 'SUCCESS':
+        return {
+          wrapper: 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-100',
+          banner: 'bg-green-600 text-white',
+          card: 'bg-white/85 border-green-200',
+          icon: <CheckCircle2 className="w-6 h-6 text-green-600" />,
+          title: 'Putnik ukrcan',
+          text: 'text-green-900',
+          emphasis: 'BOARDING USPJEŠNO EVIDENTIRAN',
+        };
+      case 'ALREADY_BOARDED':
+        return {
+          wrapper: 'border-blue-300 bg-gradient-to-br from-blue-50 to-sky-100',
+          banner: 'bg-blue-700 text-white',
+          card: 'bg-white/85 border-blue-200',
+          icon: <Info className="w-6 h-6 text-blue-700" />,
+          title: 'Već ukrcan',
+          text: 'text-blue-900',
+          emphasis: 'PUTNIK JE VEĆ BOARDED',
+        };
+      case 'MULTIPLE':
+        return {
+          wrapper: 'border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-100',
+          banner: 'bg-amber-600 text-white',
+          card: 'bg-white/85 border-amber-200',
+          icon: <AlertTriangle className="w-6 h-6 text-amber-600" />,
+          title: 'Više kandidata',
+          text: 'text-amber-900',
+          emphasis: 'POTREBNA RUČNA PROVJERA',
+        };
+      case 'NOT_ON_FLIGHT':
+      case 'EMPTY':
+      default:
+        return {
+          wrapper: 'border-red-300 bg-gradient-to-br from-red-50 to-rose-100',
+          banner: 'bg-red-600 text-white',
+          card: 'bg-white/85 border-red-200',
+          icon: <XCircle className="w-6 h-6 text-red-600" />,
+          title: 'Nema podudaranja',
+          text: 'text-red-900',
+          emphasis: 'PUTNIK NIJE PRONAĐEN',
+        };
+    }
+  };
 
   if (isLoading) {
     return (
@@ -737,6 +876,7 @@ export default function ActiveBoardingPage() {
                     onClick={() => {
                       setSearchMode(mode.value);
                       setDeviceFeedback(null);
+                      setScanResult(null);
                       if (mode.value === 'MANUAL') {
                         setDeviceInput('');
                         lastProcessedDeviceInputRef.current = '';
@@ -777,6 +917,7 @@ export default function ActiveBoardingPage() {
                       } else {
                         setDeviceInput(value);
                         setDeviceFeedback(null);
+                        setScanResult(null);
                         if (!value.trim()) {
                           lastProcessedDeviceInputRef.current = '';
                         }
@@ -801,6 +942,7 @@ export default function ActiveBoardingPage() {
                         onClick={() => {
                           setDeviceInput('');
                           setDeviceFeedback(null);
+                          setScanResult(null);
                           lastProcessedDeviceInputRef.current = '';
                           searchInputRef.current?.focus();
                         }}
@@ -846,6 +988,109 @@ export default function ActiveBoardingPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Scan Result */}
+        <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
+          <div className="p-6 border-b border-dark-100">
+            <h3 className="text-xl font-bold text-dark-900">Rezultat skeniranja</h3>
+            <p className="text-sm text-dark-500 mt-1">Detalji zadnjeg reader/scanner unosa sa jasno označenim letom</p>
+          </div>
+          {scanResult ? (() => {
+            const styles = getScanResultStyles(scanResult.status);
+            const passenger = scanResult.passenger;
+            return (
+              <div className={`m-4 rounded-2xl border p-5 ${styles.wrapper}`}>
+                <div className={`mb-4 rounded-2xl px-4 py-3 ${styles.banner}`}>
+                  <div className="flex items-center gap-3">
+                    {styles.icon}
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-90">{styles.title}</p>
+                      <p className="text-xl font-black leading-tight">{styles.emphasis}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className={`text-base font-semibold ${styles.text}`}>{scanResult.message}</p>
+                </div>
+
+                {scanResult.scannedValue && (
+                  <div className={`mb-4 rounded-xl border px-3 py-2 ${styles.card}`}>
+                    <p className="text-[11px] uppercase tracking-wide text-dark-500">Scan input</p>
+                    <p className="text-sm font-mono text-dark-800 break-all">{scanResult.scannedValue}</p>
+                  </div>
+                )}
+
+                {passenger && (
+                  <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] gap-4">
+                    <div className="space-y-3">
+                      <div className={`rounded-2xl border px-4 py-4 ${styles.card}`}>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dark-500">Putnik</p>
+                        <p className="text-2xl font-black text-dark-900 mt-1">{formatPassengerDisplayName(passenger.passengerName)}</p>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          {getTitleBadge(passenger.title)}
+                          {getStatusBadge(passenger.boardingStatus)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Sjedište</p>
+                          <p className="text-lg font-bold text-dark-900">{passenger.seatNumber || 'N/A'}</p>
+                        </div>
+                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Seq</p>
+                          <p className="text-lg font-bold text-dark-900">{passenger.sequenceNumber || 'N/A'}</p>
+                        </div>
+                        <div className={`rounded-xl border px-3 py-3 col-span-2 ${styles.card}`}>
+                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Locator</p>
+                          <p className="text-lg font-bold text-dark-900">{passenger.passengerId || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-slate-700 bg-slate-950 text-white px-4 py-4 shadow-soft">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Let za boarding</p>
+                        <p className="text-3xl font-black mt-1">{passenger.flight.departureFlightNumber || passenger.flight.route}</p>
+                        <p className="text-sm text-slate-100 mt-1">{passenger.flight.route}</p>
+                        <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-slate-50">
+                          <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
+                            {passenger.flight.airline.name}
+                          </span>
+                          {passenger.flight.departureScheduledTime && (
+                            <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
+                              Polazak: {formatTimeDisplay(passenger.flight.departureScheduledTime)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {passenger.boardedAt && (
+                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Vrijeme boardinga</p>
+                          <p className="text-lg font-bold text-dark-900">{formatDateTimeDisplay(passenger.boardedAt)}</p>
+                        </div>
+                      )}
+
+                      {scanResult.matches && scanResult.matches > 1 && (
+                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Kandidata</p>
+                          <p className="text-lg font-bold text-dark-900">{scanResult.matches}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })() : (
+            <div className="p-8 text-center text-dark-500">
+              <ScanLine className="w-10 h-10 text-dark-300 mx-auto mb-3" />
+              <p>Još nema skeniranog putnika.</p>
+            </div>
+          )}
         </div>
 
         {/* Selection Actions */}
