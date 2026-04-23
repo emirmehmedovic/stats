@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2, ScanLine, CreditCard, Keyboard, Info, AlertTriangle, XCircle } from 'lucide-react';
+import { Plane, Users, Search, CheckCircle2, Clock, ArrowLeft, RefreshCw, Loader2, ScanLine, CreditCard, Keyboard, Info, AlertTriangle, XCircle, X, Filter } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { showToast } from '@/components/ui/toast';
 import { formatTimeDisplay, formatDateStringWithDay, formatDateTimeDisplay, getTodayDateString } from '@/lib/dates';
@@ -68,7 +68,7 @@ interface ActiveBoardingData {
   };
 }
 
-type StatusFilter = 'ALL' | 'NOT_BOARDED' | 'BOARDED';
+type StatusFilter = 'ALL' | 'CHECKED_IN' | 'NO_SHOW' | 'BOARDED';
 type SearchMode = 'MANUAL' | 'READER' | 'SCANNER';
 type ScanResultStatus = 'SUCCESS' | 'ALREADY_BOARDED' | 'NOT_ON_FLIGHT' | 'MULTIPLE' | 'EMPTY';
 type ActivePassenger = Passenger & { flight: Flight };
@@ -217,6 +217,21 @@ const formatPassengerDisplayName = (value: string) =>
     .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
     .join(" ");
 
+const hasSequenceNumber = (value?: string | null) => Boolean(value?.trim());
+
+const isCheckedInNotBoarded = (passenger: Passenger) =>
+  passenger.boardingStatus === 'NO_SHOW' && hasSequenceNumber(passenger.sequenceNumber);
+
+const isNoShowPassenger = (passenger: Passenger) =>
+  passenger.boardingStatus === 'NO_SHOW' && !hasSequenceNumber(passenger.sequenceNumber);
+
+const focusScannerInput = (input: HTMLInputElement | null) => {
+  if (!input) return;
+
+  input.focus({ preventScroll: true });
+  input.setSelectionRange(0, input.value.length);
+};
+
 const passengerMatchesQuery = (
   passenger: Passenger & { flight: Flight },
   rawQuery: string
@@ -309,10 +324,11 @@ export default function ActiveBoardingPage() {
   const [deviceInput, setDeviceInput] = useState('');
   const [deviceFeedback, setDeviceFeedback] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('NOT_BOARDED');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('CHECKED_IN');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPassengers, setSelectedPassengers] = useState<Set<string>>(new Set());
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
 
   const today = getTodayDateString();
   const todayDisplay = formatDateStringWithDay(today);
@@ -324,10 +340,21 @@ export default function ActiveBoardingPage() {
 
   useEffect(() => {
     if (searchMode !== 'MANUAL') {
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+      focusScannerInput(searchInputRef.current);
     }
   }, [searchMode]);
+
+  useEffect(() => {
+    if (!isScannerModalOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    focusScannerInput(searchInputRef.current);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isScannerModalOpen]);
 
   useEffect(() => {
     if (searchMode === 'MANUAL') {
@@ -372,6 +399,23 @@ export default function ActiveBoardingPage() {
     setIsRefreshing(true);
     await fetchActiveBoarding();
     setIsRefreshing(false);
+  };
+
+  const openScannerModal = (mode: Exclude<SearchMode, 'MANUAL'>) => {
+    setSearchMode(mode);
+    setIsScannerModalOpen(true);
+    setDeviceFeedback(null);
+    setScanResult(null);
+    setDeviceInput('');
+    lastProcessedDeviceInputRef.current = '';
+  };
+
+  const closeScannerModal = () => {
+    setIsScannerModalOpen(false);
+    setSearchMode('MANUAL');
+    setDeviceInput('');
+    setDeviceFeedback(null);
+    lastProcessedDeviceInputRef.current = '';
   };
 
   const updatePassengerStatus = async (manifestId: string, passengerId: string, status: 'BOARDED' | 'NO_SHOW') => {
@@ -527,8 +571,7 @@ export default function ActiveBoardingPage() {
       setSelectedPassengers(new Set());
       setDeviceInput('');
       lastProcessedDeviceInputRef.current = '';
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+      focusScannerInput(searchInputRef.current);
       return;
     }
 
@@ -543,9 +586,8 @@ export default function ActiveBoardingPage() {
         matches: 1,
         scannedValue: query,
       });
-      showToast(message, 'info');
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+      showToast(message, 'warning');
+      focusScannerInput(searchInputRef.current);
       return;
     }
 
@@ -558,8 +600,7 @@ export default function ActiveBoardingPage() {
         scannedValue: query,
       });
       showToast(message, 'warning');
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+      focusScannerInput(searchInputRef.current);
       return;
     }
 
@@ -574,8 +615,7 @@ export default function ActiveBoardingPage() {
       scannedValue: query,
     });
     showToast(message, 'info');
-    searchInputRef.current?.focus();
-    searchInputRef.current?.select();
+    focusScannerInput(searchInputRef.current);
   };
 
   // Flatten all passengers from all manifests
@@ -600,8 +640,10 @@ export default function ActiveBoardingPage() {
     }
 
     // Status filter
-    if (statusFilter === 'NOT_BOARDED') {
-      if (passenger.boardingStatus !== 'NO_SHOW') return false;
+    if (statusFilter === 'CHECKED_IN') {
+      if (!isCheckedInNotBoarded(passenger)) return false;
+    } else if (statusFilter === 'NO_SHOW') {
+      if (!isNoShowPassenger(passenger)) return false;
     } else if (statusFilter === 'BOARDED') {
       if (passenger.boardingStatus !== 'BOARDED') return false;
     }
@@ -609,8 +651,11 @@ export default function ActiveBoardingPage() {
     return true;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const checkedInCount = allPassengers.filter(isCheckedInNotBoarded).length;
+  const noShowCount = allPassengers.filter(isNoShowPassenger).length;
+
+  const getStatusBadge = (passenger: Passenger) => {
+    switch (passenger.boardingStatus) {
       case 'BOARDED':
         return (
           <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
@@ -619,8 +664,8 @@ export default function ActiveBoardingPage() {
         );
       case 'NO_SHOW':
         return (
-          <span className="px-3 py-1 rounded-full bg-dark-100 text-dark-600 text-xs font-semibold">
-            Čeka
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${hasSequenceNumber(passenger.sequenceNumber) ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+            {hasSequenceNumber(passenger.sequenceNumber) ? 'Checked-in' : 'No-show'}
           </span>
         );
       default:
@@ -663,13 +708,13 @@ export default function ActiveBoardingPage() {
         };
       case 'ALREADY_BOARDED':
         return {
-          wrapper: 'border-blue-300 bg-gradient-to-br from-blue-50 to-sky-100',
-          banner: 'bg-blue-700 text-white',
-          card: 'bg-white/85 border-blue-200',
-          icon: <Info className="w-6 h-6 text-blue-700" />,
-          title: 'Već ukrcan',
-          text: 'text-blue-900',
-          emphasis: 'PUTNIK JE VEĆ BOARDED',
+          wrapper: 'border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-100',
+          banner: 'bg-amber-600 text-white',
+          card: 'bg-white/85 border-amber-200',
+          icon: <Info className="w-6 h-6 text-amber-600" />,
+          title: 'Već boardiran',
+          text: 'text-amber-900',
+          emphasis: 'PUTNIK JE VEĆ BOARDIRAN',
         };
       case 'MULTIPLE':
         return {
@@ -784,7 +829,7 @@ export default function ActiveBoardingPage() {
         </div>
 
         {/* Overall Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
             <div className="flex items-center gap-2 mb-2">
               <Plane className="w-5 h-5 text-blue-600" />
@@ -809,9 +854,16 @@ export default function ActiveBoardingPage() {
           <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-200">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-5 h-5 text-amber-600" />
-              <p className="text-sm font-semibold text-amber-700 uppercase">Čeka</p>
+              <p className="text-sm font-semibold text-amber-700 uppercase">Checked-in</p>
             </div>
-            <p className="text-3xl font-bold text-amber-900">{data.overallStats.totalPending}</p>
+            <p className="text-3xl font-bold text-amber-900">{checkedInCount}</p>
+          </div>
+          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle className="w-5 h-5 text-red-600" />
+              <p className="text-sm font-semibold text-red-700 uppercase">No-show</p>
+            </div>
+            <p className="text-3xl font-bold text-red-900">{noShowCount}</p>
           </div>
         </div>
 
@@ -874,12 +926,14 @@ export default function ActiveBoardingPage() {
                   <button
                     key={mode.value}
                     onClick={() => {
-                      setSearchMode(mode.value);
-                      setDeviceFeedback(null);
-                      setScanResult(null);
                       if (mode.value === 'MANUAL') {
+                        setSearchMode(mode.value);
+                        setDeviceFeedback(null);
+                        setScanResult(null);
                         setDeviceInput('');
                         lastProcessedDeviceInputRef.current = '';
+                      } else {
+                        openScannerModal(mode.value);
                       }
                     }}
                     className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
@@ -944,7 +998,7 @@ export default function ActiveBoardingPage() {
                           setDeviceFeedback(null);
                           setScanResult(null);
                           lastProcessedDeviceInputRef.current = '';
-                          searchInputRef.current?.focus();
+                          focusScannerInput(searchInputRef.current);
                         }}
                         className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
                       >
@@ -970,7 +1024,8 @@ export default function ActiveBoardingPage() {
               <div className="flex gap-2 flex-wrap">
                 {([
                   { value: 'ALL', label: 'Svi' },
-                  { value: 'NOT_BOARDED', label: 'Putnici' },
+                  { value: 'CHECKED_IN', label: 'Checked-in' },
+                  { value: 'NO_SHOW', label: 'No-show' },
                   { value: 'BOARDED', label: 'Ukrcani' }
                 ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
                   <button
@@ -988,109 +1043,6 @@ export default function ActiveBoardingPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Scan Result */}
-        <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
-          <div className="p-6 border-b border-dark-100">
-            <h3 className="text-xl font-bold text-dark-900">Rezultat skeniranja</h3>
-            <p className="text-sm text-dark-500 mt-1">Detalji zadnjeg reader/scanner unosa sa jasno označenim letom</p>
-          </div>
-          {scanResult ? (() => {
-            const styles = getScanResultStyles(scanResult.status);
-            const passenger = scanResult.passenger;
-            return (
-              <div className={`m-4 rounded-2xl border p-5 ${styles.wrapper}`}>
-                <div className={`mb-4 rounded-2xl px-4 py-3 ${styles.banner}`}>
-                  <div className="flex items-center gap-3">
-                    {styles.icon}
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-90">{styles.title}</p>
-                      <p className="text-xl font-black leading-tight">{styles.emphasis}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className={`text-base font-semibold ${styles.text}`}>{scanResult.message}</p>
-                </div>
-
-                {scanResult.scannedValue && (
-                  <div className={`mb-4 rounded-xl border px-3 py-2 ${styles.card}`}>
-                    <p className="text-[11px] uppercase tracking-wide text-dark-500">Scan input</p>
-                    <p className="text-sm font-mono text-dark-800 break-all">{scanResult.scannedValue}</p>
-                  </div>
-                )}
-
-                {passenger && (
-                  <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] gap-4">
-                    <div className="space-y-3">
-                      <div className={`rounded-2xl border px-4 py-4 ${styles.card}`}>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dark-500">Putnik</p>
-                        <p className="text-2xl font-black text-dark-900 mt-1">{formatPassengerDisplayName(passenger.passengerName)}</p>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          {getTitleBadge(passenger.title)}
-                          {getStatusBadge(passenger.boardingStatus)}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
-                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Sjedište</p>
-                          <p className="text-lg font-bold text-dark-900">{passenger.seatNumber || 'N/A'}</p>
-                        </div>
-                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
-                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Seq</p>
-                          <p className="text-lg font-bold text-dark-900">{passenger.sequenceNumber || 'N/A'}</p>
-                        </div>
-                        <div className={`rounded-xl border px-3 py-3 col-span-2 ${styles.card}`}>
-                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Locator</p>
-                          <p className="text-lg font-bold text-dark-900">{passenger.passengerId || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="rounded-2xl border border-slate-700 bg-slate-950 text-white px-4 py-4 shadow-soft">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Let za boarding</p>
-                        <p className="text-3xl font-black mt-1">{passenger.flight.departureFlightNumber || passenger.flight.route}</p>
-                        <p className="text-sm text-slate-100 mt-1">{passenger.flight.route}</p>
-                        <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-slate-50">
-                          <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
-                            {passenger.flight.airline.name}
-                          </span>
-                          {passenger.flight.departureScheduledTime && (
-                            <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
-                              Polazak: {formatTimeDisplay(passenger.flight.departureScheduledTime)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {passenger.boardedAt && (
-                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
-                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Vrijeme boardinga</p>
-                          <p className="text-lg font-bold text-dark-900">{formatDateTimeDisplay(passenger.boardedAt)}</p>
-                        </div>
-                      )}
-
-                      {scanResult.matches && scanResult.matches > 1 && (
-                        <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
-                          <p className="text-[11px] uppercase tracking-wide text-dark-500">Kandidata</p>
-                          <p className="text-lg font-bold text-dark-900">{scanResult.matches}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })() : (
-            <div className="p-8 text-center text-dark-500">
-              <ScanLine className="w-10 h-10 text-dark-300 mx-auto mb-3" />
-              <p>Još nema skeniranog putnika.</p>
-            </div>
-          )}
         </div>
 
         {/* Selection Actions */}
@@ -1140,7 +1092,7 @@ export default function ActiveBoardingPage() {
               <h3 className="text-xl font-bold text-dark-900">
                 Putnici ({filteredPassengers.length})
               </h3>
-              {statusFilter === 'NOT_BOARDED' && filteredPassengers.length > 0 && (
+              {(statusFilter === 'CHECKED_IN' || statusFilter === 'NO_SHOW') && filteredPassengers.length > 0 && (
                 <button
                   onClick={selectAll}
                   className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
@@ -1238,9 +1190,7 @@ export default function ActiveBoardingPage() {
                         </>
                       ) : (
                         <>
-                          <span className="px-3 py-1 rounded-full bg-dark-100 text-dark-600 text-xs font-semibold">
-                            Čeka
-                          </span>
+                          {getStatusBadge(passenger)}
                           <button
                             onClick={() => updatePassengerStatus(passenger.manifestId, passenger.id, 'BOARDED')}
                             className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors text-sm"
@@ -1256,6 +1206,413 @@ export default function ActiveBoardingPage() {
             )}
           </div>
         </div>
+
+        {isScannerModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm">
+            <div className="h-full overflow-y-auto">
+              <div className="min-h-full p-4 md:p-6">
+                <div className="mx-auto max-w-7xl bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/20">
+                  <div className="sticky top-0 z-10 bg-slate-950 text-white px-6 py-5 border-b border-white/10">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.22em] text-sky-200 font-semibold">Scanner Workspace</p>
+                        <h3 className="text-2xl font-black mt-1">Aktivni boarding skener</h3>
+                        <p className="text-sm text-slate-300 mt-1">
+                          Skeniranje, rezultat i lista putnika na jednom mjestu za sve aktivne letove
+                        </p>
+                      </div>
+                      <button
+                        onClick={closeScannerModal}
+                        className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-6 bg-slate-50">
+                    <div className="bg-white rounded-3xl p-5 shadow-soft border border-dark-100">
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                          {([
+                            { value: 'MANUAL', label: 'Ručno', icon: Keyboard },
+                            { value: 'READER', label: 'Reader', icon: CreditCard },
+                            { value: 'SCANNER', label: 'Scanner', icon: ScanLine }
+                          ] as Array<{ value: SearchMode; label: string; icon: typeof Keyboard }>).map((mode) => {
+                            const Icon = mode.icon;
+                            return (
+                              <button
+                                key={mode.value}
+                                onClick={() => {
+                                  setSearchMode(mode.value);
+                                  setDeviceFeedback(null);
+                                  setScanResult(null);
+                                  if (mode.value !== 'MANUAL') {
+                                    setDeviceInput('');
+                                    lastProcessedDeviceInputRef.current = '';
+                                    window.setTimeout(() => focusScannerInput(searchInputRef.current), 0);
+                                  }
+                                }}
+                                className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                                  searchMode === mode.value
+                                    ? 'bg-dark-900 text-white'
+                                    : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                                }`}
+                              >
+                                <Icon className="w-4 h-4" />
+                                {mode.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-4">
+                          <div className="space-y-3">
+                            <div className="relative">
+                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
+                              <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder={
+                                  searchMode === 'MANUAL'
+                                    ? 'Ručno pretraži po imenu, sjedištu, broju leta ili ruti...'
+                                    : searchMode === 'READER'
+                                    ? 'Reader može upisati ime i prezime sa dokumenta ili karte...'
+                                    : 'Scanner može upisati barcode/string sa boarding karte...'
+                                }
+                                value={searchMode === 'MANUAL' ? searchTerm : deviceInput}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (searchMode === 'MANUAL') {
+                                    setSearchTerm(value);
+                                  } else {
+                                    setDeviceInput(value);
+                                    setDeviceFeedback(null);
+                                    setScanResult(null);
+                                    if (!value.trim()) {
+                                      lastProcessedDeviceInputRef.current = '';
+                                    }
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    closeScannerModal();
+                                  }
+                                  if (e.key === 'Enter' && searchMode !== 'MANUAL') {
+                                    void attemptDeviceBoarding();
+                                  }
+                                }}
+                                className="w-full pl-12 pr-4 py-4 bg-dark-50 border border-dark-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              <p className="text-xs text-dark-500">
+                                Modal je optimizovan za brz scanner tok, ali možeš i ručno pretražiti bez izlaska iz modala.
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setDeviceInput('');
+                                    setDeviceFeedback(null);
+                                    setScanResult(null);
+                                    lastProcessedDeviceInputRef.current = '';
+                                    focusScannerInput(searchInputRef.current);
+                                  }}
+                                  className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
+                                >
+                                  Očisti
+                                </button>
+                                {searchMode !== 'MANUAL' && (
+                                  <button
+                                    onClick={() => void attemptDeviceBoarding()}
+                                    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                                  >
+                                    Pretraži i ukrcaj
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {deviceFeedback && searchMode !== 'MANUAL' && (
+                              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                <p className="text-sm text-blue-900">{deviceFeedback}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 flex-wrap">
+                            {([
+                              { value: 'ALL', label: 'Svi' },
+                              { value: 'CHECKED_IN', label: 'Checked-in' },
+                              { value: 'NO_SHOW', label: 'No-show' },
+                              { value: 'BOARDED', label: 'Ukrcani' }
+                            ] as Array<{ value: StatusFilter; label: string }>).map((filter) => (
+                              <button
+                                key={filter.value}
+                                onClick={() => setStatusFilter(filter.value)}
+                                className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
+                                  statusFilter === filter.value
+                                    ? 'bg-primary-600 text-white'
+                                    : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
+                                }`}
+                              >
+                                {filter.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
+                      <div className="p-6 border-b border-dark-100">
+                        <h3 className="text-xl font-bold text-dark-900">Rezultat skeniranja</h3>
+                        <p className="text-sm text-dark-500 mt-1">Detalji zadnjeg reader/scanner unosa sa jasno označenim letom</p>
+                      </div>
+                      {scanResult ? (() => {
+                        const styles = getScanResultStyles(scanResult.status);
+                        const passenger = scanResult.passenger;
+                        return (
+                          <div className={`m-4 rounded-2xl border p-5 ${styles.wrapper}`}>
+                            <div className={`mb-4 rounded-2xl px-4 py-3 ${styles.banner}`}>
+                              <div className="flex items-center gap-3">
+                                {styles.icon}
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-90">{styles.title}</p>
+                                  <p className="text-xl font-black leading-tight">{styles.emphasis}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <p className={`text-base font-semibold ${styles.text}`}>{scanResult.message}</p>
+                            </div>
+                            {scanResult.scannedValue && (
+                              <div className={`mb-4 rounded-xl border px-3 py-2 ${styles.card}`}>
+                                <p className="text-[11px] uppercase tracking-wide text-dark-500">Scan input</p>
+                                <p className="text-sm font-mono text-dark-800 break-all">{scanResult.scannedValue}</p>
+                              </div>
+                            )}
+                            {passenger && (
+                              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] gap-4">
+                                <div className="space-y-3">
+                                  <div className={`rounded-2xl border px-4 py-4 ${styles.card}`}>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-dark-500">Putnik</p>
+                                    <p className="text-2xl font-black text-dark-900 mt-1">{formatPassengerDisplayName(passenger.passengerName)}</p>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                      {getTitleBadge(passenger.title)}
+                                      {getStatusBadge(passenger)}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                                      <p className="text-[11px] uppercase tracking-wide text-dark-500">Sjedište</p>
+                                      <p className="text-lg font-bold text-dark-900">{passenger.seatNumber || 'N/A'}</p>
+                                    </div>
+                                    <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                                      <p className="text-[11px] uppercase tracking-wide text-dark-500">Seq</p>
+                                      <p className="text-lg font-bold text-dark-900">{passenger.sequenceNumber || 'N/A'}</p>
+                                    </div>
+                                    <div className={`rounded-xl border px-3 py-3 col-span-2 ${styles.card}`}>
+                                      <p className="text-[11px] uppercase tracking-wide text-dark-500">Locator</p>
+                                      <p className="text-lg font-bold text-dark-900">{passenger.passengerId || 'N/A'}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="rounded-2xl border border-slate-700 bg-slate-950 text-white px-4 py-4 shadow-soft">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Let za boarding</p>
+                                    <p className="text-3xl font-black mt-1">{passenger.flight.departureFlightNumber || passenger.flight.route}</p>
+                                    <p className="text-sm text-slate-100 mt-1">{passenger.flight.route}</p>
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-slate-50">
+                                      <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
+                                        {passenger.flight.airline.name}
+                                      </span>
+                                      {passenger.flight.departureScheduledTime && (
+                                        <span className="px-2 py-1 rounded-full bg-white/15 border border-white/10">
+                                          Polazak: {formatTimeDisplay(passenger.flight.departureScheduledTime)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {passenger.boardedAt && (
+                                    <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                                      <p className="text-[11px] uppercase tracking-wide text-dark-500">Vrijeme boardinga</p>
+                                      <p className="text-lg font-bold text-dark-900">{formatDateTimeDisplay(passenger.boardedAt)}</p>
+                                    </div>
+                                  )}
+
+                                  {scanResult.matches && scanResult.matches > 1 && (
+                                    <div className={`rounded-xl border px-3 py-3 ${styles.card}`}>
+                                      <p className="text-[11px] uppercase tracking-wide text-dark-500">Kandidata</p>
+                                      <p className="text-lg font-bold text-dark-900">{scanResult.matches}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })() : (
+                        <div className="p-8 text-center text-dark-500">
+                          <ScanLine className="w-10 h-10 text-dark-300 mx-auto mb-3" />
+                          <p>Još nema skeniranog putnika.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedPassengers.size > 0 && (
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 shadow-soft">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                            <span className="font-semibold text-blue-900">
+                              Selektovano: {selectedPassengers.size} {selectedPassengers.size === 1 ? 'putnik' : 'putnika'}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => bulkUpdateStatus('BOARDED')}
+                              disabled={isBulkUpdating}
+                              className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
+                            >
+                              {isBulkUpdating ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Ukrcavam...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Ukrcaj sve
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={clearSelection}
+                              disabled={isBulkUpdating}
+                              className="px-4 py-2 bg-dark-100 text-dark-700 rounded-xl font-semibold hover:bg-dark-200 disabled:opacity-50 transition-colors text-sm"
+                            >
+                              Poništi selekciju
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
+                      <div className="p-6 border-b border-dark-100">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-dark-900">
+                            Putnici ({filteredPassengers.length})
+                          </h3>
+                          {(statusFilter === 'CHECKED_IN' || statusFilter === 'NO_SHOW') && filteredPassengers.length > 0 && (
+                            <button
+                              onClick={selectAll}
+                              className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
+                            >
+                              Selektuj sve
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-dark-100 max-h-[42vh] overflow-y-auto">
+                        {filteredPassengers.length === 0 ? (
+                          <div className="p-12 text-center">
+                            <Users className="w-12 h-12 text-dark-300 mx-auto mb-3" />
+                            <p className="text-dark-500">Nema putnika koji odgovaraju filterima</p>
+                          </div>
+                        ) : (
+                          filteredPassengers.map((passenger) => (
+                            <div
+                              key={`modal-${passenger.id}`}
+                              className={`p-4 transition-colors ${
+                                selectedPassengers.has(passenger.id) ? 'bg-blue-50' : 'hover:bg-dark-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-4">
+                                {passenger.boardingStatus === 'NO_SHOW' && (
+                                  <div className="flex-shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedPassengers.has(passenger.id)}
+                                      onChange={() => togglePassengerSelection(passenger.id)}
+                                      className="w-5 h-5 rounded border-2 border-dark-300 text-primary-600 focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                                    />
+                                  </div>
+                                )}
+                                <div className="w-14 h-14 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm flex-shrink-0">
+                                  {passenger.seatNumber || 'N/A'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <p className="font-bold text-dark-900">{formatPassengerDisplayName(passenger.passengerName)}</p>
+                                    {getTitleBadge(passenger.title)}
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs text-dark-500 flex-wrap">
+                                    {passenger.sequenceNumber && <span>Seq: {passenger.sequenceNumber}</span>}
+                                    {passenger.passengerId && <span>Locator: {passenger.passengerId}</span>}
+                                    {passenger.fareClass && passenger.fareClass !== passenger.passengerId && (
+                                      <span>Class: {passenger.fareClass}</span>
+                                    )}
+                                    <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-1 rounded font-semibold">
+                                      {passenger.flight.airline.logoUrl ? (
+                                        <img
+                                          src={passenger.flight.airline.logoUrl}
+                                          alt={passenger.flight.airline.name}
+                                          className="w-4 h-4 rounded object-contain"
+                                        />
+                                      ) : (
+                                        <Plane className="w-3 h-3" />
+                                      )}
+                                      <span>{passenger.flight.departureFlightNumber || passenger.flight.route}</span>
+                                    </div>
+                                    <span>{passenger.flight.route}</span>
+                                    {passenger.flight.departureScheduledTime && (
+                                      <span>Polazak: {formatTimeDisplay(passenger.flight.departureScheduledTime)}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  {passenger.boardingStatus === 'BOARDED' ? (
+                                    <>
+                                      <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                        Ukrcan
+                                      </span>
+                                      <button
+                                        onClick={() => updatePassengerStatus(passenger.manifestId, passenger.id, 'NO_SHOW')}
+                                        className="px-3 py-2 bg-dark-100 text-dark-600 rounded-xl font-semibold hover:bg-dark-200 transition-colors text-sm"
+                                      >
+                                        Poništi
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {getStatusBadge(passenger)}
+                                      <button
+                                        onClick={() => updatePassengerStatus(passenger.manifestId, passenger.id, 'BOARDED')}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors text-sm"
+                                      >
+                                        Ukrcaj
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
