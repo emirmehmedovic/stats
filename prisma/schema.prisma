@@ -360,7 +360,9 @@ model ManifestPassenger {
 
   // Podaci o putniku (iz manifesta)
   seatNumber        String?
-  passengerName     String              // Format: "LASTNAME,FIRSTNAME"
+  passengerName     String
+  rawPassengerName  String?
+  sequenceNumber    String?
   title             String              // MR, MS, CHD, MSTR, etc.
   passengerId       String?             // Passenger ID iz manifesta
   fareClass         String?
@@ -382,6 +384,7 @@ model ManifestPassenger {
   @@index([passengerName])  // Za pretragu po imenu
   @@index([manifestId, boardingStatus])  // Composite - brže filtriranje po statusu u manifestu
   @@index([seatNumber])  // Za pretragu po sjedištu
+  @@index([sequenceNumber])
 }
 
 // Delay kodovi (IATA ili interni)

@@ -160,6 +160,8 @@ export async function POST(request: Request) {
                 create: result.data.passengers.map((p: any) => ({
                   seatNumber: p.seatNumber,
                   passengerName: p.passengerName,
+                  rawPassengerName: p.rawPassengerName,
+                  sequenceNumber: p.sequenceNumber,
                   title: p.title,
                   isInfant: p.isInfant,
                   passengerId: p.passengerId,

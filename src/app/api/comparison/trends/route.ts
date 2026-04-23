@@ -66,11 +66,11 @@ export async function GET(request: NextRequest) {
       SELECT
         COUNT(*)::int AS total_flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS total_passengers,
-        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END)::int AS arrival_passengers,
-        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END)::int AS departure_passengers,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END)::int AS arrival_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END)::int AS departure_passengers,
         SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departureNoShow", 0) END)::int AS departure_no_show,
         SUM(COALESCE(f."arrivalBaggageCount", 0) + COALESCE(f."departureBaggageCount", 0))::int AS total_baggage_count,
         SUM(CASE WHEN f."arrivalFerryIn" THEN 1 ELSE 0 END)::int AS arrival_ferry_legs,
@@ -86,9 +86,9 @@ export async function GET(request: NextRequest) {
 
     const loadFactorSplitQuery = Prisma.sql`
       SELECT
-        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END)::int AS arrival_passengers,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END)::int AS arrival_passengers,
         SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END)::int AS arrival_seats,
-        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END)::int AS departure_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END)::int AS departure_passengers,
         SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END)::int AS departure_seats
       FROM "Flight" f
       LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
           date_trunc('day', f.date) AS day,
           COUNT(*)::int AS flights,
           SUM(
-            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+            CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
           )::int AS passengers,
           SUM(
             CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
@@ -148,8 +148,8 @@ export async function GET(request: NextRequest) {
         a."icaoCode" AS icao_code,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers
       FROM "Flight" f
       INNER JOIN "Airline" a ON a.id = f."airlineId"
@@ -164,8 +164,8 @@ export async function GET(request: NextRequest) {
         ot.code AS code,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(
           CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
@@ -194,8 +194,8 @@ export async function GET(request: NextRequest) {
       SELECT
         f.route AS route,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers
       FROM "Flight" f
       WHERE ${whereSql} AND f.route IS NOT NULL
@@ -208,8 +208,8 @@ export async function GET(request: NextRequest) {
       SELECT
         f.route AS route,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(
           CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
@@ -224,8 +224,8 @@ export async function GET(request: NextRequest) {
         CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END
       ) > 0
       ORDER BY (SUM(
-        CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-        CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+        CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+        CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
       )::float / NULLIF(SUM(
         CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END +
         CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END

@@ -11,10 +11,15 @@ interface Passenger {
   id: string;
   seatNumber: string | null;
   passengerName: string;
+  rawPassengerName?: string | null;
+  sequenceNumber?: string | null;
   title: string;
   isInfant: boolean;
   boardingStatus: 'PENDING' | 'BOARDED' | 'NO_SHOW';
   manifestId: string;
+  passengerId?: string | null;
+  fareClass?: string | null;
+  confirmationDate?: string | null;
 }
 
 interface Flight {
@@ -193,6 +198,13 @@ const matchesNameToken = (passengerName: string, token: string) => {
     return passengerToken.slice(0, minPrefixLength) === token.slice(0, minPrefixLength);
   });
 };
+
+const formatPassengerDisplayName = (value: string) =>
+  value
+    .split("/")
+    .filter(Boolean)
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ");
 
 const passengerMatchesQuery = (
   passenger: Passenger & { flight: Flight },
@@ -929,7 +941,7 @@ export default function ActiveBoardingPage() {
                     {/* Passenger Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <p className="font-bold text-dark-900">{passenger.passengerName}</p>
+                        <p className="font-bold text-dark-900">{formatPassengerDisplayName(passenger.passengerName)}</p>
                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                           passenger.title === 'MR' || passenger.title === 'MSTR'
                             ? 'bg-blue-100 text-blue-700'
@@ -941,6 +953,11 @@ export default function ActiveBoardingPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-dark-500 flex-wrap">
+                        {passenger.sequenceNumber && <span>Seq: {passenger.sequenceNumber}</span>}
+                        {passenger.passengerId && <span>Locator: {passenger.passengerId}</span>}
+                        {passenger.fareClass && passenger.fareClass !== passenger.passengerId && (
+                          <span>Class: {passenger.fareClass}</span>
+                        )}
                         <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-1 rounded font-semibold">
                           {passenger.flight.airline.logoUrl ? (
                             <img

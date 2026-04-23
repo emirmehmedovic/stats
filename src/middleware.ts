@@ -183,9 +183,9 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // STW role - can only access predboarding API and dashboard API
+    // STW role - can only access predboarding API, dashboard API, and yearly dashboard trend data
     if (decoded.role === 'STW') {
-      const allowedSTWRoutes = ['/api/predboarding', '/api/dashboard'];
+      const allowedSTWRoutes = ['/api/predboarding', '/api/dashboard', '/api/comparison/trends'];
       const hasSTWAccess = allowedSTWRoutes.some(route => pathname.startsWith(route));
 
       if (!hasSTWAccess) {

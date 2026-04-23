@@ -25,6 +25,7 @@ XPS_NS = {"xps": "http://schemas.openxps.org/oxps/v1.0"}
 TABLE_ROW_RE = re.compile(
     r"^\|\s*(\d+)\|([A-Z0-9]{6,8})\s*\|([^|]+?)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]+)\|?$"
 )
+DATE_VALUE_RE = re.compile(r"^\d{2}[A-Z]{3}\d{2}$")
 
 
 def parse_manifest(file_path):
@@ -212,12 +213,14 @@ def extract_passengers_from_text(content):
             if passenger_match:
                 passenger = {
                     "passengerName": passenger_match.group(1).strip(),
+                    "rawPassengerName": passenger_match.group(1).strip(),
                     "title": passenger_match.group(3),
                     "isInfant": passenger_match.group(2) is not None,
                     "confirmationDate": passenger_match.group(4),
                     "fareClass": passenger_match.group(5),
                     "passengerId": passenger_match.group(6),
                     "seatNumber": passenger_match.group(8),
+                    "sequenceNumber": None,
                     "flightStatus": passenger_match.group(7),
                 }
                 passengers.append(passenger)
@@ -245,12 +248,14 @@ def extract_passengers_from_text(content):
                 passengers.append(
                     {
                         "passengerName": companion_match.group(1).strip(),
+                        "rawPassengerName": companion_match.group(1).strip(),
                         "title": title,
                         "isInfant": companion_match.group(2) is not None,
                         "confirmationDate": None,
                         "fareClass": None,
                         "passengerId": passenger_id,
                         "seatNumber": seat,
+                        "sequenceNumber": None,
                         "flightStatus": flight_status,
                     }
                 )
@@ -263,6 +268,7 @@ def extract_passengers_from_xps(content):
     Extract passenger list from Wizz Air XPS/OXPS table exports.
     """
     passengers = []
+    detail_rows = extract_xps_detail_rows(content)
 
     for raw_line in content.splitlines():
         if "Passenger Name" in raw_line or "Record" in raw_line or "Flight No:" in raw_line:
@@ -288,15 +294,29 @@ def extract_passengers_from_xps(content):
             special_info,
         ) = [value.strip() for value in match.groups()]
 
+        detail_key = build_xps_detail_key(locator, sequence_no)
+        detail_name = detail_rows.get(detail_key)
+
         passenger_name, title, is_infant = normalize_xps_name(raw_name)
+        raw_passenger_name = raw_name.strip()
+        if detail_name:
+            detail_passenger_name, detail_title, detail_is_infant = normalize_xps_name(detail_name)
+            if should_prefer_detail_name(passenger_name, detail_passenger_name):
+                passenger_name = detail_passenger_name
+                raw_passenger_name = detail_name.strip()
+            if title == "MR" and detail_title != "MR":
+                title = detail_title
+            is_infant = is_infant or detail_is_infant
+
         passengers.append(
             {
                 "lineNumber": int(line_no),
                 "passengerName": passenger_name,
+                "rawPassengerName": raw_passenger_name,
                 "title": title,
                 "isInfant": is_infant,
                 "confirmationDate": None,
-                "fareClass": locator,
+                "fareClass": None,
                 "passengerId": locator,
                 "seatNumber": normalize_blank(seat_no),
                 "sequenceNumber": normalize_blank(sequence_no),
@@ -316,22 +336,105 @@ def normalize_xps_name(raw_name):
         compact = compact[:-2]
 
     title = "MR"
-    title_suffixes = [
-        ("CHD*C", "CHD"),
-        ("CHD", "CHD"),
-        ("INF", "INF"),
-        ("MRS", "MRS"),
-        ("MS", "MS"),
-        ("MR", "MR"),
+    title_patterns = [
+        (r"(CHD(?:\*C)?)$", "CHD"),
+        (r"(INF(?:\*C)?)$", "INF"),
+        (r"(MSTR(?:\*C)?)$", "MSTR"),
+        (r"(MISS(?:\*C)?)$", "MISS"),
+        (r"(MRS(?:\*C)?)$", "MRS"),
+        (r"(MS(?:\*C)?)$", "MS"),
+        (r"(MR(?:\*C)?)$", "MR"),
     ]
 
-    for suffix, mapped_title in title_suffixes:
-        if compact.endswith(suffix):
-            compact = compact[: -len(suffix)]
+    for pattern, mapped_title in title_patterns:
+        match = re.search(pattern, compact)
+        if match:
+            compact = compact[: match.start()]
             title = mapped_title
             break
 
     return compact, title, is_infant
+
+
+def extract_xps_detail_rows(content):
+    detail_rows = {}
+
+    for raw_line in content.splitlines():
+        if "Passenger Name" in raw_line or "Flight No:" in raw_line:
+            continue
+        if not raw_line.strip().startswith("|"):
+            continue
+
+        columns = [part.strip() for part in raw_line.strip().strip("|").split("|")]
+        if len(columns) < 5:
+            continue
+
+        line_no, locator, raw_name, sequence_no = columns[:4]
+        date_or_seat = columns[4]
+
+        if not line_no.isdigit():
+            continue
+        if not re.fullmatch(r"[A-Z0-9]{6,8}", locator):
+            continue
+        if not DATE_VALUE_RE.fullmatch(date_or_seat):
+            continue
+        if not raw_name:
+            continue
+
+        detail_rows[build_xps_detail_key(locator, sequence_no)] = raw_name
+
+    return detail_rows
+
+
+def build_xps_detail_key(locator, sequence_no):
+    return f"{locator.strip()}::{normalize_blank(sequence_no) or ''}"
+
+
+def should_prefer_detail_name(base_name, detail_name):
+    if not detail_name:
+        return False
+    if not base_name:
+        return True
+
+    base_segments = split_name_segments(base_name)
+    detail_segments = split_name_segments(detail_name)
+
+    if len(base_segments) < 2 or len(detail_segments) < 2:
+        return False
+
+    if not segments_are_similar(base_segments[0], detail_segments[0]):
+        return False
+
+    if not segments_are_similar(base_segments[1], detail_segments[1]):
+        return False
+
+    if len(detail_segments[1]) > len(base_segments[1]):
+        return True
+
+    if "*" in base_name and "*" not in detail_name:
+        return True
+
+    return False
+
+
+def split_name_segments(name):
+    normalized = re.sub(r"[^A-Z0-9/]+", " ", name.upper()).strip()
+    if "/" in normalized:
+        return [segment.strip() for segment in normalized.split("/") if segment.strip()]
+    return [segment.strip() for segment in normalized.split() if segment.strip()]
+
+
+def segments_are_similar(left, right):
+    if left == right:
+        return True
+    if left.startswith(right) or right.startswith(left):
+        return True
+
+    min_length = min(len(left), len(right))
+    if min_length < 4:
+        return False
+
+    return left[:min_length] == right[:min_length]
 
 
 def normalize_blank(value):

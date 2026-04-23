@@ -54,6 +54,8 @@ export async function GET(request: Request) {
             manifestId: true,
             seatNumber: true,
             passengerName: true,
+            rawPassengerName: true,
+            sequenceNumber: true,
             title: true,
             passengerId: true,
             fareClass: true,
