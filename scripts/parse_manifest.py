@@ -26,6 +26,10 @@ TABLE_ROW_RE = re.compile(
     r"^\|\s*(\d+)\|([A-Z0-9]{6,8})\s*\|([^|]+?)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]+)\|?$"
 )
 DATE_VALUE_RE = re.compile(r"^\d{2}[A-Z]{3}\d{2}$")
+PEGASUS_HEADER_RE = re.compile(
+    r"Number\s+PNR\s+Surname\s*/\s*Name\s+Gender\s+PNR Status\s+PNR Owner\s+Ticket No\s+Leg Status\s+Cabin Class\s+C STATUS",
+    re.IGNORECASE,
+)
 
 
 def parse_manifest(file_path):
@@ -50,6 +54,10 @@ def parse_manifest(file_path):
             flight_info = extract_flight_info_from_xps(content)
             passengers = extract_passengers_from_xps(content)
             summary = extract_summary_from_xps(content, passengers)
+        elif is_pegasus_manifest(content):
+            flight_info = extract_flight_info_from_pegasus(content)
+            passengers = extract_passengers_from_pegasus(content)
+            summary = extract_summary_from_pegasus(passengers)
         else:
             flight_info = extract_flight_info_from_text(content)
             passengers = extract_passengers_from_text(content)
@@ -139,6 +147,36 @@ def extract_flight_info_from_text(content):
     if times_match:
         flight_info["departureTime"] = times_match.group(1)
         flight_info["arrivalTime"] = times_match.group(2)
+
+    return flight_info
+
+
+def is_pegasus_manifest(content):
+    return PEGASUS_HEADER_RE.search(content) is not None
+
+
+def extract_flight_info_from_pegasus(content):
+    flight_info = {}
+
+    first_line = next((line.strip() for line in content.splitlines() if line.strip()), "")
+    match = re.match(
+        r"(\d{2}/[A-Za-z]{3}/\d{4})\s+([A-Z]{2}\d+)\s+([A-Z]{3})\s*-\s*([A-Z]{3})",
+        first_line,
+    )
+    if not match:
+        return flight_info
+
+    date_value, flight_number, from_airport, to_airport = match.groups()
+    airline_match = re.match(r"([A-Z]{2})(\d+)", flight_number)
+
+    flight_info["date"] = date_value
+    flight_info["flightNumber"] = flight_number
+    flight_info["from"] = from_airport
+    flight_info["to"] = to_airport
+    flight_info["route"] = f"{from_airport}-{to_airport}"
+
+    if airline_match:
+        flight_info["airline"] = airline_match.group(1)
 
     return flight_info
 
@@ -327,6 +365,127 @@ def extract_passengers_from_xps(content):
     return passengers
 
 
+def extract_passengers_from_pegasus(content):
+    passengers = []
+    in_passenger_section = False
+
+    for raw_line in content.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+
+        if PEGASUS_HEADER_RE.search(line):
+            in_passenger_section = True
+            continue
+
+        if not in_passenger_section:
+            continue
+
+        parsed = parse_pegasus_passenger_line(line)
+        if not parsed:
+            continue
+
+        passengers.append(parsed)
+
+    return passengers
+
+
+def parse_pegasus_passenger_line(line):
+    parts = re.split(r"\s{2,}", line.strip())
+    if len(parts) < 8:
+        return None
+
+    line_number = parts[0]
+    locator = parts[1]
+    if not line_number.isdigit() or not re.fullmatch(r"[A-Z0-9]{6}", locator):
+        return None
+
+    remaining = parts[2:]
+    if len(remaining) < 6:
+        return None
+
+    name_field = remaining[0].strip()
+    gender_value = None
+
+    next_value = remaining[1].strip() if len(remaining) > 1 else ""
+    if next_value in {"M", "F", "C"}:
+        gender_value = next_value
+        remaining = remaining[2:]
+    else:
+        extracted_name, extracted_gender = split_pegasus_name_and_gender(name_field)
+        name_field = extracted_name
+        gender_value = extracted_gender
+        remaining = remaining[1:]
+
+    if gender_value is None or len(remaining) < 5:
+        return None
+
+    status_owner = remaining[0].strip()
+    status_owner_match = re.match(r"(\*\*[A-Z]{2})\s+(.+)", status_owner)
+    if status_owner_match:
+        pnr_status = status_owner_match.group(1)
+        pnr_owner = status_owner_match.group(2)
+    else:
+        pnr_status = status_owner
+        pnr_owner = None
+
+    ticket_no = remaining[1] if len(remaining) > 1 else None
+    leg_status = remaining[2] if len(remaining) > 2 else None
+    cabin_class = remaining[3] if len(remaining) > 3 else None
+    c_status = remaining[4] if len(remaining) > 4 else None
+
+    passenger_name = normalize_pegasus_name(name_field)
+
+    return {
+        "lineNumber": int(line_number),
+        "passengerName": passenger_name,
+        "rawPassengerName": name_field,
+        "title": map_pegasus_gender_to_title(gender_value),
+        "isInfant": False,
+        "confirmationDate": None,
+        "fareClass": normalize_blank(cabin_class),
+        "passengerId": locator,
+        "seatNumber": None,
+        "sequenceNumber": None,
+        "flightStatus": normalize_blank(leg_status) or normalize_blank(pnr_status),
+        "ticketNumber": normalize_blank(ticket_no),
+        "pnrStatus": normalize_blank(pnr_status),
+        "pnrOwner": normalize_blank(pnr_owner),
+        "cStatus": normalize_blank(c_status),
+    }
+
+
+def split_pegasus_name_and_gender(name_field):
+    compact_name = name_field.strip()
+    if not compact_name:
+        return compact_name, None
+
+    if compact_name.endswith((" M", " F", " C")):
+        return compact_name[:-2].strip(), compact_name[-1]
+
+    if compact_name[-1] in {"M", "F", "C"}:
+        return compact_name[:-1].rstrip(), compact_name[-1]
+
+    return compact_name, None
+
+
+def normalize_pegasus_name(name_field):
+    normalized = re.sub(r"\s+", " ", name_field.strip().upper())
+    parts = normalized.split(" ", 1)
+    if len(parts) == 2:
+        surname, given_names = parts
+        return f"{surname}/{given_names.replace(' ', ' ').strip()}"
+    return normalized.replace(" ", "/")
+
+
+def map_pegasus_gender_to_title(gender_value):
+    return {
+        "M": "MR",
+        "F": "MS",
+        "C": "CHD",
+    }.get(gender_value, "MR")
+
+
 def normalize_xps_name(raw_name):
     compact = re.sub(r"\s+", "", raw_name.upper())
     compact = compact.replace(" ", "")
@@ -438,6 +597,8 @@ def segments_are_similar(left, right):
 
 
 def normalize_blank(value):
+    if value is None:
+        return None
     cleaned = value.strip()
     if cleaned == "" or set(cleaned) == {"_"}:
         return None
@@ -482,6 +643,21 @@ def extract_summary_from_xps(content, passengers):
         summary["seats"] = int(seats_match.group(1))
 
     return summary
+
+
+def extract_summary_from_pegasus(passengers):
+    children = sum(1 for passenger in passengers if passenger["title"] == "CHD")
+    infants = sum(1 for passenger in passengers if passenger["isInfant"] or passenger["title"] == "INF")
+    females = sum(1 for passenger in passengers if passenger["title"] in {"MS", "MRS", "MISS"})
+    males = max(len(passengers) - children - infants - females, 0)
+
+    return {
+        "totalPax": len(passengers),
+        "male": males,
+        "female": females,
+        "children": children,
+        "infants": infants,
+    }
 
 
 if __name__ == "__main__":
