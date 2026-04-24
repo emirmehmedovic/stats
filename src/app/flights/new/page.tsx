@@ -65,24 +65,24 @@ function NewFlightContent() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-dark-900">Dodaj novi let</h1>
-            <p className="text-dark-600 mt-1">Kreiranje novog leta</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-dark-900">Dodaj novi let</h1>
+            <p className="text-dark-600 mt-1 text-sm lg:text-base">Kreiranje novog leta</p>
           </div>
-          <Button variant="outline" onClick={() => router.push('/flights')}>
+          <Button variant="outline" size="sm" onClick={() => router.push('/flights')} className="self-start sm:self-auto">
             ← Nazad na listu
           </Button>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4">
-            <div className="flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4">
+            <div className="flex items-start gap-2 lg:gap-3">
               <svg
-                className="w-5 h-5 text-red-700 mt-0.5 flex-shrink-0"
+                className="w-4 h-4 lg:w-5 lg:h-5 text-red-700 mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -95,8 +95,8 @@ function NewFlightContent() {
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-700 mb-1">Greška</p>
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs lg:text-sm font-semibold text-red-700 mb-1">Greška</p>
+                <p className="text-xs lg:text-sm text-red-600">{error}</p>
               </div>
               <Button
                 variant="outline"
@@ -134,7 +134,7 @@ export default function NewFlightPage() {
     <Suspense
       fallback={
         <MainLayout>
-          <div className="p-8">
+          <div className="p-4 lg:p-8">
             <div className="text-sm text-dark-600">Učitavam...</div>
           </div>
         </MainLayout>

@@ -88,61 +88,66 @@ export default function FlightsPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-6 md:p-7">
+        <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-4 md:p-6 lg:p-7">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(59,130,246,0.12),transparent_25%),radial-gradient(circle_at_85%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-5">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur text-xs uppercase tracking-[0.2em] text-slate-200">
+              <div className="inline-flex items-center gap-2 px-2.5 lg:px-3 py-1 rounded-full bg-white/10 backdrop-blur text-[10px] lg:text-xs uppercase tracking-[0.2em] text-slate-200">
                 <Sparkles className="w-3 h-3" />
                 Kontrola letova
               </div>
-              <h1 className="text-3xl font-bold">Lista letova</h1>
-              <p className="text-sm text-slate-200">Pregled, import i brzi unos operacija</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Lista letova</h1>
+              <p className="text-xs lg:text-sm text-slate-200">Pregled, import i brzi unos operacija</p>
               <div className="flex flex-wrap gap-2">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/10 text-xs text-slate-200 border border-white/10">
-                  <Plane className="w-4 h-4 text-primary-200" />
+                <div className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-xl lg:rounded-2xl bg-white/10 text-[10px] lg:text-xs text-slate-200 border border-white/10">
+                  <Plane className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary-200" />
                   <span>Ukupno: {data?.pagination.total || 0}</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/10 text-xs text-slate-200 border border-white/10">
-                  <BarChart3 className="w-4 h-4 text-primary-200" />
+                <div className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-xl lg:rounded-2xl bg-white/10 text-[10px] lg:text-xs text-slate-200 border border-white/10">
+                  <BarChart3 className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary-200" />
                   <span>Stranica {data?.pagination.page || 1}/{data?.pagination.totalPages || 1}</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/10 text-xs text-slate-200 border border-white/10">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/10 text-xs text-slate-200 border border-white/10">
                   <Upload className="w-4 h-4 text-primary-200" />
                   <span>Brzi import i unos</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+            <div className="flex flex-wrap justify-start lg:justify-end gap-2 lg:gap-3">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setIsBulkDeleteModalOpen(true)}
-                className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-200 border-red-400/30"
+                className="flex items-center gap-1.5 lg:gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-200 border-red-400/30 text-xs lg:text-sm"
               >
-                <Trash2 className="w-4 h-4" />
-                Masovno brisanje
+                <Trash2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Masovno brisanje</span>
+                <span className="sm:hidden">Brisanje</span>
               </Button>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => router.push('/flights/import-schedule')}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
               >
                 <Calendar className="w-4 h-4" />
                 Import rasporeda
               </Button>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => router.push('/flights/import')}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
               >
                 <FileText className="w-4 h-4" />
                 Kompletan import
               </Button>
               <Button
-                className="bg-primary-500 hover:bg-primary-600 text-white flex items-center gap-2 shadow-lg"
+                size="sm"
+                className="bg-primary-500 hover:bg-primary-600 text-white flex items-center gap-1.5 lg:gap-2 shadow-lg text-xs lg:text-sm"
                 onClick={() => router.push('/flights/new')}
               >
                 + Dodaj let
@@ -181,15 +186,15 @@ export default function FlightsPage() {
           ].map((card) => (
             <div
               key={card.label}
-              className="relative overflow-hidden rounded-2xl border border-dark-100 bg-white shadow-soft p-5"
+              className="relative overflow-hidden rounded-xl lg:rounded-2xl border border-dark-100 bg-white shadow-soft p-4 lg:p-5"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-80`}></div>
               <div className="relative z-10 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-dark-500 font-semibold uppercase tracking-wide mb-1">{card.label}</p>
-                  <p className={`text-2xl font-bold ${card.text}`}>{card.value}</p>
+                  <p className="text-[10px] lg:text-xs text-dark-500 font-semibold uppercase tracking-wide mb-1">{card.label}</p>
+                  <p className={`text-xl lg:text-2xl font-bold ${card.text}`}>{card.value}</p>
                 </div>
-                <span className="w-10 h-10 rounded-2xl bg-white/80 border border-white/40 shadow-sm flex items-center justify-center text-sm font-semibold text-dark-500">
+                <span className="w-8 h-8 lg:w-10 lg:h-10 rounded-xl lg:rounded-2xl bg-white/80 border border-white/40 shadow-sm flex items-center justify-center text-sm font-semibold text-dark-500">
                   ···
                 </span>
               </div>
@@ -213,23 +218,24 @@ export default function FlightsPage() {
         )}
 
         {/* Filters + Table */}
-        <div className="bg-white rounded-3xl shadow-soft border border-dark-100 overflow-hidden">
-          <div className="p-5 border-b border-dark-100 bg-slate-50/70">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft border border-dark-100 overflow-hidden">
+          <div className="p-4 lg:p-5 border-b border-dark-100 bg-slate-50/70">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-xs uppercase tracking-[0.15em] text-dark-500 font-semibold">Filteri i pregled</p>
-                <p className="text-sm text-dark-600">Preciziraj rutu, kompaniju ili datum</p>
+                <p className="text-[10px] lg:text-xs uppercase tracking-[0.15em] text-dark-500 font-semibold">Filteri i pregled</p>
+                <p className="text-xs lg:text-sm text-dark-600">Preciziraj rutu, kompaniju ili datum</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setFilters({ ...filters, page: 1 })}
+                className="text-xs"
               >
                 Reset paginacije
               </Button>
             </div>
           </div>
-          <div className="p-5 space-y-6">
+          <div className="p-4 lg:p-5 space-y-4 lg:space-y-6">
             <FlightsFilters filters={filters} onFiltersChange={setFilters} />
             <div className="rounded-2xl border border-dark-100 overflow-hidden shadow-sm">
               <FlightsTable data={data?.data || []} isLoading={isLoading} />

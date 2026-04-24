@@ -141,19 +141,20 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
       header: 'Akcije',
       cell: ({ row }) => {
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 lg:gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="h-8 px-3 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+              className="h-7 lg:h-8 px-2 lg:px-3 text-[10px] lg:text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
               onClick={() => router.push(`/flights/${row.original.id}`)}
             >
-              Pregled
+              <span className="hidden sm:inline">Pregled</span>
+              <span className="sm:hidden">👁</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="h-8 px-3 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
+              className="h-7 lg:h-8 px-2 lg:px-3 text-[10px] lg:text-xs border-slate-200 text-slate-700 hover:bg-slate-50 hidden md:inline-flex"
               onClick={() => router.push(`/flights/${row.original.id}/edit`)}
             >
               Izmijeni
@@ -161,7 +162,7 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
             <Button
               variant="destructive"
               size="sm"
-              className="h-8 px-3 text-xs bg-rose-100 text-rose-800 border border-rose-200 hover:bg-rose-200"
+              className="h-7 lg:h-8 px-2 lg:px-3 text-[10px] lg:text-xs bg-rose-100 text-rose-800 border border-rose-200 hover:bg-rose-200 hidden md:inline-flex"
               onClick={async () => {
                 if (!confirm('Da li ste sigurni da želite obrisati ovaj let?')) return;
                 try {
@@ -200,16 +201,16 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-3xl shadow-soft px-5 py-4">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-textMuted">Učitavanje...</div>
+      <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-5 py-3 lg:py-4">
+        <div className="flex items-center justify-center h-48 lg:h-64">
+          <div className="text-sm text-textMuted">Učitavanje...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
+    <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -218,7 +219,7 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-4 py-3 text-left text-xs font-semibold text-textMuted uppercase tracking-wider"
+                    className="px-3 lg:px-4 py-2 lg:py-3 text-left text-[10px] lg:text-xs font-semibold text-textMuted uppercase tracking-wider"
                   >
                     {header.isPlaceholder ? null : (
                       <div
@@ -244,7 +245,7 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
           <tbody>
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-textMuted">
+                <td colSpan={columns.length} className="px-3 lg:px-4 py-6 lg:py-8 text-center text-sm text-textMuted">
                   Nema letova za prikaz
                 </td>
               </tr>
@@ -255,7 +256,7 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
                   className="border-b border-borderSoft hover:bg-shellBg transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} className="px-3 lg:px-4 py-2.5 lg:py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

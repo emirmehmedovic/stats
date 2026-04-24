@@ -72,11 +72,11 @@ export default function EditFlightPage() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="p-8">
+        <div className="p-4 lg:p-8">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" />
-              <p className="text-textMuted">Učitavam podatke...</p>
+              <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-b-2 border-primary-500 mx-auto mb-4" />
+              <p className="text-sm text-textMuted">Učitavam podatke...</p>
             </div>
           </div>
         </div>
@@ -87,9 +87,9 @@ export default function EditFlightPage() {
   if (error && !flightData) {
     return (
       <MainLayout>
-        <div className="p-8">
-          <div className="bg-red-50 border border-red-200 rounded-3xl px-5 py-4 shadow-soft">
-            <p className="text-sm text-red-700">{error}</p>
+        <div className="p-4 lg:p-8">
+          <div className="bg-red-50 border border-red-200 rounded-2xl lg:rounded-3xl px-4 lg:px-5 py-3 lg:py-4 shadow-soft">
+            <p className="text-xs lg:text-sm text-red-700">{error}</p>
             <Button variant="outline" size="sm" onClick={() => router.push('/flights')} className="mt-3">
               ← Nazad na listu
             </Button>
@@ -101,24 +101,25 @@ export default function EditFlightPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-6 md:p-7">
+        <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-4 md:p-6 lg:p-7">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Izmijeni</p>
-              <h1 className="text-3xl font-bold">Izmijeni let</h1>
+              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Izmijeni</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Izmijeni let</h1>
               {flightData && (
-                <p className="text-sm text-slate-200">
+                <p className="text-xs lg:text-sm text-slate-200">
                   {flightData.airline?.name} · {flightData.route} · {formatDateDisplay(flightData.date)}
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+            <div className="flex flex-wrap justify-start lg:justify-end gap-2 lg:gap-3">
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights')}
               >
                 ← Nazad na listu
@@ -129,10 +130,10 @@ export default function EditFlightPage() {
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-3xl px-5 py-4 mb-6 shadow-soft">
-            <div className="flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4 mb-4 lg:mb-6 shadow-soft">
+            <div className="flex items-start gap-2 lg:gap-3">
               <svg
-                className="w-5 h-5 text-red-700 mt-0.5 flex-shrink-0"
+                className="w-4 h-4 lg:w-5 lg:h-5 text-red-700 mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -145,8 +146,8 @@ export default function EditFlightPage() {
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-700 mb-1">Greška</p>
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs lg:text-sm font-semibold text-red-700 mb-1">Greška</p>
+                <p className="text-xs lg:text-sm text-red-600">{error}</p>
               </div>
               <Button
                 variant="outline"
@@ -162,7 +163,7 @@ export default function EditFlightPage() {
 
         {/* Form */}
         {flightData && (
-          <div className="bg-white rounded-3xl shadow-soft border border-dark-100 p-6">
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft border border-dark-100 p-4 lg:p-6">
             <FlightForm
               defaultValues={{
                 date: dateOnlyToUtc(flightData.date),

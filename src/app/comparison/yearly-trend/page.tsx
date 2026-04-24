@@ -782,49 +782,79 @@ export default function YearlyTrendPage() {
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Airlines Breakdown */}
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
-            <h3 className="text-lg font-semibold text-dark-900 mb-4">Po kompanijama</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5 border-4 lg:border-[6px] border-white">
+            <h3 className="text-base lg:text-lg font-semibold text-dark-900 mb-3 lg:mb-4">Po kompanijama</h3>
+            <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
                   data={data.airlineBreakdown}
                   dataKey="flights"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={({ payload }) => payload ? `${payload.name} (${payload.flights})` : ""}
+                  cy="35%"
+                  outerRadius={70}
+                  label={({ percent }) => percent && percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                  labelLine={false}
                 >
                   {data.airlineBreakdown.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value} letova`,
+                    props.payload.name
+                  ]}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={120}
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }}
+                  formatter={(value: string, entry: any) => {
+                    const item = data.airlineBreakdown.find(d => d.name === value);
+                    return item ? `${value} (${item.flights})` : value;
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
           {/* Operation Types Breakdown */}
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border-[6px] border-white">
-            <h3 className="text-lg font-semibold text-dark-900 mb-4">Po tipovima operacije</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5 border-4 lg:border-[6px] border-white">
+            <h3 className="text-base lg:text-lg font-semibold text-dark-900 mb-3 lg:mb-4">Po tipovima operacije</h3>
+            <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
                   data={data.operationTypeBreakdown}
                   dataKey="flights"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={({ payload }) => payload ? `${payload.name} (${payload.flights})` : ""}
+                  cy="35%"
+                  outerRadius={70}
+                  label={({ percent }) => percent && percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                  labelLine={false}
                 >
                   {data.operationTypeBreakdown.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value} letova`,
+                    props.payload.name
+                  ]}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={120}
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }}
+                  formatter={(value: string, entry: any) => {
+                    const item = data.operationTypeBreakdown.find(d => d.name === value);
+                    return item ? `${value} (${item.flights})` : value;
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>

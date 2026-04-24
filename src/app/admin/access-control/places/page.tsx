@@ -172,33 +172,33 @@ export default function AccessControlPlacesPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-white border-b border-slate-200">
-        <div className="px-6 py-4">
+        <div className="px-4 lg:px-6 py-4">
           <Link
             href="/access-control"
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors mb-4 text-sm lg:text-base"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Nazad na Access Control</span>
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Mapiranje lokacija</h1>
-              <p className="text-slate-600">Konfiguriši koje lokacije su ulaz/izlaz.</p>
+              <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Mapiranje lokacija</h1>
+              <p className="text-sm lg:text-base text-slate-600">Konfiguriši koje lokacije su ulaz/izlaz.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
-        <div className="bg-white rounded-3xl shadow-soft p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <MapPin className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-900">
+      <div className="px-4 lg:px-6 py-4 lg:py-6 space-y-4 lg:space-y-6">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft p-4 lg:p-6">
+          <div className="flex items-center gap-2 mb-4 lg:mb-6">
+            <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600" />
+            <h2 className="text-base lg:text-lg font-semibold text-slate-900">
               {editingId ? 'Uredi konfiguraciju' : 'Dodaj novu konfiguraciju'}
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Lokacija</label>
               <SearchableSelect
@@ -261,36 +261,36 @@ export default function AccessControlPlacesPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center gap-3">
-            <Button onClick={handleSubmit} disabled={saving}>
+          <div className="mt-4 lg:mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 lg:gap-3">
+            <Button onClick={handleSubmit} disabled={saving} className="text-sm lg:text-base">
               {editingId ? <Save className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               {editingId ? 'Sačuvaj' : 'Dodaj'}
             </Button>
             {editingId && (
-              <Button variant="outline" onClick={resetForm}>
+              <Button variant="outline" onClick={resetForm} className="text-sm lg:text-base">
                 Otkaži
               </Button>
             )}
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
-          <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Konfiguracije</h2>
-            <span className="text-sm text-slate-500">Ukupno: {configs.length}</span>
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft overflow-hidden">
+          <div className="p-4 lg:p-6 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="text-base lg:text-lg font-semibold text-slate-900">Konfiguracije</h2>
+            <span className="text-xs lg:text-sm text-slate-500">Ukupno: {configs.length}</span>
           </div>
 
           {configs.length === 0 ? (
-            <div className="p-12 text-center text-slate-500">Nema konfiguracija.</div>
+            <div className="p-8 lg:p-12 text-center text-sm lg:text-base text-slate-500">Nema konfiguracija.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
-                    <th className="px-6 py-3 text-left">Lokacija</th>
-                    <th className="px-6 py-3 text-left">Tip</th>
-                    <th className="px-6 py-3 text-left">Status</th>
-                    <th className="px-6 py-3 text-left">Akcije</th>
+                    <th className="px-3 lg:px-6 py-2 lg:py-3 text-left">Lokacija</th>
+                    <th className="px-3 lg:px-6 py-2 lg:py-3 text-left">Tip</th>
+                    <th className="px-3 lg:px-6 py-2 lg:py-3 text-left">Status</th>
+                    <th className="px-3 lg:px-6 py-2 lg:py-3 text-left">Akcije</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -298,32 +298,32 @@ export default function AccessControlPlacesPage() {
                     const place = configPlaceMap.get(config.externalPlaceId);
                     return (
                       <tr key={config.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-slate-900">
+                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                          <div className="text-sm lg:text-base font-medium text-slate-900">
                             {config.name}
                           </div>
-                          <div className="text-sm text-slate-500">
+                          <div className="text-xs lg:text-sm text-slate-500">
                             {place?.placeName || 'Nepoznata lokacija'} • ID: {config.externalPlaceId}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-700">
+                        <td className="px-3 lg:px-6 py-3 lg:py-4 text-xs lg:text-sm text-slate-700">
                           {config.type === 'ENTRY_EXIT' ? 'Ulaz/Izlaz' : 'Interna'}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                          <span className={`px-2 py-0.5 lg:py-1 rounded-full text-xs font-semibold ${
                             config.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
                           }`}>
                             {config.isActive ? 'Aktivno' : 'Neaktivno'}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(config)}>
-                              <Edit2 className="w-4 h-4 mr-1" />
+                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 lg:gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(config)} className="text-xs lg:text-sm">
+                              <Edit2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
                               Uredi
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDelete(config.id)}>
-                              <Trash2 className="w-4 h-4 mr-1" />
+                            <Button variant="outline" size="sm" onClick={() => handleDelete(config.id)} className="text-xs lg:text-sm">
+                              <Trash2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
                               Obriši
                             </Button>
                           </div>

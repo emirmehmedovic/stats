@@ -812,119 +812,122 @@ export default function BoardingInterfacePage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 lg:gap-4 flex-wrap">
           <button
             onClick={() => router.push('/predboarding')}
-            className="p-3 rounded-xl bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
+            className="p-2.5 lg:p-3 rounded-lg lg:rounded-xl bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 lg:w-5 lg:h-5" />
           </button>
           <div className="flex-1 min-w-[200px]">
-            <h1 className="text-3xl font-bold text-dark-900">Boarding interfejs</h1>
-            <p className="text-dark-500 mt-1">{manifest.originalFileName}</p>
+            <h1 className="text-xl lg:text-3xl font-bold text-dark-900">Boarding interfejs</h1>
+            <p className="text-dark-500 mt-1 text-xs lg:text-sm truncate">{manifest.originalFileName}</p>
           </div>
           <button
             onClick={() => router.push('/predboarding/active')}
-            className="px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all flex items-center gap-2"
+            className="px-3 lg:px-4 py-2 lg:py-3 bg-blue-600 text-white rounded-lg lg:rounded-xl text-sm lg:text-base font-semibold hover:bg-blue-700 transition-all flex items-center gap-2"
           >
-            <Users className="w-5 h-5" />
-            Multi-flight view
+            <Users className="w-4 h-4 lg:w-5 lg:h-5" />
+            <span className="hidden md:inline">Multi-flight view</span>
+            <span className="md:hidden">Multi-view</span>
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={isDeleting || manifest.boardingStatus !== 'IN_PROGRESS'}
-            className="px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-3 lg:px-4 py-2 lg:py-3 bg-red-600 text-white rounded-lg lg:rounded-xl text-sm lg:text-base font-semibold hover:bg-red-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             {isDeleting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Brišem...
+                <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
+                <span className="hidden md:inline">Brišem...</span>
               </>
             ) : (
               <>
-                <Trash2 className="w-5 h-5" />
-                Obriši manifest
+                <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="hidden md:inline">Obriši manifest</span>
+                <span className="md:hidden">Obriši</span>
               </>
             )}
           </button>
           <button
             onClick={() => setShowFinalizeConfirm(true)}
             disabled={isFinalizing || manifest.boardingStatus !== 'IN_PROGRESS'}
-            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-4 lg:px-6 py-2 lg:py-3 bg-green-600 text-white rounded-lg lg:rounded-xl text-sm lg:text-base font-semibold hover:bg-green-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             {isFinalizing ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Finalizujem...
+                <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
+                <span className="hidden md:inline">Finalizujem...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-5 h-5" />
-                Završi boarding
+                <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="hidden md:inline">Završi boarding</span>
+                <span className="md:hidden">Završi</span>
               </>
             )}
           </button>
         </div>
 
         {/* Flight Info */}
-        <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl p-6 text-white shadow-soft-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-2xl lg:rounded-3xl p-4 lg:p-6 text-white shadow-soft-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full blur-3xl -mr-12 -mt-12"></div>
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-8 -mb-8"></div>
 
           <div className="relative z-10">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-4">
+            <div className="flex items-start justify-between mb-3 lg:mb-4 gap-3">
+              <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0">
                 {manifest.flight.airline.logoUrl ? (
                   <img
                     src={manifest.flight.airline.logoUrl}
                     alt={manifest.flight.airline.name}
-                    className="w-14 h-14 rounded-xl object-contain bg-white p-2"
+                    className="w-10 h-10 lg:w-14 lg:h-14 rounded-lg lg:rounded-xl object-contain bg-white p-1.5 lg:p-2"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-white/10 text-white font-bold flex items-center justify-center backdrop-blur-md">
+                  <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-lg lg:rounded-xl bg-white/10 text-white font-bold flex items-center justify-center text-sm lg:text-base backdrop-blur-md">
                     {manifest.flight.airline.icaoCode}
                   </div>
                 )}
-                <div>
-                  <h2 className="text-xl font-bold">{manifest.flight.airline.name}</h2>
-                  <p className="text-dark-300 text-sm">{manifest.flight.airline.icaoCode}</p>
+                <div className="min-w-0">
+                  <h2 className="text-base lg:text-xl font-bold truncate">{manifest.flight.airline.name}</h2>
+                  <p className="text-dark-300 text-xs lg:text-sm">{manifest.flight.airline.icaoCode}</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 {manifest.flight.departureFlightNumber ? (
                   <>
-                    <p className="text-2xl font-bold">{manifest.flight.departureFlightNumber}</p>
-                    <p className="text-dark-300 text-sm">{manifest.flight.route}</p>
+                    <p className="text-lg lg:text-2xl font-bold">{manifest.flight.departureFlightNumber}</p>
+                    <p className="text-dark-300 text-xs lg:text-sm">{manifest.flight.route}</p>
                   </>
                 ) : (
-                  <p className="text-xl font-bold text-primary-200">{manifest.flight.route}</p>
+                  <p className="text-base lg:text-xl font-bold text-primary-200">{manifest.flight.route}</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 lg:gap-3">
+              <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs text-dark-200 mb-1">Datum</p>
-                <p className="text-sm font-bold">{formatDateStringWithDay(manifest.flight.date)}</p>
+                <p className="text-xs lg:text-sm font-bold">{formatDateStringWithDay(manifest.flight.date)}</p>
               </div>
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs text-dark-200 mb-1">Polazak</p>
-                <p className="text-sm font-bold">
+                <p className="text-xs lg:text-sm font-bold">
                   {manifest.flight.departureScheduledTime ? formatTimeDisplay(manifest.flight.departureScheduledTime) : 'N/A'}
                 </p>
               </div>
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs text-dark-200 mb-1">Avion</p>
-                <p className="text-sm font-bold">{manifest.flight.aircraftType?.model || 'N/A'}</p>
+                <p className="text-xs lg:text-sm font-bold">{manifest.flight.aircraftType?.model || 'N/A'}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 lg:gap-4">
           {[
             { label: 'Ukupno', value: stats.total, color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Users },
             { label: 'Ukrcano', value: stats.boarded, color: 'bg-green-50 text-green-700 border-green-200', icon: CheckCircle2 },
@@ -935,18 +938,18 @@ export default function BoardingInterfacePage() {
             { label: 'Djeca', value: stats.children, color: 'bg-purple-50 text-purple-700 border-purple-200', icon: Users },
             { label: 'Bebe', value: stats.infants, color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Baby },
           ].map((stat) => (
-            <div key={stat.label} className={`p-4 rounded-2xl border ${stat.color}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <stat.icon className="w-4 h-4" />
+            <div key={stat.label} className={`p-3 lg:p-4 rounded-xl lg:rounded-2xl border ${stat.color}`}>
+              <div className="flex items-center gap-1.5 lg:gap-2 mb-1.5 lg:mb-2">
+                <stat.icon className="w-3 h-3 lg:w-4 lg:h-4" />
                 <p className="text-xs font-semibold uppercase tracking-wide">{stat.label}</p>
               </div>
-              <p className="text-2xl font-bold">{stat.value}</p>
+              <p className="text-xl lg:text-2xl font-bold">{stat.value}</p>
             </div>
           ))}
         </div>
 
         {/* Search & Filters */}
-        <div className="bg-white rounded-2xl p-4 shadow-soft">
+        <div className="bg-white rounded-xl lg:rounded-2xl p-3 lg:p-4 shadow-soft">
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
               {([
@@ -969,20 +972,20 @@ export default function BoardingInterfacePage() {
                         openScannerModal(mode.value);
                       }
                     }}
-                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                    className={`px-3 lg:px-4 py-2 lg:py-3 rounded-lg lg:rounded-xl font-semibold text-xs lg:text-sm transition-all flex items-center gap-2 ${
                       searchMode === mode.value
                         ? 'bg-dark-900 text-white'
                         : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                     {mode.label}
                   </button>
                 );
               })}
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-3 lg:gap-4">
               <div className="flex-1 space-y-3">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
@@ -1015,12 +1018,12 @@ export default function BoardingInterfacePage() {
                         void attemptDeviceBoarding();
                       }
                     }}
-                    className="w-full pl-12 pr-4 py-3 bg-dark-50 border border-dark-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pl-10 lg:pl-12 pr-3 lg:pr-4 py-2.5 lg:py-3 text-sm lg:text-base bg-dark-50 border border-dark-200 rounded-lg lg:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
 
                 {searchMode !== 'MANUAL' && (
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center justify-between gap-2 lg:gap-3 flex-wrap">
                     <p className="text-xs text-dark-500">
                       Uređaj može poslati tekst direktno u ovo polje. Ako je pogodak jednoznačan, putnik će biti automatski ukrcan.
                     </p>
@@ -1033,13 +1036,13 @@ export default function BoardingInterfacePage() {
                           lastProcessedDeviceInputRef.current = '';
                           focusScannerInput(searchInputRef.current);
                         }}
-                        className="px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
+                        className="px-2.5 lg:px-3 py-1.5 lg:py-2 text-xs lg:text-sm bg-dark-100 text-dark-700 rounded-lg font-semibold hover:bg-dark-200 transition-colors"
                       >
                         Očisti
                       </button>
                       <button
                         onClick={() => void attemptDeviceBoarding()}
-                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                        className="px-3 lg:px-4 py-1.5 lg:py-2 text-xs lg:text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
                       >
                         Pretraži i ukrcaj
                       </button>
@@ -1048,8 +1051,8 @@ export default function BoardingInterfacePage() {
                 )}
 
                 {deviceFeedback && searchMode !== 'MANUAL' && (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                    <p className="text-sm text-blue-900">{deviceFeedback}</p>
+                  <div className="rounded-lg lg:rounded-xl border border-blue-200 bg-blue-50 px-3 lg:px-4 py-2 lg:py-3">
+                    <p className="text-xs lg:text-sm text-blue-900">{deviceFeedback}</p>
                   </div>
                 )}
               </div>
@@ -1064,7 +1067,7 @@ export default function BoardingInterfacePage() {
                   <button
                     key={filter.value}
                     onClick={() => setStatusFilter(filter.value)}
-                    className={`px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                    className={`px-3 lg:px-4 py-2 lg:py-3 rounded-lg lg:rounded-xl font-semibold text-xs lg:text-sm transition-all whitespace-nowrap ${
                       statusFilter === filter.value
                         ? 'bg-primary-600 text-white'
                         : 'bg-dark-100 text-dark-600 hover:bg-dark-200'
@@ -1080,11 +1083,11 @@ export default function BoardingInterfacePage() {
 
         {/* Selection Actions */}
         {selectedPassengers.size > 0 && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 shadow-soft">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 shadow-soft">
+            <div className="flex items-center justify-between gap-3 lg:gap-4 flex-wrap">
+              <div className="flex items-center gap-2 lg:gap-3">
+                <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600" />
+                <span className="font-semibold text-sm lg:text-base text-blue-900">
                   Selektovano: {selectedPassengers.size} {selectedPassengers.size === 1 ? 'putnik' : 'putnika'}
                 </span>
               </div>
@@ -1092,7 +1095,7 @@ export default function BoardingInterfacePage() {
                 <button
                   onClick={() => bulkUpdateStatus('BOARDED')}
                   disabled={isBulkUpdating}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
+                  className="px-3 lg:px-4 py-1.5 lg:py-2 bg-green-600 text-white rounded-lg lg:rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors text-xs lg:text-sm flex items-center gap-2"
                 >
                   {isBulkUpdating ? (
                     <>
@@ -1109,7 +1112,7 @@ export default function BoardingInterfacePage() {
                 <button
                   onClick={clearSelection}
                   disabled={isBulkUpdating}
-                  className="px-4 py-2 bg-dark-100 text-dark-700 rounded-xl font-semibold hover:bg-dark-200 disabled:opacity-50 transition-colors text-sm"
+                  className="px-3 lg:px-4 py-1.5 lg:py-2 bg-dark-100 text-dark-700 rounded-lg lg:rounded-xl font-semibold hover:bg-dark-200 disabled:opacity-50 transition-colors text-xs lg:text-sm"
                 >
                   Poništi selekciju
                 </button>
@@ -1119,41 +1122,41 @@ export default function BoardingInterfacePage() {
         )}
 
         {/* Passengers List */}
-        <div className="bg-white rounded-3xl shadow-soft overflow-hidden">
-          <div className="p-6 border-b border-dark-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-dark-900">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft overflow-hidden">
+          <div className="p-4 lg:p-6 border-b border-dark-100">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg lg:text-xl font-bold text-dark-900">
                 Lista putnika ({filteredPassengers.length})
               </h3>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 lg:gap-3">
                 {(statusFilter === 'CHECKED_IN' || statusFilter === 'NO_SHOW') && filteredPassengers.length > 0 && (
                   <button
                     onClick={selectAll}
-                    className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
+                    className="px-2.5 lg:px-3 py-1.5 lg:py-2 text-xs lg:text-sm bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
                   >
                     Selektuj sve
                   </button>
                 )}
-                <Filter className="w-5 h-5 text-dark-400" />
+                <Filter className="w-4 h-4 lg:w-5 lg:h-5 text-dark-400" />
               </div>
             </div>
           </div>
 
           <div className="divide-y divide-dark-100">
             {filteredPassengers.length === 0 ? (
-              <div className="p-12 text-center">
-                <Users className="w-12 h-12 text-dark-300 mx-auto mb-3" />
-                <p className="text-dark-500">Nema putnika koji odgovaraju filterima</p>
+              <div className="p-8 lg:p-12 text-center">
+                <Users className="w-10 h-10 lg:w-12 lg:h-12 text-dark-300 mx-auto mb-3" />
+                <p className="text-sm lg:text-base text-dark-500">Nema putnika koji odgovaraju filterima</p>
               </div>
             ) : (
               filteredPassengers.map((passenger) => (
                 <div
                   key={passenger.id}
-                  className={`p-4 transition-colors ${
+                  className={`p-3 lg:p-4 transition-colors ${
                     selectedPassengers.has(passenger.id) ? 'bg-blue-50' : 'hover:bg-dark-50'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 lg:gap-4">
                     {/* Checkbox (only for pending passengers) */}
                     {passenger.boardingStatus === 'NO_SHOW' && (
                       <div className="flex-shrink-0">
@@ -1161,44 +1164,44 @@ export default function BoardingInterfacePage() {
                           type="checkbox"
                           checked={selectedPassengers.has(passenger.id)}
                           onChange={() => togglePassengerSelection(passenger.id)}
-                          className="w-5 h-5 rounded border-2 border-dark-300 text-primary-600 focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                          className="w-4 h-4 lg:w-5 lg:h-5 rounded border-2 border-dark-300 text-primary-600 focus:ring-2 focus:ring-primary-500 cursor-pointer"
                         />
                       </div>
                     )}
 
                     {/* Seat Number */}
-                    <div className="w-16 h-16 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm flex-shrink-0">
+                    <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg lg:rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-xs lg:text-sm flex-shrink-0">
                       {passenger.seatNumber || 'N/A'}
                     </div>
 
                     {/* Passenger Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-dark-900">{formatPassengerDisplayName(passenger.passengerName)}</p>
+                      <div className="flex items-center gap-1.5 lg:gap-2 mb-1 flex-wrap">
+                        <p className="font-bold text-sm lg:text-base text-dark-900 truncate">{formatPassengerDisplayName(passenger.passengerName)}</p>
                         {getTitleBadge(passenger.title)}
                         {passenger.isInfant && (
                           <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-semibold flex items-center gap-1">
                             <Baby className="w-3 h-3" />
-                            Infant
+                            <span className="hidden md:inline">Infant</span>
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-dark-500">
+                      <div className="flex items-center gap-2 lg:gap-4 text-xs text-dark-500 flex-wrap">
                         {passenger.sequenceNumber && <span>Seq: {passenger.sequenceNumber}</span>}
-                        {passenger.passengerId && <span>Locator: {passenger.passengerId}</span>}
-                        {passenger.fareClass && passenger.fareClass !== passenger.passengerId && <span>Class: {passenger.fareClass}</span>}
-                        {passenger.confirmationDate && <span>Confirmed: {passenger.confirmationDate}</span>}
+                        {passenger.passengerId && <span className="hidden md:inline">Locator: {passenger.passengerId}</span>}
+                        {passenger.fareClass && passenger.fareClass !== passenger.passengerId && <span className="hidden lg:inline">Class: {passenger.fareClass}</span>}
+                        {passenger.confirmationDate && <span className="hidden xl:inline">Confirmed: {passenger.confirmationDate}</span>}
                       </div>
                     </div>
 
                     {/* Status & Actions */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
                       {getStatusBadge(passenger)}
 
                       {passenger.boardingStatus === 'NO_SHOW' && (
                         <button
                           onClick={() => updatePassengerStatus(passenger.id, 'BOARDED')}
-                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors text-sm"
+                          className="px-3 lg:px-4 py-1.5 lg:py-2 bg-green-600 text-white rounded-lg lg:rounded-xl font-semibold hover:bg-green-700 transition-colors text-xs lg:text-sm"
                         >
                           Ukrcaj
                         </button>
@@ -1207,7 +1210,7 @@ export default function BoardingInterfacePage() {
                       {passenger.boardingStatus === 'BOARDED' && (
                         <button
                           onClick={() => updatePassengerStatus(passenger.id, 'NO_SHOW')}
-                          className="px-3 py-2 bg-dark-100 text-dark-600 rounded-xl font-semibold hover:bg-dark-200 transition-colors text-sm"
+                          className="px-2.5 lg:px-3 py-1.5 lg:py-2 bg-dark-100 text-dark-600 rounded-lg lg:rounded-xl font-semibold hover:bg-dark-200 transition-colors text-xs lg:text-sm"
                         >
                           Poništi
                         </button>

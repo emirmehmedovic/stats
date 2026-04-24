@@ -153,7 +153,12 @@ const adminSection: NavSection = {
   ],
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileMenuOpen: boolean;
+  closeMobileMenu: () => void;
+}
+
+export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
@@ -278,26 +283,26 @@ export function Sidebar() {
           <button
             onClick={() => toggleSection(item.href)}
             className={`
-              w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm transition-all duration-200 group
+              w-full flex items-center justify-between px-3 lg:px-4 py-2 lg:py-3 rounded-xl lg:rounded-2xl text-xs lg:text-sm transition-all duration-200 group
               ${active
                 ? 'bg-dark-900 text-white shadow-soft-lg'
                 : 'text-dark-500 hover:bg-dark-50 hover:text-dark-900'
               }
             `}
           >
-            <div className="flex items-center gap-3">
-              <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
+            <div className="flex items-center gap-2 lg:gap-3">
+              <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${active ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
               <span className="font-medium">{item.label}</span>
             </div>
             {isExpanded ? (
-              <ChevronDown className={`w-4 h-4 ${active ? 'text-white' : 'text-dark-400'}`} />
+              <ChevronDown className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${active ? 'text-white' : 'text-dark-400'}`} />
             ) : (
-              <ChevronRight className={`w-4 h-4 ${active ? 'text-white' : 'text-dark-400'}`} />
+              <ChevronRight className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${active ? 'text-white' : 'text-dark-400'}`} />
             )}
           </button>
 
           {isExpanded && (
-            <div className="mt-1 ml-4 space-y-1 relative pl-6 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-dark-200">
+            <div className="mt-0.5 lg:mt-1 ml-3 lg:ml-4 space-y-0.5 lg:space-y-1 relative pl-4 lg:pl-6 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-dark-200">
               {item.subItems?.map((subItem, index) => {
                 const SubIcon = subItem.icon;
                 const subActive = isActive(subItem.href);
@@ -305,21 +310,22 @@ export function Sidebar() {
                 return (
                   <div key={subItem.href} className="relative">
                     {/* Curved connector line */}
-                    <div className="absolute left-0 top-0 w-8 h-full -ml-6">
-                      <div className="absolute left-0 top-1/2 w-full h-6 border-l-2 border-b-2 border-dark-200 rounded-bl-2xl -translate-y-1/2"></div>
+                    <div className="absolute left-0 top-0 w-6 lg:w-8 h-full -ml-4 lg:-ml-6">
+                      <div className="absolute left-0 top-1/2 w-full h-6 border-l-2 border-b-2 border-dark-200 rounded-bl-xl lg:rounded-bl-2xl -translate-y-1/2"></div>
                     </div>
 
                     <Link
                       href={subItem.href}
+                      onClick={closeMobileMenu}
                       className={`
-                        flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm transition-all duration-200 group relative z-10
+                        flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-1.5 lg:py-2.5 rounded-xl lg:rounded-2xl text-xs lg:text-sm transition-all duration-200 group relative z-10
                         ${subActive
                           ? 'bg-dark-900 text-white shadow-soft-lg'
                           : 'text-dark-500 hover:bg-dark-50 hover:text-dark-900'
                         }
                       `}
                     >
-                      <SubIcon className={`w-4 h-4 ${subActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
+                      <SubIcon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${subActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
                       <span className="font-medium">{subItem.label}</span>
                       {subActive && (
                         <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
@@ -338,15 +344,16 @@ export function Sidebar() {
       <Link
         key={item.href}
         href={item.href}
+        onClick={closeMobileMenu}
         className={`
-          flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all duration-200 group
+          flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl lg:rounded-2xl text-xs lg:text-sm transition-all duration-200 group
           ${active
             ? 'bg-dark-900 text-white shadow-soft-lg'
             : 'text-dark-500 hover:bg-dark-50 hover:text-dark-900'
           }
         `}
       >
-        <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
+        <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${active ? 'text-white' : 'text-dark-400 group-hover:text-dark-900'}`} />
         <span className="font-medium">{item.label}</span>
         {active && (
           <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
@@ -460,21 +467,25 @@ export function Sidebar() {
   }).filter((section): section is NavSection => section !== null);
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-dark-100 flex flex-col shadow-soft z-50 overflow-hidden">
+    <aside
+      className={`fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-dark-100 flex flex-col shadow-soft z-50 overflow-hidden transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
       {/* Logo Section */}
-      <div className="px-6 pt-8 pb-6 flex-shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3 group mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-primary-600 flex items-center justify-center shadow-primary group-hover:shadow-primary-lg transition-all">
-            <Plane className="w-5 h-5 text-white" />
+      <div className="px-4 lg:px-6 pt-6 lg:pt-8 pb-4 lg:pb-6 flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2 lg:gap-3 group mb-4 lg:mb-6" onClick={closeMobileMenu}>
+          <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl lg:rounded-2xl bg-primary-600 flex items-center justify-center shadow-primary group-hover:shadow-primary-lg transition-all">
+            <Plane className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-dark-900 font-bold text-xl tracking-tight">Aerodrom Tuzla</h1>
-            <p className="text-[10px] font-semibold text-dark-400 uppercase tracking-wider">Dashboard</p>
+            <h1 className="text-dark-900 font-bold text-lg lg:text-xl tracking-tight">Aerodrom Tuzla</h1>
+            <p className="text-[9px] lg:text-[10px] font-semibold text-dark-400 uppercase tracking-wider">Dashboard</p>
           </div>
         </Link>
 
-        {/* Help Section */}
-        <div className="bg-dark-50 rounded-2xl p-4">
+        {/* Help Section - Hidden on mobile */}
+        <div className="hidden lg:block bg-dark-50 rounded-2xl p-4">
           <div className="flex items-start gap-2">
             <HelpCircle className="w-4 h-4 text-primary-600 mt-0.5 flex-shrink-0" />
             <div>
@@ -486,26 +497,26 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 overflow-y-auto">
-        <div className="space-y-6 pb-4">
+      <nav className="flex-1 px-3 lg:px-4 overflow-y-auto">
+        <div className="space-y-4 lg:space-y-6 pb-4">
           {visibleSections.map((section) => (
             <div key={section.title}>
-              <p className="px-4 mb-2 text-[10px] font-bold text-dark-400 uppercase tracking-widest">
+              <p className="px-3 lg:px-4 mb-1.5 lg:mb-2 text-[9px] lg:text-[10px] font-bold text-dark-400 uppercase tracking-widest">
                 {section.title}
               </p>
-              <div className="space-y-1">
+              <div className="space-y-0.5 lg:space-y-1">
                 {section.items.map((item) => renderNavItem(item))}
               </div>
             </div>
           ))}
-          
+
           {/* ADMIN Section - Only for ADMIN role */}
           {isMounted && userRole === 'ADMIN' && (
             <div>
-              <p className="px-4 mb-2 text-[10px] font-bold text-dark-400 uppercase tracking-widest">
+              <p className="px-3 lg:px-4 mb-1.5 lg:mb-2 text-[9px] lg:text-[10px] font-bold text-dark-400 uppercase tracking-widest">
                 {adminSection.title}
               </p>
-              <div className="space-y-1">
+              <div className="space-y-0.5 lg:space-y-1">
                 {adminSection.items.map((item) => renderNavItem(item))}
               </div>
             </div>
@@ -514,17 +525,17 @@ export function Sidebar() {
       </nav>
 
       {/* Promo Section */}
-      <div className="p-4 flex-shrink-0">
-        <div className="bg-dark-50 rounded-3xl p-5 relative overflow-hidden group">
+      <div className="p-3 lg:p-4 flex-shrink-0">
+        <div className="bg-dark-50 rounded-2xl lg:rounded-3xl p-4 lg:p-5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-primary-100 rounded-full blur-xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
 
           <div className="relative z-10">
-            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm mb-3">
-              <Sparkles className="w-5 h-5 text-primary-600" />
+            <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-white flex items-center justify-center shadow-sm mb-2 lg:mb-3">
+              <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-primary-600" />
             </div>
-            <h3 className="font-bold text-dark-900 text-sm mb-1">Dnevna statistika</h3>
-            <p className="text-xs text-dark-500 mb-3">Pregled današnjeg prometa putnika</p>
-            <button className="w-full py-2 bg-dark-900 text-white text-xs font-medium rounded-xl hover:bg-primary-600 transition-colors shadow-soft">
+            <h3 className="font-bold text-dark-900 text-xs lg:text-sm mb-1">Dnevna statistika</h3>
+            <p className="text-[10px] lg:text-xs text-dark-500 mb-2 lg:mb-3">Pregled današnjeg prometa putnika</p>
+            <button className="w-full py-1.5 lg:py-2 bg-dark-900 text-white text-[10px] lg:text-xs font-medium rounded-lg lg:rounded-xl hover:bg-primary-600 transition-colors shadow-soft">
               {loadingPassengers
                 ? 'Učitavanje...'
                 : todayPassengers !== null
@@ -535,13 +546,14 @@ export function Sidebar() {
         </div>
 
         {/* Settings & Logout */}
-        <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t border-dark-100">
+        <div className="flex items-center justify-center gap-2 pt-3 lg:pt-4 mt-3 lg:mt-4 border-t border-dark-100">
           <Link
             href="/settings"
-            className="p-2 text-dark-400 hover:text-dark-900 hover:bg-dark-50 rounded-xl transition-all"
+            className="p-1.5 lg:p-2 text-dark-400 hover:text-dark-900 hover:bg-dark-50 rounded-lg lg:rounded-xl transition-all"
             title="Podešavanja"
+            onClick={closeMobileMenu}
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4 lg:w-5 lg:h-5" />
           </Link>
           <button
             onClick={async () => {
@@ -560,10 +572,10 @@ export function Sidebar() {
               }
             }}
             disabled={isLoggingOut}
-            className="p-2 text-dark-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 lg:p-2 text-dark-400 hover:text-red-600 hover:bg-red-50 rounded-lg lg:rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             title="Odjavi se"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
           </button>
         </div>
       </div>

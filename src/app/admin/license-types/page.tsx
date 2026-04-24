@@ -121,17 +121,17 @@ export default function LicenseTypesPage() {
         </div>
       </div>
 
-      <div className="px-6 py-8">
+      <div className="px-4 lg:px-6 py-6 lg:py-8">
         {/* Page Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
-          <div className="flex items-start justify-between">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-slate-200 p-4 lg:p-8 mb-4 lg:mb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2.5 bg-slate-100 rounded-xl">
-                  <Shield className="w-6 h-6 text-slate-700" />
+                  <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-slate-700" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-slate-900">Tipovi licenci</h1>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Tipovi licenci</h1>
                   <p className="text-slate-600 text-sm mt-1">
                     Upravljanje tipovima licenci koje se koriste u sistemu
                   </p>
@@ -140,16 +140,17 @@ export default function LicenseTypesPage() {
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 shadow-sm"
+              className="w-full md:w-auto px-4 lg:px-6 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm text-sm lg:text-base"
             >
-              <Plus className="w-5 h-5" />
-              Dodaj novi tip
+              <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
+              <span className="hidden sm:inline">Dodaj novi tip</span>
+              <span className="sm:hidden">Dodaj</span>
             </button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-slate-200 p-4 lg:p-6 mb-4 lg:mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
@@ -181,11 +182,11 @@ export default function LicenseTypesPage() {
         </div>
 
         {/* License Types Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {filteredTypes.map((type) => (
             <div
               key={type.id}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -338,12 +339,12 @@ export default function LicenseTypesPage() {
         </div>
 
         {filteredTypes.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-            <Shield className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-slate-200 p-8 lg:p-12 text-center">
+            <Shield className="w-12 h-12 lg:w-16 lg:h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-base lg:text-lg font-semibold text-slate-900 mb-2">
               Nema pronađenih tipova licenci
             </h3>
-            <p className="text-slate-600 mb-6">
+            <p className="text-sm lg:text-base text-slate-600 mb-6">
               {searchTerm || filterCategory !== 'all'
                 ? 'Pokušajte promijeniti kriterije pretrage'
                 : 'Kliknite na dugme iznad da dodate prvi tip licence'}
@@ -450,15 +451,15 @@ function LicenseTypeModal({ licenseType, onClose, onSave }: LicenseTypeModalProp
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-200">
-          <h2 className="text-2xl font-bold text-slate-900">
+      <div className="bg-white rounded-xl lg:rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-4 lg:p-6 border-b border-slate-200">
+          <h2 className="text-xl lg:text-2xl font-bold text-slate-900">
             {licenseType ? 'Uredi tip licence' : 'Dodaj novi tip licence'}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 lg:p-6">
+          <div className="space-y-3 lg:space-y-4">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">

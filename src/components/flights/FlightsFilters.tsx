@@ -70,9 +70,9 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
     filters.operationType;
 
   return (
-    <div className="bg-white/90 backdrop-blur rounded-3xl border border-dark-100 shadow-soft px-5 py-4 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-dark-800">Filteri</h2>
+    <div className="bg-white/90 backdrop-blur rounded-2xl lg:rounded-3xl border border-dark-100 shadow-soft px-4 lg:px-5 py-3 lg:py-4 mb-4 lg:mb-6">
+      <div className="flex items-center justify-between mb-3 lg:mb-4">
+        <h2 className="text-xs lg:text-sm font-semibold text-dark-800">Filteri</h2>
         {hasActiveFilters && (
           <Button
             variant="outline"
@@ -85,10 +85,10 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
         {/* Search */}
         <div>
-          <label htmlFor="search" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="search" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Pretraga
           </label>
           <Input
@@ -97,13 +97,13 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             placeholder="Pretraži letove..."
             value={filters.search || ''}
             onChange={(e) => handleFilterChange('search', e.target.value || undefined)}
-            className="h-9 text-sm"
+            className="h-8 lg:h-9 text-xs lg:text-sm"
           />
         </div>
 
         {/* Airline */}
         <div>
-          <label htmlFor="airline" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="airline" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Aviokompanija
           </label>
           <select
@@ -111,7 +111,7 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             value={filters.airlineId || ''}
             onChange={(e) => handleFilterChange('airlineId', e.target.value || undefined)}
             disabled={isLoadingAirlines}
-            className="h-9 w-full rounded-xl border border-borderSoft bg-white px-3 text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+            className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-white px-2 lg:px-3 text-xs lg:text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
           >
             <option value="">Sve aviokompanije</option>
             {airlines.map((airline) => (
@@ -124,7 +124,7 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
 
         {/* Route */}
         <div>
-          <label htmlFor="route" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="route" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Ruta
           </label>
           <Input
@@ -133,20 +133,20 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             placeholder="npr. TZL-IST"
             value={filters.route || ''}
             onChange={(e) => handleFilterChange('route', e.target.value || undefined)}
-            className="h-9 text-sm"
+            className="h-8 lg:h-9 text-xs lg:text-sm"
           />
         </div>
 
         {/* Operation Type */}
         <div>
-          <label htmlFor="operationType" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="operationType" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Tip operacije
           </label>
           <select
             id="operationType"
             value={filters.operationType || ''}
             onChange={(e) => handleFilterChange('operationType', e.target.value || undefined)}
-            className="h-9 w-full rounded-xl border border-borderSoft bg-white px-3 text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+            className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-white px-2 lg:px-3 text-xs lg:text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
           >
             <option value="">Svi tipovi</option>
             <option value="SCHEDULED">Redovan</option>
@@ -157,7 +157,7 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
 
         {/* Date From */}
         <div>
-          <label htmlFor="dateFrom" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="dateFrom" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Datum od
           </label>
           <Input
@@ -165,13 +165,13 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             type="date"
             value={filters.dateFrom || ''}
             onChange={(e) => handleFilterChange('dateFrom', e.target.value || undefined)}
-            className="h-9 text-sm"
+            className="h-8 lg:h-9 text-xs lg:text-sm"
           />
         </div>
 
         {/* Date To */}
         <div>
-          <label htmlFor="dateTo" className="block text-xs text-textMuted mb-1.5">
+          <label htmlFor="dateTo" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Datum do
           </label>
           <Input
@@ -179,17 +179,17 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             type="date"
             value={filters.dateTo || ''}
             onChange={(e) => handleFilterChange('dateTo', e.target.value || undefined)}
-            className="h-9 text-sm"
+            className="h-8 lg:h-9 text-xs lg:text-sm"
           />
         </div>
       </div>
 
       {/* Active filters indicator */}
       {hasActiveFilters && (
-        <div className="mt-4 pt-4 border-t border-borderSoft">
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-borderSoft">
+          <div className="flex flex-wrap gap-1.5 lg:gap-2">
             {filters.search && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-primarySoft px-3 py-1 text-xs text-brand-primary">
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-primarySoft px-2.5 lg:px-3 py-1 text-[10px] lg:text-xs text-brand-primary">
                 Pretraga: {filters.search}
                 <button
                   onClick={() => handleFilterChange('search', undefined)}

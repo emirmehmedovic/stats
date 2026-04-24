@@ -121,38 +121,42 @@ export default function ImportPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-6 md:p-7">
+        <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-4 md:p-6 lg:p-7">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Import</p>
-              <h1 className="text-3xl font-bold">Kompletan import letova</h1>
-              <p className="text-sm text-slate-200">Raspored, putnici, cargo i prtljag u jednom koraku</p>
+              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Import</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Kompletan import letova</h1>
+              <p className="text-xs lg:text-sm text-slate-200">Raspored, putnici, cargo i prtljag u jednom koraku</p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs inline-flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-primary-200" />
-                  Više formata: XLSX, XLS, CSV
+                <span className="px-2.5 lg:px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] lg:text-xs inline-flex items-center gap-1.5 lg:gap-2">
+                  <Upload className="w-3 h-3 lg:w-4 lg:h-4 text-primary-200" />
+                  <span className="hidden sm:inline">Više formata: XLSX, XLS, CSV</span>
+                  <span className="sm:hidden">XLSX/CSV</span>
                 </span>
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs inline-flex items-center gap-2">
+                <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4 text-primary-200" />
                   Pregled prije importa
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+            <div className="flex flex-wrap justify-start lg:justify-end gap-2 lg:gap-3">
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights/import-schedule')}
               >
-                <Calendar className="w-4 h-4 mr-2" />
-                Samo raspored
+                <Calendar className="w-3.5 h-3.5 lg:w-4 lg:h-4 mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Samo raspored</span>
+                <span className="sm:hidden">Raspored</span>
               </Button>
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights')}
               >
                 ← Nazad
@@ -162,7 +166,7 @@ export default function ImportPage() {
         </div>
 
         {/* Steps indicator */}
-        <div className="bg-white rounded-3xl shadow-soft border border-dark-100 px-5 py-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft border border-dark-100 px-4 lg:px-5 py-3 lg:py-4">
           <div className="flex items-center justify-between">
             {[
               { key: 'upload', label: 'Upload fajla', stepNum: 1 },
@@ -170,9 +174,9 @@ export default function ImportPage() {
               { key: 'results', label: 'Rezultati', stepNum: 3 },
             ].map((item, idx) => (
               <Fragment key={item.key}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 lg:gap-2">
                   <div
-                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold shadow-sm ${
+                    className={`flex items-center justify-center w-7 h-7 lg:w-9 lg:h-9 rounded-full text-xs lg:text-sm font-semibold shadow-sm ${
                       step === item.key
                         ? 'bg-primary-600 text-white'
                         : 'bg-slate-50 text-slate-500 border border-slate-200'
@@ -181,14 +185,14 @@ export default function ImportPage() {
                     {item.stepNum}
                   </div>
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-xs lg:text-sm font-medium ${
                       step === item.key ? 'text-dark-900' : 'text-dark-500'
-                    }`}
+                    } hidden sm:inline`}
                   >
                     {item.label}
                   </span>
                 </div>
-                {idx < 2 && <div className="flex-1 h-px bg-dark-100 mx-4" />}
+                {idx < 2 && <div className="flex-1 h-px bg-dark-100 mx-2 lg:mx-4" />}
               </Fragment>
             ))}
           </div>
@@ -196,10 +200,10 @@ export default function ImportPage() {
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4">
-            <div className="flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4">
+            <div className="flex items-start gap-2 lg:gap-3">
               <svg
-                className="w-5 h-5 text-red-700 mt-0.5 flex-shrink-0"
+                className="w-4 h-4 lg:w-5 lg:h-5 text-red-700 mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -212,8 +216,8 @@ export default function ImportPage() {
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-700 mb-1">Greška</p>
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs lg:text-sm font-semibold text-red-700 mb-1">Greška</p>
+                <p className="text-xs lg:text-sm text-red-600">{error}</p>
               </div>
               <Button
                 variant="outline"
@@ -229,26 +233,26 @@ export default function ImportPage() {
 
         {/* Step content */}
         {step === 'upload' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl shadow-soft border border-dark-100 p-6">
+          <div className="space-y-4 lg:space-y-6">
+            <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft border border-dark-100 p-4 lg:p-6">
               <FileUpload onFileSelect={handleFileSelect} />
             </div>
 
             {isProcessing && (
-              <div className="bg-white rounded-3xl shadow-soft border border-dark-100 px-5 py-8">
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft border border-dark-100 px-4 lg:px-5 py-6 lg:py-8">
                 <div className="flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4" />
-                  <p className="text-sm text-dark-500">Učitavam fajl...</p>
+                  <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-b-2 border-primary-600 mb-4" />
+                  <p className="text-xs lg:text-sm text-dark-500">Učitavam fajl...</p>
                 </div>
               </div>
             )}
 
             {/* Info section */}
-            <div className="bg-blue-50 rounded-3xl px-5 py-4 border border-blue-100 shadow-sm">
-              <h3 className="text-sm font-semibold text-dark-900 mb-3">
+            <div className="bg-blue-50 rounded-2xl lg:rounded-3xl px-4 lg:px-5 py-3 lg:py-4 border border-blue-100 shadow-sm">
+              <h3 className="text-xs lg:text-sm font-semibold text-dark-900 mb-2 lg:mb-3">
                 Kako funkcioniše import?
               </h3>
-              <ol className="text-sm text-dark-600 space-y-2">
+              <ol className="text-xs lg:text-sm text-dark-600 space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="text-primary-700 font-semibold">1.</span>
                   <span>

@@ -121,38 +121,41 @@ export default function ImportSchedulePage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-6 md:p-7">
+        <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-4 md:p-6 lg:p-7">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Import rasporeda</p>
-              <h1 className="text-3xl font-bold">Import rasporeda</h1>
-              <p className="text-sm text-slate-200">Datum, kompanija, ruta i planirano vrijeme dolaska/odlaska</p>
+              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Import rasporeda</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Import rasporeda</h1>
+              <p className="text-xs lg:text-sm text-slate-200">Datum, kompanija, ruta i planirano vrijeme dolaska/odlaska</p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs inline-flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-primary-200" />
+                <span className="px-2.5 lg:px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] lg:text-xs inline-flex items-center gap-1.5 lg:gap-2">
+                  <Upload className="w-3 h-3 lg:w-4 lg:h-4 text-primary-200" />
                   XLSX / CSV
                 </span>
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs inline-flex items-center gap-2">
+                <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs items-center gap-2">
                   <MapPin className="w-4 h-4 text-primary-200" />
                   Brzi unos osnovnih podataka
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+            <div className="flex flex-wrap justify-start lg:justify-end gap-2 lg:gap-3">
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights/import')}
               >
-                <FileText className="w-4 h-4 mr-2" />
-                Kompletan import
+                <FileText className="w-3.5 h-3.5 lg:w-4 lg:h-4 mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Kompletan import</span>
+                <span className="sm:hidden">Kompletan</span>
               </Button>
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights')}
               >
                 ← Nazad
@@ -162,19 +165,19 @@ export default function ImportSchedulePage() {
         </div>
 
         {/* Info banner */}
-        <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl px-5 py-4 border border-primary-100">
-          <div className="flex items-start gap-3">
-            <Clock className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+        <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4 border border-primary-100">
+          <div className="flex items-start gap-2 lg:gap-3">
+            <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-primary-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-dark-900 mb-1">
+              <h3 className="text-xs lg:text-sm font-semibold text-dark-900 mb-1">
                 Šta je "Import rasporeda"?
               </h3>
-              <p className="text-sm text-dark-700">
+              <p className="text-xs lg:text-sm text-dark-700">
                 Import rasporeda uvozi samo osnovne informacije: <strong>datum, aviokompaniju, rutu i planirano vrijeme</strong>.
                 Ostali podaci (stvarno vrijeme, putnici, cargo) ostaju prazni i mogu se popuniti kasnije preko
                 stranice <strong>Dnevne operacije</strong>.
               </p>
-              <p className="text-sm text-primary-700 mt-2">
+              <p className="text-xs lg:text-sm text-primary-700 mt-2">
                 💡 Ako imaš kompletne podatke (sa putnicima, cargom, itd.), koristi{' '}
                 <button
                   onClick={() => router.push('/flights/import')}
@@ -188,11 +191,11 @@ export default function ImportSchedulePage() {
         </div>
 
         {/* Steps indicator */}
-        <div className="bg-white rounded-2xl shadow-sm border border-dark-100 px-5 py-4">
+        <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-dark-100 px-4 lg:px-5 py-3 lg:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 lg:gap-2">
               <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                className={`flex items-center justify-center w-7 h-7 lg:w-8 lg:h-8 rounded-full text-xs lg:text-sm ${
                   step === 'upload'
                     ? 'bg-primary-600 text-white'
                     : 'bg-dark-50 text-dark-500'
@@ -201,19 +204,19 @@ export default function ImportSchedulePage() {
                 1
               </div>
               <span
-                className={`text-sm font-medium ${
+                className={`text-xs lg:text-sm font-medium ${
                   step === 'upload' ? 'text-dark-900' : 'text-dark-500'
-                }`}
+                } hidden sm:inline`}
               >
                 Upload fajla
               </span>
             </div>
 
-            <div className="flex-1 h-px bg-dark-100 mx-4" />
+            <div className="flex-1 h-px bg-dark-100 mx-2 lg:mx-4" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 lg:gap-2">
               <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                className={`flex items-center justify-center w-7 h-7 lg:w-8 lg:h-8 rounded-full text-xs lg:text-sm ${
                   step === 'preview'
                     ? 'bg-primary-600 text-white'
                     : 'bg-dark-50 text-dark-500'
@@ -222,19 +225,19 @@ export default function ImportSchedulePage() {
                 2
               </div>
               <span
-                className={`text-sm font-medium ${
+                className={`text-xs lg:text-sm font-medium ${
                   step === 'preview' ? 'text-dark-900' : 'text-dark-500'
-                }`}
+                } hidden sm:inline`}
               >
                 Pregled
               </span>
             </div>
 
-            <div className="flex-1 h-px bg-dark-100 mx-4" />
+            <div className="flex-1 h-px bg-dark-100 mx-2 lg:mx-4" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 lg:gap-2">
               <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                className={`flex items-center justify-center w-7 h-7 lg:w-8 lg:h-8 rounded-full text-xs lg:text-sm ${
                   step === 'results'
                     ? 'bg-primary-600 text-white'
                     : 'bg-dark-50 text-dark-500'
@@ -243,9 +246,9 @@ export default function ImportSchedulePage() {
                 3
               </div>
               <span
-                className={`text-sm font-medium ${
+                className={`text-xs lg:text-sm font-medium ${
                   step === 'results' ? 'text-dark-900' : 'text-dark-500'
-                }`}
+                } hidden sm:inline`}
               >
                 Rezultati
               </span>
@@ -255,10 +258,10 @@ export default function ImportSchedulePage() {
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4">
-            <div className="flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4">
+            <div className="flex items-start gap-2 lg:gap-3">
               <svg
-                className="w-5 h-5 text-red-700 mt-0.5 flex-shrink-0"
+                className="w-4 h-4 lg:w-5 lg:h-5 text-red-700 mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -271,8 +274,8 @@ export default function ImportSchedulePage() {
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-700 mb-1">Greška</p>
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs lg:text-sm font-semibold text-red-700 mb-1">Greška</p>
+                <p className="text-xs lg:text-sm text-red-600">{error}</p>
               </div>
               <Button
                 variant="outline"
@@ -288,50 +291,50 @@ export default function ImportSchedulePage() {
 
         {/* Step content */}
         {step === 'upload' && (
-          <div className="space-y-6">
+          <div className="space-y-4 lg:space-y-6">
             <FileUpload onFileSelect={handleFileSelect} />
 
             {isProcessing && (
-              <div className="bg-white rounded-2xl shadow-sm border border-dark-100 px-5 py-8">
+              <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-dark-100 px-4 lg:px-5 py-6 lg:py-8">
                 <div className="flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4" />
-                  <p className="text-sm text-dark-500">Učitavam fajl...</p>
+                  <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-b-2 border-primary-600 mb-4" />
+                  <p className="text-xs lg:text-sm text-dark-500">Učitavam fajl...</p>
                 </div>
               </div>
             )}
 
             {/* Info section */}
-            <div className="space-y-4">
+            <div className="space-y-3 lg:space-y-4">
               {/* CSV Format */}
-              <div className="bg-blue-50 rounded-2xl px-5 py-4 border border-blue-100">
-                <h3 className="text-sm font-semibold text-dark-900 mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary-600" />
+              <div className="bg-blue-50 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4 border border-blue-100">
+                <h3 className="text-xs lg:text-sm font-semibold text-dark-900 mb-2 lg:mb-3 flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary-600" />
                   CSV Format (Red letenja)
                 </h3>
                 <div className="space-y-2">
-                  <p className="text-sm text-dark-700">
+                  <p className="text-xs lg:text-sm text-dark-700">
                     Za CSV fajl tipa "red letenja", potrebne su sljedeće kolone:
                   </p>
-                  <div className="bg-white rounded-lg p-3 font-mono text-xs text-dark-700 overflow-x-auto">
+                  <div className="bg-white rounded-lg p-2 lg:p-3 font-mono text-[10px] lg:text-xs text-dark-700 overflow-x-auto">
                     Datum,Tip leta,IATA,Destinacija,Vrijeme,Avio kompanija,IATA kod aviokompanije
                   </div>
-                  <p className="text-xs text-dark-600">
+                  <p className="text-[10px] lg:text-xs text-dark-600">
                     <strong>Primjer:</strong><br/>
                     2025-11-01,Arrival,MLH,Basel,11:40,Wizz Air,W6<br/>
                     2025-11-01,Departure,MLH,Basel,12:15,Wizz Air,W6
                   </p>
-                  <p className="text-xs text-primary-700">
+                  <p className="text-[10px] lg:text-xs text-primary-700">
                     💡 Parser će automatski grupisati Arrival i Departure redove istog dana/kompanije/destinacije u jedan let.
                   </p>
                 </div>
               </div>
 
               {/* Excel Format */}
-              <div className="bg-green-50 rounded-2xl px-5 py-4 border border-green-100">
-                <h3 className="text-sm font-semibold text-dark-900 mb-3">
+              <div className="bg-green-50 rounded-xl lg:rounded-2xl px-4 lg:px-5 py-3 lg:py-4 border border-green-100">
+                <h3 className="text-xs lg:text-sm font-semibold text-dark-900 mb-2 lg:mb-3">
                   Excel Format (Alternativa)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                   <div>
                     <h4 className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2">
                       Obavezne kolone:

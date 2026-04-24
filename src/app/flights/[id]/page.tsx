@@ -128,20 +128,20 @@ export default function FlightDetailPage() {
   };
 
   const metricCard = (label: string, value: string | number | null) => (
-    <div className="p-4 rounded-2xl bg-white/80 border border-dark-100 shadow-sm">
-      <p className="text-xs text-textMuted mb-1">{label}</p>
-      <p className="text-lg font-semibold text-dark-900">{value ?? '-'}</p>
+    <div className="p-3 lg:p-4 rounded-xl lg:rounded-2xl bg-white/80 border border-dark-100 shadow-sm">
+      <p className="text-[10px] lg:text-xs text-textMuted mb-1">{label}</p>
+      <p className="text-base lg:text-lg font-semibold text-dark-900">{value ?? '-'}</p>
     </div>
   );
 
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="p-8">
+        <div className="p-4 lg:p-8">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" />
-              <p className="text-textMuted">Učitavam podatke...</p>
+              <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-b-2 border-primary-500 mx-auto mb-4" />
+              <p className="text-sm text-textMuted">Učitavam podatke...</p>
             </div>
           </div>
         </div>
@@ -152,9 +152,9 @@ export default function FlightDetailPage() {
   if (error || !flight) {
     return (
       <MainLayout>
-        <div className="p-8">
-          <div className="bg-red-50 border border-red-200 rounded-3xl px-5 py-4 shadow-soft">
-            <p className="text-sm text-red-700">{error || 'Let nije pronađen'}</p>
+        <div className="p-4 lg:p-8">
+          <div className="bg-red-50 border border-red-200 rounded-2xl lg:rounded-3xl px-4 lg:px-5 py-3 lg:py-4 shadow-soft">
+            <p className="text-xs lg:text-sm text-red-700">{error || 'Let nije pronađen'}</p>
             <Button
               variant="outline"
               size="sm"
@@ -177,31 +177,33 @@ export default function FlightDetailPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-6 md:p-7">
+        <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white shadow-soft-xl p-4 md:p-6 lg:p-7">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.12),transparent_25%)]"></div>
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Detalji</p>
-              <h1 className="text-3xl font-bold">{flight.airline.name} · {flight.route}</h1>
-              <p className="text-sm text-slate-200">{formatDateDisplay(flight.date)}</p>
+              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-slate-300">Letovi › Detalji</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">{flight.airline.name} · {flight.route}</h1>
+              <p className="text-xs lg:text-sm text-slate-200">{formatDateDisplay(flight.date)}</p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs">{flight.operationType.name}</span>
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs">Registracija: {flight.registration}</span>
+                <span className="px-2.5 lg:px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] lg:text-xs">{flight.operationType.name}</span>
+                <span className="px-2.5 lg:px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] lg:text-xs">Registracija: {flight.registration}</span>
               </div>
             </div>
-            <div className="flex flex-wrap justify-start lg:justify-end gap-3">
+            <div className="flex flex-wrap justify-start lg:justify-end gap-2 lg:gap-3">
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push('/flights')}
               >
                 ← Nazad
               </Button>
               <Button
                 variant="outline"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs lg:text-sm"
                 onClick={() => router.push(`/flights/${flightId}/edit`)}
                 disabled={flight.isLocked}
               >
@@ -209,7 +211,8 @@ export default function FlightDetailPage() {
               </Button>
               <Button
                 variant="destructive"
-                className="bg-rose-500 hover:bg-rose-600 text-white"
+                size="sm"
+                className="bg-rose-500 hover:bg-rose-600 text-white text-xs lg:text-sm"
                 onClick={handleDelete}
                 disabled={flight.isLocked || isDeleting}
               >
@@ -220,9 +223,9 @@ export default function FlightDetailPage() {
         </div>
 
         {/* Basic Info */}
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-dark-100">
-          <h3 className="text-lg font-semibold text-dark-900 mb-4">Osnovne informacije</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5 border border-dark-100">
+          <h3 className="text-base lg:text-lg font-semibold text-dark-900 mb-3 lg:mb-4">Osnovne informacije</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             {metricCard('Datum', formatDateDisplay(flight.date))}
             {metricCard('Aviokompanija', `${flight.airline.name} (${flight.airline.icaoCode})`)}
             {metricCard('Tip aviona', `${flight.aircraftType.model} (${flight.aircraftType.seats} sjedišta)`)}
@@ -237,23 +240,23 @@ export default function FlightDetailPage() {
 
         {/* Arrival Section */}
         {flight.arrivalFlightNumber && (
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-dark-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-dark-900">Dolazak (Arrival)</h3>
-              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClasses(flight.arrivalStatus)}`}>
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5 border border-dark-100">
+            <div className="flex items-center justify-between mb-3 lg:mb-4">
+              <h3 className="text-base lg:text-lg font-semibold text-dark-900">Dolazak (Arrival)</h3>
+              <span className={`inline-flex items-center rounded-full px-2.5 lg:px-3 py-1 text-[10px] lg:text-xs font-medium ${statusClasses(flight.arrivalStatus)}`}>
                 {flight.arrivalStatus}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {metricCard('Broj leta', flight.arrivalFlightNumber)}
               {flight.arrivalScheduledTime && metricCard('Planirano', formatTimeDisplay(flight.arrivalScheduledTime))}
               {flight.arrivalActualTime && metricCard('Stvarno', formatTimeDisplay(flight.arrivalActualTime))}
               {arrivalDelay !== null && metricCard('Kašnjenje', `${arrivalDelay > 0 ? '+' : ''}${arrivalDelay} min`)}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-borderSoft">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-borderSoft">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4">
                 {flight.arrivalPassengers !== null && metricCard('Putnici', flight.arrivalPassengers)}
                 {flight.arrivalInfants !== null && metricCard('Bebe', flight.arrivalInfants)}
                 {flight.arrivalBaggage !== null && metricCard('Prtljag (kg)', flight.arrivalBaggage)}
@@ -266,23 +269,23 @@ export default function FlightDetailPage() {
 
         {/* Departure Section */}
         {flight.departureFlightNumber && (
-          <div className="bg-white rounded-3xl shadow-soft px-6 py-5 border border-dark-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-dark-900">Odlazak (Departure)</h3>
-              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClasses(flight.departureStatus)}`}>
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5 border border-dark-100">
+            <div className="flex items-center justify-between mb-3 lg:mb-4">
+              <h3 className="text-base lg:text-lg font-semibold text-dark-900">Odlazak (Departure)</h3>
+              <span className={`inline-flex items-center rounded-full px-2.5 lg:px-3 py-1 text-[10px] lg:text-xs font-medium ${statusClasses(flight.departureStatus)}`}>
                 {flight.departureStatus}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {metricCard('Broj leta', flight.departureFlightNumber)}
               {flight.departureScheduledTime && metricCard('Planirano', formatTimeDisplay(flight.departureScheduledTime))}
               {flight.departureActualTime && metricCard('Stvarno', formatTimeDisplay(flight.departureActualTime))}
               {departureDelay !== null && metricCard('Kašnjenje', `${departureDelay > 0 ? '+' : ''}${departureDelay} min`)}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-borderSoft">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-borderSoft">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4">
                 {flight.departurePassengers !== null && metricCard('Putnici', flight.departurePassengers)}
                 {flight.departureInfants !== null && metricCard('Bebe', flight.departureInfants)}
                 {flight.departureBaggage !== null && metricCard('Prtljag (kg)', flight.departureBaggage)}
@@ -295,8 +298,8 @@ export default function FlightDetailPage() {
 
         {/* Lock warning */}
         {flight.isLocked && (
-          <div className="bg-amber-50 border border-amber-200 rounded-3xl px-5 py-4">
-            <p className="text-sm text-amber-800">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl lg:rounded-3xl px-4 lg:px-5 py-3 lg:py-4">
+            <p className="text-xs lg:text-sm text-amber-800">
               <strong>Napomena:</strong> Ovaj let je zaključan i ne može biti izmijenjen ili obrisan.
             </p>
           </div>

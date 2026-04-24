@@ -173,74 +173,74 @@ function UploadManifestContent() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-8 max-w-4xl mx-auto">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-8 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 lg:gap-4">
           <button
             onClick={() => router.push('/predboarding')}
-            className="p-3 rounded-xl bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
+            className="p-2.5 lg:p-3 rounded-lg lg:rounded-xl bg-dark-100 text-dark-600 hover:bg-dark-200 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 lg:w-5 lg:h-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-dark-900">Upload manifesta</h1>
-            <p className="text-dark-500 mt-1">Uploadujte manifest putnika za boarding</p>
+            <h1 className="text-xl lg:text-3xl font-bold text-dark-900">Upload manifesta</h1>
+            <p className="text-dark-500 mt-1 text-sm lg:text-base">Uploadujte manifest putnika za boarding</p>
           </div>
         </div>
 
         {/* Flight Info Card */}
-        <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-3xl p-6 text-white shadow-soft-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-dark-900 to-dark-800 rounded-2xl lg:rounded-3xl p-4 lg:p-6 text-white shadow-soft-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full blur-3xl -mr-12 -mt-12"></div>
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full blur-3xl -ml-8 -mb-8"></div>
 
           <div className="relative z-10">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center gap-4">
+            <div className="flex items-start justify-between mb-4 lg:mb-6 gap-3">
+              <div className="flex items-center gap-3 lg:gap-4 flex-1 min-w-0">
                 {flight.airline.logoUrl ? (
                   <img
                     src={flight.airline.logoUrl}
                     alt={flight.airline.name}
-                    className="w-16 h-16 rounded-xl object-contain bg-white p-2"
+                    className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg lg:rounded-xl object-contain bg-white p-1.5 lg:p-2"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-xl bg-white/10 text-white font-bold flex items-center justify-center text-lg backdrop-blur-md">
+                  <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg lg:rounded-xl bg-white/10 text-white font-bold flex items-center justify-center text-base lg:text-lg backdrop-blur-md">
                     {flight.airline.icaoCode}
                   </div>
                 )}
-                <div>
-                  <h2 className="text-2xl font-bold">{flight.airline.name}</h2>
-                  <p className="text-dark-300">{flight.airline.icaoCode}</p>
+                <div className="min-w-0">
+                  <h2 className="text-lg lg:text-2xl font-bold truncate">{flight.airline.name}</h2>
+                  <p className="text-dark-300 text-sm lg:text-base">{flight.airline.icaoCode}</p>
                 </div>
               </div>
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                <Plane className="w-6 h-6 text-white" />
+              <div className="p-2.5 lg:p-3 bg-white/10 rounded-xl lg:rounded-2xl backdrop-blur-md">
+                <Plane className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
               {flight.departureFlightNumber && (
-                <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                   <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Broj leta</p>
-                  <p className="text-lg font-bold text-white">{flight.departureFlightNumber}</p>
+                  <p className="text-base lg:text-lg font-bold text-white">{flight.departureFlightNumber}</p>
                 </div>
               )}
-              <div className={`p-3 rounded-2xl bg-white/5 border border-white/10 ${!flight.departureFlightNumber ? 'md:col-span-2' : ''}`}>
+              <div className={`p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10 ${!flight.departureFlightNumber ? 'md:col-span-2' : ''}`}>
                 <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Ruta</p>
-                <p className="text-lg font-bold text-primary-200">{flight.route}</p>
+                <p className="text-base lg:text-lg font-bold text-primary-200">{flight.route}</p>
               </div>
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Polazak</p>
-                <p className="text-lg font-bold text-blue-200">
+                <p className="text-base lg:text-lg font-bold text-blue-200">
                   {flight.departureScheduledTime ? formatTimeDisplay(flight.departureScheduledTime) : 'N/A'}
                 </p>
               </div>
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-xs uppercase tracking-wide text-dark-200 font-semibold mb-1">Avion</p>
                 <p className="text-sm font-bold text-indigo-200">{flight.aircraftType?.model || 'N/A'}</p>
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-white/10">
               <p className="text-xs text-dark-300">
                 {formatDateStringWithDay(flight.date)}
               </p>
@@ -249,36 +249,36 @@ function UploadManifestContent() {
         </div>
 
         {/* Upload Section */}
-        <div className="bg-white rounded-3xl p-8 shadow-soft">
-          <h3 className="text-xl font-bold text-dark-900 mb-6">Izaberite manifest fajl</h3>
+        <div className="bg-white rounded-2xl lg:rounded-3xl p-4 lg:p-8 shadow-soft">
+          <h3 className="text-lg lg:text-xl font-bold text-dark-900 mb-4 lg:mb-6">Izaberite manifest fajl</h3>
 
           {/* File Input */}
-          <div className="mb-6">
+          <div className="mb-4 lg:mb-6">
             <label
               htmlFor="manifest-file"
-              className="block w-full p-8 border-2 border-dashed border-dark-200 rounded-2xl hover:border-primary-400 hover:bg-primary-50/50 transition-all cursor-pointer group"
+              className="block w-full p-6 lg:p-8 border-2 border-dashed border-dark-200 rounded-xl lg:rounded-2xl hover:border-primary-400 hover:bg-primary-50/50 transition-all cursor-pointer group"
             >
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-100 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-3 lg:mb-4 rounded-xl lg:rounded-2xl bg-primary-100 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                   {selectedFile ? (
-                    <FileText className="w-8 h-8" />
+                    <FileText className="w-6 h-6 lg:w-8 lg:h-8" />
                   ) : (
-                    <Upload className="w-8 h-8" />
+                    <Upload className="w-6 h-6 lg:w-8 lg:h-8" />
                   )}
                 </div>
                 {selectedFile ? (
                   <div>
-                    <p className="text-lg font-semibold text-dark-900 mb-1">{selectedFile.name}</p>
+                    <p className="text-base lg:text-lg font-semibold text-dark-900 mb-1 break-all px-2">{selectedFile.name}</p>
                     <p className="text-sm text-dark-500">
                       {(selectedFile.size / 1024).toFixed(2)} KB
                     </p>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-lg font-semibold text-dark-900 mb-1">
+                    <p className="text-base lg:text-lg font-semibold text-dark-900 mb-1">
                       Kliknite da izaberete fajl
                     </p>
-                    <p className="text-sm text-dark-500">
+                    <p className="text-xs lg:text-sm text-dark-500">
                       .txt, .oxps, .xps ili .pdf fajlovi, maksimalno 5MB
                     </p>
                   </div>
@@ -297,7 +297,7 @@ function UploadManifestContent() {
 
           {/* Error Message */}
           {uploadError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+            <div className="mb-4 lg:mb-6 p-3 lg:p-4 bg-red-50 border border-red-200 rounded-xl lg:rounded-2xl">
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
                 <p className="text-sm text-red-700">{uploadError}</p>
@@ -307,7 +307,7 @@ function UploadManifestContent() {
 
           {/* Success Message */}
           {uploadSuccess && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl">
+            <div className="mb-4 lg:mb-6 p-3 lg:p-4 bg-green-50 border border-green-200 rounded-xl lg:rounded-2xl">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
                 <p className="text-sm text-green-700">
@@ -321,28 +321,29 @@ function UploadManifestContent() {
           <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading || uploadSuccess}
-            className="w-full py-4 px-6 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+            className="w-full py-3 lg:py-4 px-4 lg:px-6 bg-primary-600 text-white rounded-lg lg:rounded-xl font-semibold text-sm lg:text-base hover:bg-primary-700 disabled:bg-dark-200 disabled:text-dark-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 lg:gap-3"
           >
             {isUploading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Uploadujem i parsiram manifest...
+                <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
+                <span className="hidden md:inline">Uploadujem i parsiram manifest...</span>
+                <span className="md:hidden">Uploadujem...</span>
               </>
             ) : uploadSuccess ? (
               <>
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5" />
                 Uspješno uploadovano
               </>
             ) : (
               <>
-                <Upload className="w-5 h-5" />
+                <Upload className="w-4 h-4 lg:w-5 lg:h-5" />
                 Upload manifest
               </>
             )}
           </button>
 
           {/* Info Box */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <div className="mt-4 lg:mt-6 p-3 lg:p-4 bg-blue-50 border border-blue-200 rounded-xl lg:rounded-2xl">
             <h4 className="text-sm font-semibold text-blue-900 mb-2">Informacije o manifest fajlu:</h4>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• Format: .txt, .oxps, .xps ili .pdf fajl sa liste putnika</li>

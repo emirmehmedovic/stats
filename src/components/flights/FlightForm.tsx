@@ -297,11 +297,11 @@ export function FlightForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit, onFormError)} className="space-y-6">
+    <form onSubmit={handleSubmit(onFormSubmit, onFormError)} className="space-y-4 lg:space-y-6">
       {/* Basic Information */}
-      <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <h3 className="text-lg font-semibold text-textMain mb-4">Osnovne informacije</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5">
+        <h3 className="text-base lg:text-lg font-semibold text-textMain mb-3 lg:mb-4">Osnovne informacije</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
           {/* Date */}
           <div>
             <Label htmlFor="date">Datum *</Label>
@@ -484,11 +484,11 @@ export function FlightForm({
       </div>
 
       {/* Flight Mode Selection */}
-      <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <h3 className="text-lg font-semibold text-textMain mb-4">Dio operacije</h3>
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-dark-600">Izaberite koji dio leta želite dodati:</p>
-          <div className="flex gap-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5">
+        <h3 className="text-base lg:text-lg font-semibold text-textMain mb-3 lg:mb-4">Dio operacije</h3>
+        <div className="flex flex-col gap-2 lg:gap-3">
+          <p className="text-xs lg:text-sm text-dark-600">Izaberite koji dio leta želite dodati:</p>
+          <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
@@ -496,9 +496,9 @@ export function FlightForm({
                 value="both"
                 checked={flightMode === 'both'}
                 onChange={(e) => setFlightMode('both')}
-                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+                className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
               />
-              <span className="text-sm">Kompletan let (dolazak + odlazak)</span>
+              <span className="text-xs lg:text-sm">Kompletan let (dolazak + odlazak)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -519,9 +519,9 @@ export function FlightForm({
                   setValue('departureMail', null);
                   setValue('departureFerryOut', false);
                 }}
-                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+                className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
               />
-              <span className="text-sm">Samo dolazak (prenoćio/divertovan)</span>
+              <span className="text-xs lg:text-sm">Samo dolazak (prenoćio/divertovan)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -542,9 +542,9 @@ export function FlightForm({
                   setValue('arrivalMail', null);
                   setValue('arrivalFerryIn', false);
                 }}
-                className="w-4 h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
+                className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-brand-primary border-gray-300 focus:ring-brand-primary"
               />
-              <span className="text-sm">Samo odlazak (nastavak od prošle noći)</span>
+              <span className="text-xs lg:text-sm">Samo odlazak (nastavak od prošle noći)</span>
             </label>
           </div>
         </div>
@@ -554,9 +554,9 @@ export function FlightForm({
       <>
       {/* Arrival Information */}
       {(flightMode === 'both' || flightMode === 'arrival-only') && (
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-          <h3 className="text-lg font-semibold text-textMain mb-4">Dolazak (Arrival)</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5">
+          <h3 className="text-base lg:text-lg font-semibold text-textMain mb-3 lg:mb-4">Dolazak (Arrival)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
           {/* Arrival Flight Number */}
           <div>
             <Label htmlFor="arrivalFlightNumber">Broj leta</Label>
@@ -702,9 +702,9 @@ export function FlightForm({
 
       {/* Departure Information */}
       {(flightMode === 'both' || flightMode === 'departure-only') && (
-        <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-          <h3 className="text-lg font-semibold text-textMain mb-4">Odlazak (Departure)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5">
+          <h3 className="text-base lg:text-lg font-semibold text-textMain mb-3 lg:mb-4">Odlazak (Departure)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
           {/* Departure Flight Number */}
           <div>
             <Label htmlFor="departureFlightNumber">Broj leta</Label>
@@ -849,9 +849,9 @@ export function FlightForm({
       )}
 
       {/* Operational Details */}
-      <div className="bg-white rounded-3xl shadow-soft px-6 py-5">
-        <h3 className="text-lg font-semibold text-textMain mb-4">Operativni detalji</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft px-4 lg:px-6 py-4 lg:py-5">
+        <h3 className="text-base lg:text-lg font-semibold text-textMain mb-3 lg:mb-4">Operativni detalji</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
           <div>
             <Label htmlFor="handlingAgent">Handling agent</Label>
             <Input id="handlingAgent" {...register('handlingAgent')} />
@@ -872,14 +872,15 @@ export function FlightForm({
       )}
 
       {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3">
-        <Button type="button" variant="outline" disabled={isSubmitting}>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 lg:gap-3">
+        <Button type="button" variant="outline" size="sm" disabled={isSubmitting} className="text-xs lg:text-sm">
           Otkaži
         </Button>
         <Button
           type="submit"
+          size="sm"
           disabled={isSubmitting}
-          className="bg-dark-900 hover:bg-dark-800 text-white border border-dark-900"
+          className="bg-dark-900 hover:bg-dark-800 text-white border border-dark-900 text-xs lg:text-sm"
         >
           {isSubmitting ? 'Čuvam...' : submitLabel}
         </Button>
