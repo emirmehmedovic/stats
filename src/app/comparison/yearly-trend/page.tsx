@@ -217,6 +217,60 @@ export default function YearlyTrendPage() {
       }));
   }, [data, trendGranularity]);
 
+  // Group airlines data - show top 8, rest as "Ostalo"
+  const groupedAirlineData = useMemo(() => {
+    if (!data?.airlineBreakdown) return [];
+
+    const sorted = [...data.airlineBreakdown].sort((a, b) => b.flights - a.flights);
+
+    if (sorted.length <= 8) return sorted;
+
+    const top8 = sorted.slice(0, 8);
+    const rest = sorted.slice(8);
+
+    const otherFlights = rest.reduce((sum, item) => sum + item.flights, 0);
+    const otherPassengers = rest.reduce((sum, item) => sum + item.passengers, 0);
+
+    return [
+      ...top8,
+      {
+        name: 'Ostalo',
+        icaoCode: 'OTHER',
+        flights: otherFlights,
+        passengers: otherPassengers,
+      }
+    ];
+  }, [data]);
+
+  // Group operation types data - show top 8, rest as "Ostalo"
+  const groupedOperationData = useMemo(() => {
+    if (!data?.operationTypeBreakdown) return [];
+
+    const sorted = [...data.operationTypeBreakdown].sort((a, b) => b.flights - a.flights);
+
+    if (sorted.length <= 8) return sorted;
+
+    const top8 = sorted.slice(0, 8);
+    const rest = sorted.slice(8);
+
+    const otherFlights = rest.reduce((sum, item) => sum + item.flights, 0);
+    const otherPassengers = rest.reduce((sum, item) => sum + item.passengers, 0);
+    const otherSeats = rest.reduce((sum, item) => sum + item.seats, 0);
+    const avgLoadFactor = otherSeats > 0 ? (otherPassengers / otherSeats) * 100 : 0;
+
+    return [
+      ...top8,
+      {
+        name: 'Ostalo',
+        code: 'OTHER',
+        flights: otherFlights,
+        passengers: otherPassengers,
+        seats: otherSeats,
+        avgLoadFactor: avgLoadFactor,
+      }
+    ];
+  }, [data]);
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -789,7 +843,7 @@ export default function YearlyTrendPage() {
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
-                  data={data.airlineBreakdown}
+                  data={groupedAirlineData}
                   dataKey="flights"
                   nameKey="name"
                   cx="50%"
@@ -798,7 +852,7 @@ export default function YearlyTrendPage() {
                   label={({ percent }) => percent && percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
                   labelLine={false}
                 >
-                  {data.airlineBreakdown.map((entry, index) => (
+                  {groupedAirlineData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -813,7 +867,7 @@ export default function YearlyTrendPage() {
                   height={120}
                   wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }}
                   formatter={(value: string, entry: any) => {
-                    const item = data.airlineBreakdown.find(d => d.name === value);
+                    const item = groupedAirlineData.find(d => d.name === value);
                     return item ? `${value} (${item.flights})` : value;
                   }}
                 />
@@ -827,7 +881,7 @@ export default function YearlyTrendPage() {
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
-                  data={data.operationTypeBreakdown}
+                  data={groupedOperationData}
                   dataKey="flights"
                   nameKey="name"
                   cx="50%"
@@ -836,7 +890,7 @@ export default function YearlyTrendPage() {
                   label={({ percent }) => percent && percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
                   labelLine={false}
                 >
-                  {data.operationTypeBreakdown.map((entry, index) => (
+                  {groupedOperationData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -851,7 +905,7 @@ export default function YearlyTrendPage() {
                   height={120}
                   wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }}
                   formatter={(value: string, entry: any) => {
-                    const item = data.operationTypeBreakdown.find(d => d.name === value);
+                    const item = groupedOperationData.find(d => d.name === value);
                     return item ? `${value} (${item.flights})` : value;
                   }}
                 />
