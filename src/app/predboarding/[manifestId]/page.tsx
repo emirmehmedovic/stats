@@ -247,6 +247,77 @@ const focusScannerInput = (input: HTMLInputElement | null) => {
   input.setSelectionRange(0, input.value.length);
 };
 
+let scannerAudioContext: AudioContext | null = null;
+
+const getScannerAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+
+  if (!scannerAudioContext) {
+    scannerAudioContext = new AudioContextCtor();
+  }
+
+  return scannerAudioContext;
+};
+
+const primeScannerAudio = async () => {
+  const context = getScannerAudioContext();
+  if (!context) return;
+
+  if (context.state === 'suspended') {
+    await context.resume();
+  }
+};
+
+const playScannerFeedback = (status: 'success' | 'warning' | 'error') => {
+  const context = getScannerAudioContext();
+  if (!context) return;
+  if (context.state === 'suspended') {
+    void context.resume().then(() => playScannerFeedback(status)).catch(() => undefined);
+    return;
+  }
+  if (context.state !== 'running') return;
+
+  const masterGain = context.createGain();
+  masterGain.connect(context.destination);
+  masterGain.gain.setValueAtTime(status === 'success' ? 0.18 : 0.42, context.currentTime);
+
+  const playTone = (frequency: number, start: number, duration: number, volume: number) => {
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = status === 'success' ? 'triangle' : 'sawtooth';
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gainNode.gain.setValueAtTime(0.0001, start);
+    gainNode.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(masterGain);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
+  };
+
+  const now = context.currentTime;
+
+  if (status === 'success') {
+    playTone(880, now, 0.12, 0.22);
+    playTone(1174, now + 0.14, 0.18, 0.2);
+  } else if (status === 'warning') {
+    playTone(1120, now, 0.18, 0.42);
+    playTone(1120, now + 0.24, 0.32, 0.42);
+    playTone(1120, now + 0.62, 0.32, 0.42);
+    playTone(1120, now + 1.0, 0.26, 0.42);
+  } else {
+    playTone(1480, now, 0.12, 0.52);
+    playTone(1480, now + 0.18, 0.12, 0.52);
+    playTone(1480, now + 0.36, 0.12, 0.52);
+    playTone(1480, now + 0.54, 0.24, 0.52);
+  }
+};
+
 const passengerMatchesQuery = (
   passenger: Passenger,
   flight: Flight,
@@ -559,6 +630,7 @@ export default function BoardingInterfacePage() {
   };
 
   const openScannerModal = (mode: Exclude<SearchMode, 'MANUAL'>) => {
+    void primeScannerAudio();
     setSearchMode(mode);
     setIsScannerModalOpen(true);
     setDeviceFeedback(null);
@@ -605,6 +677,7 @@ export default function BoardingInterfacePage() {
         scannedValue: query,
       });
       showToast(message, 'success');
+      playScannerFeedback('success');
       await updatePassengerStatus(passenger.id, 'BOARDED');
       setSelectedPassengers(new Set());
       setDeviceInput('');
@@ -625,6 +698,7 @@ export default function BoardingInterfacePage() {
         scannedValue: query,
       });
       showToast(message, 'warning');
+      playScannerFeedback('warning');
       focusScannerInput(searchInputRef.current);
       return;
     }
@@ -638,6 +712,7 @@ export default function BoardingInterfacePage() {
         scannedValue: query,
       });
       showToast(message, 'warning');
+      playScannerFeedback('error');
       focusScannerInput(searchInputRef.current);
       return;
     }
@@ -1365,6 +1440,7 @@ export default function BoardingInterfacePage() {
                               <button
                                 key={mode.value}
                                 onClick={() => {
+                                  void primeScannerAudio();
                                   setSearchMode(mode.value);
                                   setDeviceFeedback(null);
                                   setScanResult(null);
@@ -1432,6 +1508,15 @@ export default function BoardingInterfacePage() {
                                 U modalu možeš skenirati ili ručno pretražiti. Rezultat i lista su odmah ispod.
                               </p>
                               <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    void primeScannerAudio();
+                                    playScannerFeedback('warning');
+                                  }}
+                                  className="px-3 py-2 text-sm bg-amber-100 text-amber-800 rounded-lg font-semibold hover:bg-amber-200 transition-colors"
+                                >
+                                  Test zvuk
+                                </button>
                                 <button
                                   onClick={() => {
                                     setDeviceInput('');
