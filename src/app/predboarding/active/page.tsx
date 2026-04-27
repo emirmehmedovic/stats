@@ -269,6 +269,8 @@ const resolveDevicePayloadCandidates = (
   const seatTokens = extractBoardingPassSeatTokens(rawPayload);
   const locatorTokens = extractBoardingPassLocatorTokens(rawPayload);
 
+  console.warn('🔥 RESOLVE DEBUG', { rawPayload, locatorTokens, passengersCount: passengers.length });
+
   if (locatorTokens.length === 0 && nameTokens.length === 0) {
     return passengers.filter((passenger) => passengerMatchesQuery(passenger, rawPayload));
   }
