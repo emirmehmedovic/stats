@@ -182,6 +182,24 @@ const extractBoardingPassSeatTokens = (rawValue: string): string[] => {
   return [...seatTokens].filter(Boolean);
 };
 
+const extractBoardingPassLocatorTokens = (rawValue: string): string[] => {
+  const normalized = rawValue
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  const locatorTokens = new Set<string>();
+
+  const structuredMatch = normalized.match(
+    /(?:^|\s)M\d[A-Z]+(?:[\/-][A-Z]+)+\s+([A-Z0-9]{6})(?=\s|$)/
+  );
+  if (structuredMatch) {
+    locatorTokens.add(structuredMatch[1]);
+  }
+
+  return [...locatorTokens];
+};
+
 const extractReaderNameTokens = (rawValue: string): string[] => {
   const boardingPassTokens = extractBoardingPassNameTokens(rawValue);
   if (boardingPassTokens.length > 0) {
@@ -223,6 +241,89 @@ const matchesNameToken = (passengerName: string, token: string) => {
 
     return passengerToken.slice(0, minPrefixLength) === token.slice(0, minPrefixLength);
   });
+};
+
+const matchesFlightTokens = (flightNumber: string | null | undefined, tokens: string[]) => {
+  if (tokens.length === 0) return true;
+
+  const passengerFlightNumber = normalizeFlightValue(flightNumber || '');
+  const passengerFlightDigits = extractFlightNumberDigits(flightNumber || '');
+  if (!passengerFlightNumber) return false;
+
+  return tokens.some((token) => {
+    const normalizedToken = normalizeFlightValue(token);
+    const tokenDigits = extractFlightNumberDigits(token);
+
+    return (
+      passengerFlightNumber.includes(normalizedToken) ||
+      normalizedToken.includes(passengerFlightNumber) ||
+      (tokenDigits !== '' && tokenDigits === passengerFlightDigits)
+    );
+  });
+};
+
+const resolveDevicePayloadCandidates = (
+  passengers: Passenger[],
+  flight: Flight,
+  rawPayload: string
+) => {
+  const nameTokens = extractReaderNameTokens(rawPayload);
+  const flightTokens = extractBoardingPassFlightTokens(rawPayload);
+  const seatTokens = extractBoardingPassSeatTokens(rawPayload);
+  const locatorTokens = extractBoardingPassLocatorTokens(rawPayload);
+
+  if (locatorTokens.length === 0 && nameTokens.length === 0) {
+    return passengers.filter((passenger) => passengerMatchesQuery(passenger, flight, rawPayload));
+  }
+
+  let candidates = passengers;
+
+  if (locatorTokens.length > 0) {
+    candidates = candidates.filter((passenger) => {
+      const passengerLocator = normalizeFlightValue(passenger.passengerId || '');
+      return passengerLocator !== '' && locatorTokens.some((token) => normalizeFlightValue(token) === passengerLocator);
+    });
+
+    if (candidates.length === 0) return [];
+  }
+
+  if (flightTokens.length > 0) {
+    const flightMatched = candidates.filter((passenger) =>
+      matchesFlightTokens(flight.departureFlightNumber, flightTokens)
+    );
+
+    if (flightMatched.length > 0) {
+      candidates = flightMatched;
+    } else if (locatorTokens.length === 0) {
+      return [];
+    }
+  }
+
+  if (seatTokens.length > 0) {
+    const seatMatched = candidates.filter((passenger) => {
+      const passengerSeat = normalizeSeatValue(passenger.seatNumber || '');
+      return passengerSeat !== '' && seatTokens.some((token) => token === passengerSeat);
+    });
+
+    if (seatMatched.length > 0) {
+      candidates = seatMatched;
+    }
+  }
+
+  if (nameTokens.length > 0) {
+    const nameMatched = candidates.filter((passenger) => {
+      const passengerName = normalizeSearchValue(passenger.passengerName);
+      return nameTokens.every((token) => matchesNameToken(passengerName, token));
+    });
+
+    if (nameMatched.length > 0) {
+      candidates = nameMatched;
+    } else if (locatorTokens.length === 0) {
+      return [];
+    }
+  }
+
+  return candidates;
 };
 
 const formatPassengerDisplayName = (value: string) =>
@@ -357,6 +458,22 @@ const passengerMatchesDevicePayload = (
   const nameTokens = extractReaderNameTokens(rawPayload);
   const flightTokens = extractBoardingPassFlightTokens(rawPayload);
   const seatTokens = extractBoardingPassSeatTokens(rawPayload);
+  const locatorTokens = extractBoardingPassLocatorTokens(rawPayload);
+
+  const passengerLocator = normalizeFlightValue(passenger.passengerId || '');
+  if (locatorTokens.length > 0) {
+    if (!passengerLocator) {
+      return false;
+    }
+
+    const matchesLocator = locatorTokens.some(
+      (token) => normalizeFlightValue(token) === passengerLocator
+    );
+
+    if (!matchesLocator) {
+      return false;
+    }
+  }
 
   if (nameTokens.length === 0) {
     return passengerMatchesQuery(passenger, flight, rawPayload);
@@ -367,31 +484,14 @@ const passengerMatchesDevicePayload = (
     return false;
   }
 
-  const passengerFlightNumber = normalizeFlightValue(flight.departureFlightNumber || '');
-  const passengerFlightDigits = extractFlightNumberDigits(flight.departureFlightNumber || '');
-  if (flightTokens.length > 0 && passengerFlightNumber) {
-    const matchesFlight = flightTokens.some(
-      (token) => {
-        const normalizedToken = normalizeFlightValue(token);
-        const tokenDigits = extractFlightNumberDigits(token);
-
-        return (
-          passengerFlightNumber.includes(normalizedToken) ||
-          normalizedToken.includes(passengerFlightNumber) ||
-          (tokenDigits !== '' && tokenDigits === passengerFlightDigits)
-        );
-      }
-    );
-
-    if (!matchesFlight) {
-      return false;
-    }
+  if (flightTokens.length > 0 && !matchesFlightTokens(flight.departureFlightNumber, flightTokens)) {
+    return false;
   }
 
   const passengerSeat = normalizeSeatValue(passenger.seatNumber || '');
   if (seatTokens.length > 0 && passengerSeat) {
     const matchesSeat = seatTokens.some((token) => token === passengerSeat);
-    if (!matchesSeat) {
+    if (!matchesSeat && locatorTokens.length === 0) {
       return false;
     }
   }
@@ -657,11 +757,11 @@ export default function BoardingInterfacePage() {
       return;
     }
 
-    const allMatches = data.manifest.passengers.filter((passenger) => {
-      return searchMode === 'MANUAL'
-        ? passengerMatchesQuery(passenger, data.manifest.flight, query)
-        : passengerMatchesDevicePayload(passenger, data.manifest.flight, query);
-    });
+    const allMatches = searchMode === 'MANUAL'
+      ? data.manifest.passengers.filter((passenger) =>
+          passengerMatchesQuery(passenger, data.manifest.flight, query)
+        )
+      : resolveDevicePayloadCandidates(data.manifest.passengers, data.manifest.flight, query);
     const pendingMatches = allMatches.filter((passenger) => passenger.boardingStatus === 'NO_SHOW');
     const boardedMatches = allMatches.filter((passenger) => passenger.boardingStatus === 'BOARDED');
 
