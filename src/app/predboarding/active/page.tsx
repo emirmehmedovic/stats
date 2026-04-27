@@ -175,11 +175,19 @@ const extractBoardingPassLocatorTokens = (rawValue: string): string[] => {
 
   const locatorTokens = new Set<string>();
 
+  // Accept 6 or 7 character locators (7-char can have E/W prefix for electronic/group codes)
   const structuredMatch = normalized.match(
-    /(?:^|\s)M\d[A-Z]+(?:[\/-][A-Z]+)+\s+([A-Z0-9]{6})(?=\s|$)/
+    /(?:^|\s)M\d[A-Z]+(?:[\/-][A-Z]+)+\s+([A-Z0-9]{6,7})(?=\s|$)/
   );
   if (structuredMatch) {
-    locatorTokens.add(structuredMatch[1]);
+    const fullLocator = structuredMatch[1];
+    locatorTokens.add(fullLocator);
+
+    // Also add last 6 chars for fuzzy matching (e.g., E406NKE -> also add 406NKE)
+    if (fullLocator.length === 7) {
+      locatorTokens.add(fullLocator.slice(1));
+      locatorTokens.add(fullLocator.slice(-6));
+    }
   }
 
   return [...locatorTokens];
@@ -265,7 +273,23 @@ const resolveDevicePayloadCandidates = (
   if (locatorTokens.length > 0) {
     candidates = candidates.filter((passenger) => {
       const passengerLocator = normalizeFlightValue(passenger.passengerId || '');
-      return passengerLocator !== '' && locatorTokens.some((token) => normalizeFlightValue(token) === passengerLocator);
+      if (!passengerLocator) return false;
+
+      return locatorTokens.some((token) => {
+        const normalizedToken = normalizeFlightValue(token);
+
+        // Exact match
+        if (normalizedToken === passengerLocator) return true;
+
+        // Fuzzy match: if scanned token is 7 chars (e.g., E406NKE), match last 6 chars with 6-char passenger locator (406NKE)
+        if (normalizedToken.length === 7 && normalizedToken.slice(1) === passengerLocator) return true;
+        if (normalizedToken.length === 7 && normalizedToken.slice(-6) === passengerLocator) return true;
+
+        // Reverse fuzzy: if passenger locator is 7 chars and scanned token is 6
+        if (passengerLocator.length === 7 && normalizedToken.length === 6 && passengerLocator.slice(1) === normalizedToken) return true;
+
+        return false;
+      });
     });
 
     if (candidates.length === 0) return [];
