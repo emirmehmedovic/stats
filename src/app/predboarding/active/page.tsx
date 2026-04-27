@@ -198,6 +198,25 @@ const extractBoardingPassLocatorTokens = (rawValue: string): string[] => {
   return [...locatorTokens];
 };
 
+const expandLocatorVariants = (token: string) => {
+  const normalized = normalizeFlightValue(token);
+  const variants = new Set<string>();
+
+  if (!normalized) return variants;
+
+  variants.add(normalized);
+
+  if (
+    normalized.length === 7 &&
+    /^[A-Z][A-Z0-9]{6}$/.test(normalized)
+  ) {
+    variants.add(normalized.slice(1));
+    variants.add(normalized.slice(-6));
+  }
+
+  return variants;
+};
+
 const extractReaderNameTokens = (rawValue: string): string[] => {
   const boardingPassTokens = extractBoardingPassNameTokens(rawValue);
   if (boardingPassTokens.length > 0) {
@@ -269,8 +288,6 @@ const resolveDevicePayloadCandidates = (
   const seatTokens = extractBoardingPassSeatTokens(rawPayload);
   const locatorTokens = extractBoardingPassLocatorTokens(rawPayload);
 
-  console.warn('🔥 RESOLVE DEBUG', { rawPayload, locatorTokens, passengersCount: passengers.length });
-
   if (locatorTokens.length === 0 && nameTokens.length === 0) {
     return passengers.filter((passenger) => passengerMatchesQuery(passenger, rawPayload));
   }
@@ -282,21 +299,7 @@ const resolveDevicePayloadCandidates = (
       const passengerLocator = normalizeFlightValue(passenger.passengerId || '');
       if (!passengerLocator) return false;
 
-      return locatorTokens.some((token) => {
-        const normalizedToken = normalizeFlightValue(token);
-
-        // Exact match
-        if (normalizedToken === passengerLocator) return true;
-
-        // Fuzzy match: if scanned token is 7 chars (e.g., E406NKE), match last 6 chars with 6-char passenger locator (406NKE)
-        if (normalizedToken.length === 7 && normalizedToken.slice(1) === passengerLocator) return true;
-        if (normalizedToken.length === 7 && normalizedToken.slice(-6) === passengerLocator) return true;
-
-        // Reverse fuzzy: if passenger locator is 7 chars and scanned token is 6
-        if (passengerLocator.length === 7 && normalizedToken.length === 6 && passengerLocator.slice(1) === normalizedToken) return true;
-
-        return false;
-      });
+      return locatorTokens.some((token) => expandLocatorVariants(token).has(passengerLocator));
     });
 
     if (candidates.length === 0) return [];
@@ -480,7 +483,7 @@ const passengerMatchesDevicePayload = (
     }
 
     const matchesLocator = locatorTokens.some(
-      (token) => normalizeFlightValue(token) === passengerLocator
+      (token) => expandLocatorVariants(token).has(passengerLocator)
     );
 
     if (!matchesLocator) {

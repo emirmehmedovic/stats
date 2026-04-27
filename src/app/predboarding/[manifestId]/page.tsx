@@ -191,13 +191,38 @@ const extractBoardingPassLocatorTokens = (rawValue: string): string[] => {
   const locatorTokens = new Set<string>();
 
   const structuredMatch = normalized.match(
-    /(?:^|\s)M\d[A-Z]+(?:[\/-][A-Z]+)+\s+([A-Z0-9]{6})(?=\s|$)/
+    /(?:^|\s)M\d[A-Z]+(?:[\/-][A-Z]+)+\s+([A-Z0-9]{6,7})(?=\s|$)/
   );
   if (structuredMatch) {
-    locatorTokens.add(structuredMatch[1]);
+    const fullLocator = structuredMatch[1];
+    locatorTokens.add(fullLocator);
+
+    if (fullLocator.length === 7) {
+      locatorTokens.add(fullLocator.slice(1));
+      locatorTokens.add(fullLocator.slice(-6));
+    }
   }
 
   return [...locatorTokens];
+};
+
+const expandLocatorVariants = (token: string) => {
+  const normalized = normalizeFlightValue(token);
+  const variants = new Set<string>();
+
+  if (!normalized) return variants;
+
+  variants.add(normalized);
+
+  if (
+    normalized.length === 7 &&
+    /^[A-Z][A-Z0-9]{6}$/.test(normalized)
+  ) {
+    variants.add(normalized.slice(1));
+    variants.add(normalized.slice(-6));
+  }
+
+  return variants;
 };
 
 const extractReaderNameTokens = (rawValue: string): string[] => {
@@ -281,7 +306,7 @@ const resolveDevicePayloadCandidates = (
   if (locatorTokens.length > 0) {
     candidates = candidates.filter((passenger) => {
       const passengerLocator = normalizeFlightValue(passenger.passengerId || '');
-      return passengerLocator !== '' && locatorTokens.some((token) => normalizeFlightValue(token) === passengerLocator);
+      return passengerLocator !== '' && locatorTokens.some((token) => expandLocatorVariants(token).has(passengerLocator));
     });
 
     if (candidates.length === 0) return [];
@@ -467,7 +492,7 @@ const passengerMatchesDevicePayload = (
     }
 
     const matchesLocator = locatorTokens.some(
-      (token) => normalizeFlightValue(token) === passengerLocator
+      (token) => expandLocatorVariants(token).has(passengerLocator)
     );
 
     if (!matchesLocator) {
