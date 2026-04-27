@@ -133,6 +133,11 @@ const extractBoardingPassFlightTokens = (rawValue: string): string[] => {
   const flightTokens = new Set<string>();
 
   for (const chunk of chunks) {
+    // Skip chunks that look like 6-7 char locators (e.g., E406NKE, 3P3UDC)
+    if (chunk.length >= 6 && chunk.length <= 7 && /^[A-Z0-9]{6,7}$/.test(chunk)) {
+      continue;
+    }
+
     const exactMatch = chunk.match(/^[A-Z]{1,3}\d{2,4}$/);
     if (exactMatch) {
       flightTokens.add(exactMatch[0]);
