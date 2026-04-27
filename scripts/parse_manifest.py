@@ -30,6 +30,10 @@ PEGASUS_HEADER_RE = re.compile(
     r"Number\s+PNR\s+Surname\s*/\s*Name\s+Gender\s+PNR Status\s+PNR Owner\s+Ticket No\s+Leg Status\s+Cabin Class\s+C STATUS",
     re.IGNORECASE,
 )
+ALL_RESERVATION_HEADER_RE = re.compile(
+    r"No\s+Surname\s+Name\s+G\s+GC\s+PNR\s+PNR Status\s+PNR Owner",
+    re.IGNORECASE,
+)
 
 
 def parse_manifest(file_path):
@@ -58,6 +62,10 @@ def parse_manifest(file_path):
             flight_info = extract_flight_info_from_pegasus(content)
             passengers = extract_passengers_from_pegasus(content)
             summary = extract_summary_from_pegasus(passengers)
+        elif is_all_reservation_list(content):
+            flight_info = extract_flight_info_from_all_reservation(content)
+            passengers = extract_passengers_from_all_reservation(content)
+            summary = extract_summary_from_all_reservation(passengers)
         else:
             flight_info = extract_flight_info_from_text(content)
             passengers = extract_passengers_from_text(content)
@@ -153,6 +161,11 @@ def extract_flight_info_from_text(content):
 
 def is_pegasus_manifest(content):
     return PEGASUS_HEADER_RE.search(content) is not None
+
+
+def is_all_reservation_list(content):
+    """Detektuje ALL Reservation List format."""
+    return ALL_RESERVATION_HEADER_RE.search(content) is not None
 
 
 def extract_flight_info_from_pegasus(content):
@@ -646,6 +659,199 @@ def extract_summary_from_xps(content, passengers):
 
 
 def extract_summary_from_pegasus(passengers):
+    children = sum(1 for passenger in passengers if passenger["title"] == "CHD")
+    infants = sum(1 for passenger in passengers if passenger["isInfant"] or passenger["title"] == "INF")
+    females = sum(1 for passenger in passengers if passenger["title"] in {"MS", "MRS", "MISS"})
+    males = max(len(passengers) - children - infants - females, 0)
+
+    return {
+        "totalPax": len(passengers),
+        "male": males,
+        "female": females,
+        "children": children,
+        "infants": infants,
+    }
+
+
+def extract_flight_info_from_all_reservation(content):
+    """Extract flight information from ALL Reservation List format."""
+    flight_info = {}
+
+    # Format: 27/Apr/2026 VF272 TZL - SAW
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("ALL Reserv") or line.startswith("No "):
+            continue
+
+        match = re.match(
+            r"(\d{2}/[A-Za-z]{3}/\d{4})\s+([A-Z]{2}\d+)\s+([A-Z]{3})\s*-\s*([A-Z]{3})",
+            line,
+        )
+        if match:
+            date_value, flight_number, from_airport, to_airport = match.groups()
+            airline_match = re.match(r"([A-Z]{2})(\d+)", flight_number)
+
+            flight_info["date"] = date_value
+            flight_info["flightNumber"] = flight_number
+            flight_info["from"] = from_airport
+            flight_info["to"] = to_airport
+            flight_info["route"] = f"{from_airport}-{to_airport}"
+
+            if airline_match:
+                flight_info["airline"] = airline_match.group(1)
+
+            break
+
+    return flight_info
+
+
+def extract_passengers_from_all_reservation(content):
+    """Extract passenger list from ALL Reservation List format."""
+    passengers = []
+    in_passenger_section = False
+    column_positions = None
+
+    for raw_line in content.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+
+        # Detektuj header i ekstrahuj pozicije kolona
+        if ALL_RESERVATION_HEADER_RE.search(line):
+            in_passenger_section = True
+            column_positions = extract_all_reservation_column_positions(line)
+            continue
+
+        if not in_passenger_section:
+            continue
+
+        # Detektuj kraj liste
+        if line.strip().startswith("END LIST") or line.strip().startswith("Total Pax"):
+            break
+
+        # Parsiraj liniju putnika koristeći pozicije kolona
+        parsed = parse_all_reservation_passenger_line(line, column_positions)
+        if not parsed:
+            continue
+
+        passengers.append(parsed)
+
+    return passengers
+
+
+def extract_all_reservation_column_positions(header_line):
+    """Extract column positions from header line for fixed-width parsing."""
+    positions = {}
+
+    # Pronađi pozicije glavnih kolona
+    positions["No"] = header_line.find("No")
+    positions["Surname"] = header_line.find("Surname")
+    positions["Name"] = header_line.find("Name")
+    positions["G"] = header_line.find("G    GC")  # G kolona
+    positions["GC"] = header_line.find("GC    PNR")  # GC kolona
+    positions["PNR"] = header_line.find("PNR       PNR Status")  # PNR kolona
+    positions["PNR Status"] = header_line.find("PNR Status   PNR Owner")
+    positions["PNR Owner"] = header_line.find("PNR Owner Ticket")
+    positions["Ticket No"] = header_line.find("Ticket No")
+    positions["FROM"] = header_line.find("FROM")
+    positions["TO"] = header_line.find("TO     Flight")
+    positions["Flight Status"] = header_line.find("Flight Status")
+    positions["DOS"] = header_line.find("DOS")
+    positions["CC"] = header_line.find("CC    C.S")
+    positions["C.S"] = header_line.find("C.S")
+
+    return positions
+
+
+def parse_all_reservation_passenger_line(line, column_positions):
+    """Parse single passenger line using fixed-width column positions."""
+    if not column_positions:
+        return None
+
+    # Prvo provjeri da li je ovo validna linija putnika
+    line_number_str = line[: column_positions.get("Surname", 5)].strip()
+    if not line_number_str or not line_number_str.isdigit():
+        return None
+
+    line_number = int(line_number_str)
+
+    # Ekstrahuj polja prema pozicijama
+    def extract_field(start_key, end_key=None):
+        start_pos = column_positions.get(start_key)
+        if start_pos is None or start_pos < 0:
+            return None
+
+        if end_key:
+            end_pos = column_positions.get(end_key)
+            if end_pos is None or end_pos < 0:
+                return line[start_pos:].strip()
+            return line[start_pos:end_pos].strip()
+        return line[start_pos:].strip()
+
+    surname = extract_field("Surname", "Name")
+    given_name = extract_field("Name", "G")
+    gender = extract_field("G", "GC")
+    group_code = extract_field("GC", "PNR")
+    pnr = extract_field("PNR", "PNR Status")
+    pnr_status = extract_field("PNR Status", "PNR Owner")
+    pnr_owner = extract_field("PNR Owner", "Ticket No")
+    ticket_no = extract_field("Ticket No", "FROM")
+    from_airport = extract_field("FROM", "TO")
+    to_airport = extract_field("TO", "Flight Status")
+    flight_status = extract_field("Flight Status", "DOS")
+    dos = extract_field("DOS", "CC")
+    cabin_class = extract_field("CC", "C.S")
+    c_status = extract_field("C.S")
+
+    # Normalizuj ime putnika
+    surname = surname.strip() if surname else ""
+    given_name = given_name.strip() if given_name else ""
+    passenger_name = f"{surname}/{given_name}" if surname and given_name else surname or given_name
+
+    # Mapiranje pola na titulu
+    title = map_gender_to_title(gender)
+
+    # Detektuj da li je infant
+    is_infant = False
+    if gender and gender.strip().upper() == "C":
+        if given_name and ("INF" in given_name.upper() or "INFANT" in given_name.upper()):
+            is_infant = True
+
+    return {
+        "lineNumber": line_number,
+        "passengerName": passenger_name,
+        "rawPassengerName": f"{surname} {given_name}".strip(),
+        "title": title,
+        "isInfant": is_infant,
+        "confirmationDate": normalize_blank(dos),
+        "fareClass": normalize_blank(cabin_class),
+        "passengerId": normalize_blank(pnr),
+        "seatNumber": None,
+        "sequenceNumber": None,
+        "flightStatus": normalize_blank(flight_status),
+        "ticketNumber": normalize_blank(ticket_no),
+        "pnrStatus": normalize_blank(pnr_status),
+        "pnrOwner": normalize_blank(pnr_owner),
+        "groupCode": normalize_blank(group_code),
+        "cStatus": normalize_blank(c_status),
+    }
+
+
+def map_gender_to_title(gender):
+    """Map gender code to passenger title."""
+    if not gender:
+        return "MR"
+
+    gender = gender.strip().upper()
+    return {
+        "M": "MR",
+        "F": "MS",
+        "C": "CHD",
+    }.get(gender, "MR")
+
+
+def extract_summary_from_all_reservation(passengers):
+    """Build summary statistics from ALL Reservation List passengers."""
     children = sum(1 for passenger in passengers if passenger["title"] == "CHD")
     infants = sum(1 for passenger in passengers if passenger["isInfant"] or passenger["title"] == "INF")
     females = sum(1 for passenger in passengers if passenger["title"] in {"MS", "MRS", "MISS"})
