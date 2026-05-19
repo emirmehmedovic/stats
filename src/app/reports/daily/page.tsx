@@ -373,12 +373,17 @@ export default function DailyReportPage() {
       flight.departureMail || 0,
     ]);
 
+    const totalInfants = (data.totals.arrivalInfants || 0) + (data.totals.departureInfants || 0);
+    const totalPassengersWithoutInfants = data.totals.totalPassengers - totalInfants;
+    const arrivalPassengersWithoutInfants = data.totals.arrivalPassengers - (data.totals.arrivalInfants || 0);
+    const departurePassengersWithoutInfants = data.totals.departurePassengers - (data.totals.departureInfants || 0);
+
     const summaryRows = [
       [],
       ['SAZETAK'],
       ['Ukupno letova', data.totals.flights],
-      ['Ukupno putnika', data.totals.totalPassengers],
-      ['Ukupno beba', (data.totals.arrivalInfants || 0) + (data.totals.departureInfants || 0)],
+      ['Ukupno putnika', totalPassengersWithoutInfants],
+      ['Ukupno beba', totalInfants],
       ['Ukupno putnika s bebama', data.totals.totalPassengers],
       ['Ukupno prtljaga (kg)', data.totals.totalBaggage],
       ['Ukupno cargo (kg)', data.totals.totalCargo],
@@ -386,7 +391,7 @@ export default function DailyReportPage() {
       [],
       ['DOLAZAK'],
       ['Letova', data.totals.arrivalFlights],
-      ['Putnika', data.totals.arrivalPassengers],
+      ['Putnika', arrivalPassengersWithoutInfants],
       ['Bebe', data.totals.arrivalInfants],
       ['Prtljag (kg)', data.totals.arrivalBaggage],
       ['Cargo (kg)', data.totals.arrivalCargo],
@@ -394,7 +399,7 @@ export default function DailyReportPage() {
       [],
       ['ODLAZAK'],
       ['Letova', data.totals.departureFlights],
-      ['Putnika', data.totals.departurePassengers],
+      ['Putnika', departurePassengersWithoutInfants],
       ['Bebe', data.totals.departureInfants],
       ['Prtljag (kg)', data.totals.departureBaggage],
       ['Cargo (kg)', data.totals.departureCargo],
@@ -872,11 +877,29 @@ export default function DailyReportPage() {
                 },
                 {
                   title: 'Ukupno putnika',
-                  value: reportData.totals.totalPassengers.toLocaleString('bs-BA'),
+                  value: (reportData.totals.totalPassengers - ((reportData.totals.arrivalInfants || 0) + (reportData.totals.departureInfants || 0))).toLocaleString('bs-BA'),
                   icon: Users,
                   color: 'text-blue-600',
                   bgColor: 'bg-blue-50',
+                  badge: 'Bez beba',
+                  size: 'md:basis-1/4',
+                },
+                {
+                  title: 'Ukupno beba',
+                  value: ((reportData.totals.arrivalInfants || 0) + (reportData.totals.departureInfants || 0)).toLocaleString('bs-BA'),
+                  icon: Users,
+                  color: 'text-pink-600',
+                  bgColor: 'bg-pink-50',
                   badge: 'Dolazak + odlazak',
+                  size: 'md:basis-1/4',
+                },
+                {
+                  title: 'Ukupno putnika s bebama',
+                  value: reportData.totals.totalPassengers.toLocaleString('bs-BA'),
+                  icon: Users,
+                  color: 'text-purple-600',
+                  bgColor: 'bg-purple-50',
+                  badge: 'Putnici + bebe',
                   size: 'md:basis-1/4',
                 },
                 {
@@ -987,8 +1010,9 @@ export default function DailyReportPage() {
 
                   <div className="space-y-4">
                     {[
-                      { label: 'Putnici', value: reportData.totals.arrivalPassengers, icon: Users },
+                      { label: 'Putnici', value: reportData.totals.arrivalPassengers - (reportData.totals.arrivalInfants || 0), icon: Users },
                       { label: 'Bebe', value: reportData.totals.arrivalInfants, icon: Users },
+                      { label: 'Putnici s bebama', value: reportData.totals.arrivalPassengers, icon: Users },
                       { label: 'Prtljag (kg)', value: reportData.totals.arrivalBaggage.toLocaleString('bs-BA'), icon: PackageCheck },
                       { label: 'Cargo (kg)', value: reportData.totals.arrivalCargo.toLocaleString('bs-BA'), icon: Package },
                       { label: 'Pošta (kg)', value: reportData.totals.arrivalMail.toLocaleString('bs-BA'), icon: Package },
@@ -1026,8 +1050,9 @@ export default function DailyReportPage() {
 
                   <div className="space-y-4">
                     {[
-                      { label: 'Putnici', value: reportData.totals.departurePassengers, icon: Users },
+                      { label: 'Putnici', value: reportData.totals.departurePassengers - (reportData.totals.departureInfants || 0), icon: Users },
                       { label: 'Bebe', value: reportData.totals.departureInfants, icon: Users },
+                      { label: 'Putnici s bebama', value: reportData.totals.departurePassengers, icon: Users },
                       { label: 'Prtljag (kg)', value: reportData.totals.departureBaggage.toLocaleString('bs-BA'), icon: PackageCheck },
                       { label: 'Cargo (kg)', value: reportData.totals.departureCargo.toLocaleString('bs-BA'), icon: Package },
                       { label: 'Pošta (kg)', value: reportData.totals.departureMail.toLocaleString('bs-BA'), icon: Package },

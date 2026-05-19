@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { dateStringFromParts, endOfDayUtc, getTodayDateString, startOfDayUtc } from '@/lib/dates';
 
+const isScheduledFlight = (flight: any) => {
+  const code = flight.operationType?.code?.toUpperCase() || '';
+  return code.includes('SCHEDULED');
+};
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -112,10 +117,12 @@ function calculateStats(flights: any[]) {
   let totalDepartureFlights = 0;
 
   // Maps for grouping
-  const airlineMap = new Map<string, { passengers: number; operations: number; logoUrl: string | null }>();
+  const airlineMap = new Map<string, { passengers: number; infants: number; operations: number; logoUrl: string | null }>();
   const destinationMap = new Map<string, {
     arrivalPassengers: number;
     departurePassengers: number;
+    arrivalInfants: number;
+    departureInfants: number;
     totalBaggage: number;
   }>();
 
@@ -124,6 +131,9 @@ function calculateStats(flights: any[]) {
     const arrivalPax = flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
     const departurePax = flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
     const flightPassengers = arrivalPax + departurePax;
+    const arrivalInf = flight.arrivalFerryIn ? 0 : (flight.arrivalInfants || 0);
+    const departureInf = flight.departureFerryOut ? 0 : (flight.departureInfants || 0);
+    const flightInfants = arrivalInf + departureInf;
 
     totalArrivalPassengers += arrivalPax;
     totalDeparturePassengers += departurePax;
@@ -156,15 +166,15 @@ function calculateStats(flights: any[]) {
       charterPassengers += flightPassengers;
     }
 
-    // Calculate load factor
-    if (flight.availableSeats && flight.availableSeats > 0) {
+    // Calculate load factor (only for scheduled flights)
+    if (flight.availableSeats && flight.availableSeats > 0 && isScheduledFlight(flight)) {
       totalSeatsAvailable += (flight.arrivalFerryIn ? 0 : flight.availableSeats);
       totalSeatsAvailable += (flight.departureFerryOut ? 0 : flight.availableSeats);
       totalSeatsUsed += flightPassengers;
     }
 
-    // Calculate delays (flights delayed by more than 15 minutes)
-    if (flight.arrivalScheduledTime && flight.arrivalActualTime) {
+    // Calculate delays (flights delayed by more than 15 minutes, only for scheduled flights)
+    if (flight.arrivalScheduledTime && flight.arrivalActualTime && isScheduledFlight(flight)) {
       totalArrivalFlights++;
       const scheduledTime = new Date(flight.arrivalScheduledTime).getTime();
       const actualTime = new Date(flight.arrivalActualTime).getTime();
@@ -174,7 +184,7 @@ function calculateStats(flights: any[]) {
       }
     }
 
-    if (flight.departureScheduledTime && flight.departureActualTime) {
+    if (flight.departureScheduledTime && flight.departureActualTime && isScheduledFlight(flight)) {
       totalDepartureFlights++;
       const scheduledTime = new Date(flight.departureScheduledTime).getTime();
       const actualTime = new Date(flight.departureActualTime).getTime();
@@ -199,13 +209,14 @@ function calculateStats(flights: any[]) {
     }
 
     if (!airlineMap.has(airlineName)) {
-      airlineMap.set(airlineName, { passengers: 0, operations: 0, logoUrl });
+      airlineMap.set(airlineName, { passengers: 0, infants: 0, operations: 0, logoUrl });
     } else if (logoUrl && !airlineMap.get(airlineName)!.logoUrl) {
       // Update logo if we didn't have one before
       airlineMap.get(airlineName)!.logoUrl = logoUrl;
     }
     const airlineData = airlineMap.get(airlineName)!;
     airlineData.passengers += arrivalPax + departurePax;
+    airlineData.infants += flightInfants;
     airlineData.operations += flightOperations;
 
     // Group by destination
@@ -214,12 +225,16 @@ function calculateStats(flights: any[]) {
       destinationMap.set(destination, {
         arrivalPassengers: 0,
         departurePassengers: 0,
+        arrivalInfants: 0,
+        departureInfants: 0,
         totalBaggage: 0,
       });
     }
     const destData = destinationMap.get(destination)!;
     destData.arrivalPassengers += arrivalPax;
     destData.departurePassengers += departurePax;
+    destData.arrivalInfants += arrivalInf;
+    destData.departureInfants += departureInf;
     destData.totalBaggage += arrivalBaggage + departureBaggage;
   });
 
@@ -228,6 +243,7 @@ function calculateStats(flights: any[]) {
     .map(([airline, data]) => ({
       airline,
       passengers: data.passengers,
+      infants: data.infants,
       operations: data.operations,
       logoUrl: data.logoUrl,
     }))
@@ -238,6 +254,8 @@ function calculateStats(flights: any[]) {
       destination,
       arrivalPassengers: data.arrivalPassengers,
       departurePassengers: data.departurePassengers,
+      arrivalInfants: data.arrivalInfants,
+      departureInfants: data.departureInfants,
       totalBaggage: data.totalBaggage,
     }))
     .sort((a, b) =>

@@ -113,6 +113,10 @@ const getDeparturePassengers = (flight: any) =>
   flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
 const getLegCount = (flight: any) =>
   (flight.arrivalFlightNumber ? 1 : 0) + (flight.departureFlightNumber ? 1 : 0);
+const isScheduledFlight = (flight: any) => {
+  const code = flight.operationType?.code?.toUpperCase() || '';
+  return code.includes('SCHEDULED');
+};
 const getDelayMinutes = (scheduled?: Date | null, actual?: Date | null) => {
   if (!scheduled || !actual) return null;
   const diffMs = actual.getTime() - scheduled.getTime();
@@ -256,7 +260,7 @@ const buildDailyReport = async (
     airlineCurrent.passengers += passengers;
 
     const legCount = getLegCount(flight);
-    if (flight.availableSeats && legCount > 0) {
+    if (flight.availableSeats && legCount > 0 && isScheduledFlight(flight)) {
       const seats = flight.availableSeats * legCount;
       routeCurrent.seats += seats;
       routeCurrent.passengersForLoad += passengers;
@@ -270,7 +274,7 @@ const buildDailyReport = async (
       flight.arrivalScheduledTime,
       flight.arrivalActualTime
     );
-    if (arrivalDelay !== null && flight.arrivalStatus !== 'CANCELLED') {
+    if (arrivalDelay !== null && flight.arrivalStatus !== 'CANCELLED' && isScheduledFlight(flight)) {
       routeCurrent.delayCount += 1;
       routeCurrent.delayTotal += arrivalDelay;
       airlineCurrent.delayCount += 1;
@@ -288,7 +292,7 @@ const buildDailyReport = async (
       flight.departureScheduledTime,
       flight.departureActualTime
     );
-    if (departureDelay !== null && flight.departureStatus !== 'CANCELLED') {
+    if (departureDelay !== null && flight.departureStatus !== 'CANCELLED' && isScheduledFlight(flight)) {
       routeCurrent.delayCount += 1;
       routeCurrent.delayTotal += departureDelay;
       airlineCurrent.delayCount += 1;

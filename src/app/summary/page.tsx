@@ -36,6 +36,7 @@ interface SummaryStats {
   airlineStats: Array<{
     airline: string;
     passengers: number;
+    infants: number;
     operations: number;
     logoUrl: string | null;
   }>;
@@ -43,6 +44,8 @@ interface SummaryStats {
     destination: string;
     arrivalPassengers: number;
     departurePassengers: number;
+    arrivalInfants: number;
+    departureInfants: number;
     totalBaggage: number;
   }>;
   comparison: {
@@ -365,7 +368,13 @@ export default function SummaryPage() {
                         Aviokompanija
                       </th>
                       <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
-                        Broj putnika
+                        Putnici
+                      </th>
+                      <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
+                        Bebe
+                      </th>
+                      <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
+                        Putnici s bebama
                       </th>
                       <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
                         Broj operacija
@@ -393,6 +402,12 @@ export default function SummaryPage() {
                             )}
                             <span>{airline.airline}</span>
                           </div>
+                        </td>
+                        <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
+                          {formatNumber(airline.passengers - airline.infants)}
+                        </td>
+                        <td className="px-8 py-5 text-sm text-pink-600 text-right font-medium">
+                          {formatNumber(airline.infants)}
                         </td>
                         <td className="px-8 py-5 text-sm text-dark-900 text-right font-bold">
                           {formatNumber(airline.passengers)}
@@ -427,10 +442,19 @@ export default function SummaryPage() {
                         Dolasci
                       </th>
                       <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
+                        Bebe (dolasci)
+                      </th>
+                      <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
                         Odlasci
                       </th>
                       <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
+                        Bebe (odlasci)
+                      </th>
+                      <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
                         Ukupno putnika
+                      </th>
+                      <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
+                        Ukupno s bebama
                       </th>
                       <th className="px-8 py-4 text-right text-xs font-bold text-dark-700 uppercase tracking-wider">
                         Prtljaga (kg)
@@ -438,25 +462,40 @@ export default function SummaryPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-100">
-                    {stats.destinationStats.map((dest, idx) => (
-                      <tr key={idx} className="hover:bg-dark-50 transition-colors">
-                        <td className="px-8 py-5 text-sm font-semibold text-dark-900">
-                          {dest.destination}
-                        </td>
-                        <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
-                          {formatNumber(dest.arrivalPassengers)}
-                        </td>
-                        <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
-                          {formatNumber(dest.departurePassengers)}
-                        </td>
-                        <td className="px-8 py-5 text-sm text-dark-900 text-right font-bold">
-                          {formatNumber(dest.arrivalPassengers + dest.departurePassengers)}
-                        </td>
-                        <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
-                          {formatNumber(dest.totalBaggage)}
-                        </td>
-                      </tr>
-                    ))}
+                    {stats.destinationStats.map((dest, idx) => {
+                      const totalInfants = dest.arrivalInfants + dest.departureInfants;
+                      const totalPassengers = dest.arrivalPassengers + dest.departurePassengers;
+                      const totalWithoutInfants = totalPassengers - totalInfants;
+
+                      return (
+                        <tr key={idx} className="hover:bg-dark-50 transition-colors">
+                          <td className="px-8 py-5 text-sm font-semibold text-dark-900">
+                            {dest.destination}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
+                            {formatNumber(dest.arrivalPassengers - dest.arrivalInfants)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-pink-600 text-right font-medium">
+                            {formatNumber(dest.arrivalInfants)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
+                            {formatNumber(dest.departurePassengers - dest.departureInfants)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-pink-600 text-right font-medium">
+                            {formatNumber(dest.departureInfants)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
+                            {formatNumber(totalWithoutInfants)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-dark-900 text-right font-bold">
+                            {formatNumber(totalPassengers)}
+                          </td>
+                          <td className="px-8 py-5 text-sm text-dark-700 text-right font-medium">
+                            {formatNumber(dest.totalBaggage)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -654,22 +693,53 @@ export default function SummaryPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={stats.airlineStats}
+                        data={(() => {
+                          // Show top 8 airlines, group the rest as "Ostalo"
+                          const topAirlines = stats.airlineStats.slice(0, 8);
+                          const othersData = stats.airlineStats.slice(8);
+
+                          if (othersData.length > 0) {
+                            const othersTotal = othersData.reduce((sum, item) => sum + item.passengers, 0);
+                            return [
+                              ...topAirlines,
+                              {
+                                airline: 'Ostalo',
+                                passengers: othersTotal,
+                                infants: 0,
+                                operations: 0,
+                                logoUrl: null,
+                              }
+                            ];
+                          }
+
+                          return topAirlines;
+                        })()}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ payload, percent }) =>
-                          payload && percent !== undefined
-                            ? `${payload.airline}: ${(percent * 100).toFixed(1)}%`
-                            : ''
-                        }
+                        label={({ payload, percent }) => {
+                          // Only show label if percentage is above 3%
+                          if (payload && percent !== undefined && percent > 0.03) {
+                            return `${payload.airline}: ${(percent * 100).toFixed(1)}%`;
+                          }
+                          return '';
+                        }}
                         outerRadius={120}
                         fill="#8884d8"
                         dataKey="passengers"
                       >
-                        {stats.airlineStats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
+                        {(() => {
+                          const topAirlines = stats.airlineStats.slice(0, 8);
+                          const othersData = stats.airlineStats.slice(8);
+                          const pieData = othersData.length > 0 ? [...topAirlines, { airline: 'Ostalo' }] : topAirlines;
+
+                          return pieData.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.airline === 'Ostalo' ? '#94a3b8' : COLORS[index % COLORS.length]}
+                            />
+                          ));
+                        })()}
                       </Pie>
                       <Tooltip
                         contentStyle={{
