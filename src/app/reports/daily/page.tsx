@@ -378,6 +378,8 @@ export default function DailyReportPage() {
       ['SAZETAK'],
       ['Ukupno letova', data.totals.flights],
       ['Ukupno putnika', data.totals.totalPassengers],
+      ['Ukupno beba', (data.totals.arrivalInfants || 0) + (data.totals.departureInfants || 0)],
+      ['Ukupno putnika s bebama', data.totals.totalPassengers],
       ['Ukupno prtljaga (kg)', data.totals.totalBaggage],
       ['Ukupno cargo (kg)', data.totals.totalCargo],
       ['Ukupno poata (kg)', data.totals.totalMail],
