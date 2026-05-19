@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
         a.name as "airlineName",
         at.model as "aircraftType",
         COUNT(f.id)::int as "totalFlights",
-        SUM(COALESCE(f."arrivalPassengers", 0) + COALESCE(f."departurePassengers", 0))::int as "totalPassengers",
-        AVG(COALESCE(f."arrivalPassengers", 0) + COALESCE(f."departurePassengers", 0))::float as "avgPassengersPerFlight",
-        AVG(CASE 
-          WHEN at.seats > 0 AND (COALESCE(f."arrivalPassengers", 0) + COALESCE(f."departurePassengers", 0)) > 0 
-          THEN ((COALESCE(f."arrivalPassengers", 0) + COALESCE(f."departurePassengers", 0))::float / (at.seats * 2) * 100)
+        SUM(COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) + COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0))::int as "totalPassengers",
+        AVG(COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) + COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0))::float as "avgPassengersPerFlight",
+        AVG(CASE
+          WHEN at.seats > 0 AND (COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) + COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0)) > 0
+          THEN ((COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) + COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0))::float / (at.seats * 2) * 100)
           ELSE 0 
         END)::float as "avgLoadFactor",
         MAX(at.seats)::int as "aircraftCapacity"

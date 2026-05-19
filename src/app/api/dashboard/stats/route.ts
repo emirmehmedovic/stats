@@ -80,11 +80,11 @@ export async function GET(request: NextRequest) {
     });
 
     // Query 3: Get ALL airline details in ONE query (batch fetch)
-    const airlineIds = topAirlinesData.map(item => item.airlineId);
-    const uniqueAirlineIds = [...new Set(last30DaysFlights.map(f => f.airlineId))];
-    const allAirlineIds = [...new Set([...airlineIds, ...uniqueAirlineIds])];
+    const airlineIds = topAirlinesData.map(item => item.airlineId).filter(Boolean);
+    const uniqueAirlineIds = [...new Set(last30DaysFlights.map(f => f.airlineId).filter(Boolean))];
+    const allAirlineIds = [...new Set([...airlineIds, ...uniqueAirlineIds])].filter(Boolean);
 
-    const airlines = await prisma.airline.findMany({
+    const airlines = allAirlineIds.length > 0 ? await prisma.airline.findMany({
       where: {
         id: { in: allAirlineIds },
       },
@@ -93,12 +93,12 @@ export async function GET(request: NextRequest) {
         name: true,
         icaoCode: true,
       },
-    });
+    }) : [];
     const airlineMap = new Map(airlines.map(a => [a.id, a]));
 
     // Query 4: Get operation types in ONE query
     const operationTypeIds = [...new Set(last30DaysFlights.map(f => f.operationTypeId).filter(Boolean))];
-    const operationTypes = await prisma.operationType.findMany({
+    const operationTypes = operationTypeIds.length > 0 ? await prisma.operationType.findMany({
       where: {
         id: { in: operationTypeIds },
       },
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         name: true,
         code: true,
       },
-    });
+    }) : [];
     const operationTypeMap = new Map(operationTypes.map(ot => [ot.id, ot]));
 
     // --- IN-MEMORY PROCESSING (much faster than DB queries in loops) ---
@@ -120,9 +120,9 @@ export async function GET(request: NextRequest) {
     // Calculate today's stats
     const todaysFlightsCount = todaysFlights.length;
     const getArrivalPassengers = (flight: typeof last30DaysFlights[number]) =>
-      flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
+      flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
     const getDeparturePassengers = (flight: typeof last30DaysFlights[number]) =>
-      flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
+      flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
     const seatCapacityPerLeg = (flight: typeof last30DaysFlights[number]) =>
       flight.availableSeats || flight.aircraftType?.seats || 0;
     const arrivalIsOperated = (flight: typeof last30DaysFlights[number]) =>
@@ -362,10 +362,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Dashboard stats error:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       {
         success: false,
         error: 'Greška pri učitavanju statistike',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
         COUNT(*)::int AS flights,
         SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_flights,
         SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_flights,
-        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END)::int AS arrival_passengers,
-        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END)::int AS departure_passengers,
+        SUM(CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END)::int AS arrival_passengers,
+        SUM(CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END)::int AS departure_passengers,
         SUM(COALESCE(f."arrivalBaggage", 0))::int AS arrival_baggage,
         SUM(COALESCE(f."departureBaggage", 0))::int AS departure_baggage,
         SUM(COALESCE(f."arrivalCargo", 0))::int AS arrival_cargo,
@@ -135,8 +135,8 @@ export async function POST(request: NextRequest) {
         date_trunc('day', f.date) AS day,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_flights,
         SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_flights
@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
         a.name AS name,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_flights,
         SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_flights
@@ -169,8 +169,8 @@ export async function POST(request: NextRequest) {
         f.route AS route,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_flights,
         SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_flights
@@ -186,8 +186,8 @@ export async function POST(request: NextRequest) {
         ot.name AS name,
         COUNT(*)::int AS flights,
         SUM(
-          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END
+          CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+          CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END
         )::int AS passengers,
         SUM(CASE WHEN f."arrivalFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS arrival_flights,
         SUM(CASE WHEN f."departureFlightNumber" IS NOT NULL THEN 1 ELSE 0 END)::int AS departure_flights

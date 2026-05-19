@@ -84,7 +84,9 @@ export const defaultAirportServices: ServiceItem[] = [
   { id: 'airport_pvc', label: 'PVC ZIP vrećice', code: 'PVC', unit: 'kom', price: 5, currency: 'KM', qty: 0 },
   { id: 'airport_masks', label: 'Higijenske maske', code: 'MASK', unit: 'kom', price: 1, currency: 'KM', qty: 0 },
   { id: 'airport_internet', label: 'Internet kodovi', code: 'NET', unit: 'kom', price: 3, currency: 'KM', qty: 0 },
+  { id: 'airport_extra_service', label: 'Dodatni servis', code: 'EXTRA', unit: 'kom', price: 10, currency: 'KM', qty: 0 },
   { id: 'airport_donation', label: 'Dječija nedelja', code: 'DON', unit: 'iznos', price: 0, currency: 'KM', qty: 0, amountOverride: 0 },
+  { id: 'airport_luggage_wrap', label: 'Mašina za umotavanje kofera', code: 'WRAP', unit: 'iznos', price: 0, currency: 'KM', qty: 0, amountOverride: 0 },
 ];
 
 export const defaultFxRate = 1.95583;
@@ -227,10 +229,20 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
     fxRateEurToKm: defaultFxRate,
     carrierOrder,
     airportServices: Array.isArray(data?.airportServices)
-      ? data?.airportServices.map((service: ServiceItem) => ({
-          ...createServiceItem(),
-          ...service,
-        }))
+      ? (() => {
+          // Create a map of existing services by ID
+          const existingServicesMap = new Map(
+            data.airportServices.map((service: ServiceItem) => [service.id, service])
+          );
+
+          // Merge with default services, preserving existing data
+          return base.airportServices.map((defaultService) => {
+            const existingService = existingServicesMap.get(defaultService.id);
+            return existingService
+              ? { ...createServiceItem(), ...defaultService, ...existingService }
+              : { ...defaultService };
+          });
+        })()
       : base.airportServices,
     adjustmentsAmount: typeof data?.adjustmentsAmount === 'number'
       ? data.adjustmentsAmount

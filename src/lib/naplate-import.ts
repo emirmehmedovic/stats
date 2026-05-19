@@ -428,6 +428,16 @@ function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: stri
       }
     }
 
+    // Mašina za umotavanje kofera (row 67)
+    if (rowText.match(/Mašina\s+za\s+umotavanje\s+kofera/i)) {
+      const amount = asNumber(row[4]) || 0;
+      const service = report.airportServices.find(s => s.id === 'airport_luggage_wrap');
+      if (service && amount > 0) {
+        console.log('[Parser] Adding luggage wrap:', { amount });
+        service.amountOverride = (service.amountOverride || 0) + amount;
+      }
+    }
+
     // Parse Airport remunerations from row 37 (only if not already set from row 66)
     if (rowText.match(/Airport remunerations.*dodatni aerodromski servis/i) && row[5]) {
       const amount = asNumber(row[5]);

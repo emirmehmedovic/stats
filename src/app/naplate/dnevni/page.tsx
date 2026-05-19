@@ -53,9 +53,10 @@ export default function DnevniIzvjestajiPage() {
     amountEur: number;
     airportRemunerationKm: number;
   }>>({});
-  const [donationDraft, setDonationDraft] = useState<{ open: boolean; amount: string }>({
+  const [donationDraft, setDonationDraft] = useState<{ open: boolean; amount: string; serviceId: string | null }>({
     open: false,
     amount: '',
+    serviceId: null,
   });
   const [newCarrierName, setNewCarrierName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -65,6 +66,7 @@ export default function DnevniIzvjestajiPage() {
   const [deleteDateTo, setDeleteDateTo] = useState('');
   const [isRecapOpen, setIsRecapOpen] = useState(false);
   const [recapUserName, setRecapUserName] = useState<string>('');
+  const [userRole, setUserRole] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
@@ -76,6 +78,35 @@ export default function DnevniIzvjestajiPage() {
       : Object.keys(report.carriers || {})),
     [report.carrierOrder, report.carriers]
   );
+
+  // Check if editing should be disabled for NAPLATE role (dates older than 3 days)
+  const isEditingDisabled = useMemo(() => {
+    if (userRole !== 'NAPLATE') return false;
+
+    const selected = new Date(selectedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selected.setHours(0, 0, 0, 0);
+
+    const daysDiff = Math.floor((today.getTime() - selected.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff > 3;
+  }, [userRole, selectedDate]);
+
+  // Calculate minimum allowed date for NAPLATE role (3 days ago)
+  const minAllowedDate = useMemo(() => {
+    if (userRole !== 'NAPLATE') return undefined;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() - 3);
+
+    // Format as YYYY-MM-DD
+    const year = minDate.getFullYear();
+    const month = String(minDate.getMonth() + 1).padStart(2, '0');
+    const day = String(minDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, [userRole]);
 
   useEffect(() => {
     setEditingCarriers((prev) => {
@@ -121,8 +152,9 @@ export default function DnevniIzvjestajiPage() {
       try {
         const response = await fetch('/api/auth/session');
         const data = await response.json();
-        if (response.ok && data?.authenticated && data?.user?.name) {
-          setRecapUserName(data.user.name);
+        if (response.ok && data?.authenticated && data?.user) {
+          setRecapUserName(data.user.name || '');
+          setUserRole(data.user.role || null);
         }
       } catch {
         // ignore
@@ -356,6 +388,10 @@ export default function DnevniIzvjestajiPage() {
   };
 
   const toggleEdit = (carrier: CarrierKey) => {
+    if (isEditingDisabled) {
+      showToast('Uređivanje onemogućeno za dane starije od 3 dana (NAPLATE korisnici)', 'error');
+      return;
+    }
     setEditingCarriers((prev) => ({ ...prev, [carrier]: !prev[carrier] }));
   };
 
@@ -476,15 +512,19 @@ export default function DnevniIzvjestajiPage() {
       showToast('Unesite ispravan iznos', 'error');
       return;
     }
+    if (!donationDraft.serviceId) {
+      showToast('Greška pri dodavanju iznosa', 'error');
+      return;
+    }
     setReport((prev) => ({
       ...prev,
       airportServices: prev.airportServices.map((item) =>
-        item.id === donationServiceId
+        item.id === donationDraft.serviceId
           ? { ...item, amountOverride: Number((item.amountOverride || 0) + amount) }
           : item
       ),
     }));
-    setDonationDraft({ open: false, amount: '' });
+    setDonationDraft({ open: false, amount: '', serviceId: null });
     showToast('Iznos dodat', 'success');
   };
 
@@ -628,6 +668,7 @@ export default function DnevniIzvjestajiPage() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                min={minAllowedDate}
                 className="border-none p-0 h-auto text-sm"
               />
             </div>
@@ -1123,12 +1164,19 @@ export default function DnevniIzvjestajiPage() {
                 </div>
                 <Button
                   variant="outline"
-                  onClick={() => setIsEditingAirport((prev) => !prev)}
+                  onClick={() => {
+                    if (isEditingDisabled) {
+                      showToast('Uređivanje onemogućeno za dane starije od 3 dana (NAPLATE korisnici)', 'error');
+                      return;
+                    }
+                    setIsEditingAirport((prev) => !prev);
+                  }}
+                  disabled={isEditingDisabled}
                   className={`h-11 px-5 font-semibold border transition-all ${
                     isEditingAirport
                       ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                       : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
+                  } ${isEditingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isEditingAirport ? '✓ Završi uređivanje' : '✎ Uredi'}
                 </Button>
@@ -1287,7 +1335,7 @@ export default function DnevniIzvjestajiPage() {
                               ) : isDonation ? (
                                 <Button
                                   variant="outline"
-                                  onClick={() => setDonationDraft({ open: true, amount: '' })}
+                                  onClick={() => setDonationDraft({ open: true, amount: '', serviceId: item.id })}
                                   className="h-10 px-4 text-xs font-semibold border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all"
                                 >
                                   + Dodaj iznos
@@ -1327,7 +1375,7 @@ export default function DnevniIzvjestajiPage() {
                               )}
                             </td>
                           </tr>
-                          {item.id === donationServiceId && donationDraft.open && (
+                          {item.id === donationDraft.serviceId && donationDraft.open && (
                             <tr className="bg-blue-50/60">
                               <td colSpan={5} className="py-5 px-6">
                                 <div className="bg-white rounded-2xl p-5 border border-blue-200 shadow-soft">
@@ -1342,7 +1390,7 @@ export default function DnevniIzvjestajiPage() {
                                       min="0"
                                       placeholder="Unesite iznos (KM)"
                                       value={donationDraft.amount}
-                                      onChange={(e) => setDonationDraft({ open: true, amount: e.target.value })}
+                                      onChange={(e) => setDonationDraft({ open: true, amount: e.target.value, serviceId: donationDraft.serviceId })}
                                       className="max-w-xs h-12 border border-blue-200 rounded-xl font-semibold text-lg"
                                     />
                                     <Button
@@ -1353,7 +1401,7 @@ export default function DnevniIzvjestajiPage() {
                                     </Button>
                                     <Button
                                       variant="outline"
-                                      onClick={() => setDonationDraft({ open: false, amount: '' })}
+                                      onClick={() => setDonationDraft({ open: false, amount: '', serviceId: null })}
                                       className="h-12 px-6 border border-slate-200 hover:border-blue-200 hover:bg-blue-50 font-semibold"
                                     >
                                       ✕ Otkaži
@@ -1448,11 +1496,12 @@ export default function DnevniIzvjestajiPage() {
                         }
                         toggleEdit(carrier);
                       }}
+                      disabled={isEditingDisabled}
                       className={`h-12 px-6 font-semibold border-2 transition-all ${
                         editingCarriers[carrier]
                           ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-900'
                           : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
-                      }`}
+                      } ${isEditingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {editingCarriers[carrier] ? '✓ Završi uređivanje' : '✎ Uredi'}
                     </Button>
@@ -1677,8 +1726,15 @@ export default function DnevniIzvjestajiPage() {
                 <div className="mt-4">
                   <Button
                     variant="outline"
-                    onClick={() => addService(carrier)}
-                    className="font-semibold border-2 transition-all border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                    onClick={() => {
+                      if (isEditingDisabled) {
+                        showToast('Dodavanje onemogućeno za dane starije od 3 dana (NAPLATE korisnici)', 'error');
+                        return;
+                      }
+                      addService(carrier);
+                    }}
+                    disabled={isEditingDisabled}
+                    className={`font-semibold border-2 transition-all border-slate-300 hover:bg-slate-50 hover:border-slate-400 ${isEditingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     + Dodaj uslugu
                   </Button>
@@ -1729,8 +1785,15 @@ export default function DnevniIzvjestajiPage() {
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => openBookingDraft(carrier)}
-                        className="font-semibold border-2 transition-all hover:scale-105 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                        onClick={() => {
+                          if (isEditingDisabled) {
+                            showToast('Dodavanje onemogućeno za dane starije od 3 dana (NAPLATE korisnici)', 'error');
+                            return;
+                          }
+                          openBookingDraft(carrier);
+                        }}
+                        disabled={isEditingDisabled}
+                        className={`font-semibold border-2 transition-all hover:scale-105 border-slate-300 hover:bg-slate-50 hover:border-slate-400 ${isEditingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         + Dodaj booking
                       </Button>
@@ -1738,7 +1801,8 @@ export default function DnevniIzvjestajiPage() {
                         <Button
                           variant="outline"
                           onClick={() => toggleEdit(carrier)}
-                          className="font-semibold border-2 transition-all hover:scale-105 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                          disabled={isEditingDisabled}
+                          className={`font-semibold border-2 transition-all hover:scale-105 border-slate-300 hover:bg-slate-50 hover:border-slate-400 ${isEditingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           ✎ Uredi
                         </Button>

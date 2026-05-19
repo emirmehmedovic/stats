@@ -107,11 +107,11 @@ export async function GET(request: NextRequest) {
 
     const passengerExpr =
       direction === 'arrival'
-        ? Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END`
+        ? Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END`
         : direction === 'departure'
-          ? Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`
-          : Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END +
-            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`;
+          ? Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END`
+          : Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END +
+            CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END`;
 
     const seatsExpr =
       direction === 'arrival'
@@ -289,9 +289,11 @@ export async function GET(request: NextRequest) {
         },
         availableSeats: true,
         arrivalPassengers: true,
+        arrivalInfants: true,
         arrivalFerryIn: true,
         arrivalFlightNumber: true,
         departurePassengers: true,
+        departureInfants: true,
         departureFerryOut: true,
         departureFlightNumber: true,
       },
@@ -300,8 +302,8 @@ export async function GET(request: NextRequest) {
     });
 
     const flightsWithLoadFactor = details.map((flight) => {
-      const arrivalPassengers = flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
-      const departurePassengers = flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
+      const arrivalPassengers = flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
+      const departurePassengers = flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
       const totalPassengers =
         direction === 'arrival'
           ? arrivalPassengers

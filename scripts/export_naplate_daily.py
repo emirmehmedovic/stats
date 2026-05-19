@@ -319,10 +319,12 @@ def main():
         "4. Higijenske Maske": "airport_masks",
         "5. Internet kodovi": "airport_internet",
         "6. Dječija nedelja": "airport_donation",
+        "7. Dodatni servis": "airport_extra_service",
+        "8. Mašina za umotavanje kofera": "airport_luggage_wrap",
     }
 
     airport_total = 0.0
-    for key in ("airport_pvc", "airport_masks", "airport_internet", "airport_donation"):
+    for key in ("airport_pvc", "airport_masks", "airport_internet", "airport_donation", "airport_extra_service", "airport_luggage_wrap"):
         svc = service_lookup.get(key)
         if svc:
             airport_total += service_amount(svc)
@@ -341,12 +343,12 @@ def main():
             set_cell_value_safe(ws, row, 4, 0)
             set_cell_value_safe(ws, row, 5, 0)
             continue
-        if key == "airport_donation":
-            donation_amount = float(svc.get("amountOverride") or 0)
-            if donation_amount == 0:
-                donation_amount = float(svc.get("qty") or 0)
+        if key == "airport_donation" or key == "airport_luggage_wrap":
+            amount = float(svc.get("amountOverride") or 0)
+            if amount == 0:
+                amount = float(svc.get("qty") or 0)
             set_cell_value_safe(ws, row, 4, 0)
-            set_cell_value_safe(ws, row, 5, donation_amount)
+            set_cell_value_safe(ws, row, 5, amount)
             value_col = find_row_value_column(ws, row, 5)
             if value_col != 5:
                 set_cell_value_safe(ws, row, value_col, 0)

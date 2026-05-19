@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
 
     const whereClauseSql = Prisma.join(whereSql, ' AND ');
 
-    const arrivalPassengersExpr = Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) END`;
-    const departurePassengersExpr = Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) END`;
+    const arrivalPassengersExpr = Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."arrivalPassengers", 0) + COALESCE(f."arrivalInfants", 0) END`;
+    const departurePassengersExpr = Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."departurePassengers", 0) + COALESCE(f."departureInfants", 0) END`;
     const arrivalSeatsExpr = Prisma.sql`CASE WHEN f."arrivalFerryIn" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`;
     const departureSeatsExpr = Prisma.sql`CASE WHEN f."departureFerryOut" THEN 0 ELSE COALESCE(f."availableSeats", at.seats, 0) END`;
 

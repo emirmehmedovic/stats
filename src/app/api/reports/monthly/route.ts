@@ -138,9 +138,9 @@ type MultiMonthlyReport = {
 };
 
 const getArrivalPassengers = (flight: any) =>
-  flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
+  flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
 const getDeparturePassengers = (flight: any) =>
-  flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
+  flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
 const getLegCount = (flight: any) =>
   (flight.arrivalFlightNumber ? 1 : 0) + (flight.departureFlightNumber ? 1 : 0);
 const getDelayMinutes = (scheduled?: Date | null, actual?: Date | null) => {

@@ -174,32 +174,44 @@ def calculate_monthly_stats(flights, passenger_type):
     total_passengers = 0
     total_departure_passengers = 0
     total_arrival_passengers = 0
-    
+    total_infants = 0
+    total_departure_infants = 0
+    total_arrival_infants = 0
+
     for flight in flights:
         if flight['arrivalFlightNumber']:
             total_operations += 1
         if flight['departureFlightNumber']:
             total_operations += 1
-        
+
         dep_pax = flight['departurePassengers'] or 0
         arr_pax = flight['arrivalPassengers'] or 0
-        
+        dep_inf = flight['departureInfants'] or 0
+        arr_inf = flight['arrivalInfants'] or 0
+
         total_departure_passengers += dep_pax
         total_arrival_passengers += arr_pax
-        
+        total_departure_infants += dep_inf
+        total_arrival_infants += arr_inf
+        total_infants += dep_inf + arr_inf
+
         if passenger_type == "departure":
             total_passengers += dep_pax
         elif passenger_type == "arrival":
             total_passengers += arr_pax
         elif passenger_type == "all":
             total_passengers += dep_pax + arr_pax
-    
+
     return {
         'flights': total_flights,
         'operations': total_operations,
         'passengers': total_passengers,
         'departure_passengers': total_departure_passengers,
         'arrival_passengers': total_arrival_passengers,
+        'infants': total_infants,
+        'departure_infants': total_departure_infants,
+        'arrival_infants': total_arrival_infants,
+        'passengers_with_infants': total_passengers + total_infants,
         'avg_per_flight': round(total_passengers / total_flights, 1) if total_flights > 0 else 0,
         'avg_per_operation': round(total_passengers / total_operations, 1) if total_operations > 0 else 0
     }
@@ -267,9 +279,19 @@ def create_summary_sheet(wb, all_flights, monthly_data, date_from, date_to, pass
         ("Ukupno putnika:", overall_stats['passengers']),
         ("  - Odlazeći putnici:", overall_stats['departure_passengers']),
         ("  - Dolazeći putnici:", overall_stats['arrival_passengers']),
+    ]
+
+    if passenger_type == "all":
+        stats_data.extend([
+            ("Ukupno putnika s bebama:", overall_stats['passengers_with_infants']),
+            ("  - Odlazeći s bebama:", overall_stats['departure_passengers'] + overall_stats['departure_infants']),
+            ("  - Dolazeći s bebama:", overall_stats['arrival_passengers'] + overall_stats['arrival_infants']),
+        ])
+
+    stats_data.extend([
         ("Prosječno putnika po letu:", overall_stats['avg_per_flight']),
         ("Prosječno putnika po operaciji:", overall_stats['avg_per_operation']),
-    ]
+    ])
     
     for label, value in stats_data:
         label_cell = ws.cell(row=row_idx, column=1, value=label)
@@ -287,8 +309,9 @@ def create_summary_sheet(wb, all_flights, monthly_data, date_from, date_to, pass
     row_idx += 2
     
     # Monthly comparison table
+    header_col_count = 11 if passenger_type == "all" else 8
     create_merged_cell(
-        ws, row_idx, 1, 8,
+        ws, row_idx, 1, header_col_count,
         "MJESEČNA KOMPARACIJA",
         font=Font(bold=True, size=12, color="FFFFFF"),
         fill=PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid"),
@@ -296,9 +319,13 @@ def create_summary_sheet(wb, all_flights, monthly_data, date_from, date_to, pass
         border=thin_border
     )
     row_idx += 1
-    
+
     # Headers for monthly comparison
-    headers = ["Mjesec", "Letova", "Operacija", "Putnici", "Odlazeći", "Dolazeći", "Avg/Let", "Growth%"]
+    if passenger_type == "all":
+        headers = ["Mjesec", "Letova", "Operacija", "Putnici", "Odlazeći", "Dolazeći",
+                   "Put. s bebama", "Odl. s bebama", "Dol. s bebama", "Avg/Let", "Growth%"]
+    else:
+        headers = ["Mjesec", "Letova", "Operacija", "Putnici", "Odlazeći", "Dolazeći", "Avg/Let", "Growth%"]
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=row_idx, column=col_idx, value=header)
         cell.font = Font(bold=True)
@@ -310,52 +337,79 @@ def create_summary_sheet(wb, all_flights, monthly_data, date_from, date_to, pass
     # Monthly data rows
     sorted_months = sorted(monthly_data.keys())
     prev_passengers = None
-    total_row_data = [0, 0, 0, 0, 0, 0]
-    
+    if passenger_type == "all":
+        total_row_data = [0, 0, 0, 0, 0, 0, 0, 0]  # flights, ops, pax, dep, arr, pax_w_inf, dep_w_inf, arr_w_inf
+    else:
+        total_row_data = [0, 0, 0, 0, 0, 0]
+
     for year, month in sorted_months:
         month_flights = monthly_data[(year, month)]
         stats = calculate_monthly_stats(month_flights, passenger_type)
-        
+
         # Calculate growth
         growth = None
         if prev_passengers is not None and prev_passengers > 0:
             growth = ((stats['passengers'] - prev_passengers) / prev_passengers) * 100
         prev_passengers = stats['passengers']
-        
+
         # Month name
         month_name = f"{MONTH_NAMES_SHORT[month]} {year}"
-        
-        row_data = [
-            month_name,
-            stats['flights'],
-            stats['operations'],
-            stats['passengers'],
-            stats['departure_passengers'],
-            stats['arrival_passengers'],
-            stats['avg_per_flight'],
-            f"{growth:+.1f}%" if growth is not None else "-"
-        ]
-        
+
+        if passenger_type == "all":
+            row_data = [
+                month_name,
+                stats['flights'],
+                stats['operations'],
+                stats['passengers'],
+                stats['departure_passengers'],
+                stats['arrival_passengers'],
+                stats['passengers_with_infants'],
+                stats['departure_passengers'] + stats['departure_infants'],
+                stats['arrival_passengers'] + stats['arrival_infants'],
+                stats['avg_per_flight'],
+                f"{growth:+.1f}%" if growth is not None else "-"
+            ]
+        else:
+            row_data = [
+                month_name,
+                stats['flights'],
+                stats['operations'],
+                stats['passengers'],
+                stats['departure_passengers'],
+                stats['arrival_passengers'],
+                stats['avg_per_flight'],
+                f"{growth:+.1f}%" if growth is not None else "-"
+            ]
+
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.border = thin_border
             if col_idx > 1:
                 cell.alignment = Alignment(horizontal="center")
-        
+
         # Accumulate totals
         total_row_data[0] += stats['flights']
         total_row_data[1] += stats['operations']
         total_row_data[2] += stats['passengers']
         total_row_data[3] += stats['departure_passengers']
         total_row_data[4] += stats['arrival_passengers']
-        
+        if passenger_type == "all":
+            total_row_data[5] += stats['passengers_with_infants']
+            total_row_data[6] += stats['departure_passengers'] + stats['departure_infants']
+            total_row_data[7] += stats['arrival_passengers'] + stats['arrival_infants']
+
         row_idx += 1
     
     # Total row
     total_avg = round(total_row_data[2] / total_row_data[0], 1) if total_row_data[0] > 0 else 0
-    total_row = ["UKUPNO", total_row_data[0], total_row_data[1], total_row_data[2], 
-                 total_row_data[3], total_row_data[4], total_avg, "-"]
-    
+    if passenger_type == "all":
+        total_row = ["UKUPNO", total_row_data[0], total_row_data[1], total_row_data[2],
+                     total_row_data[3], total_row_data[4], total_row_data[5],
+                     total_row_data[6], total_row_data[7], total_avg, "-"]
+    else:
+        total_row = ["UKUPNO", total_row_data[0], total_row_data[1], total_row_data[2],
+                     total_row_data[3], total_row_data[4], total_avg, "-"]
+
     for col_idx, value in enumerate(total_row, start=1):
         cell = ws.cell(row=row_idx, column=col_idx, value=value)
         cell.font = Font(bold=True)
@@ -380,8 +434,11 @@ def create_summary_sheet(wb, all_flights, monthly_data, date_from, date_to, pass
     ws.column_dimensions['D'].width = 12
     ws.column_dimensions['E'].width = 12
     ws.column_dimensions['F'].width = 12
-    ws.column_dimensions['G'].width = 12
-    ws.column_dimensions['H'].width = 12
+    ws.column_dimensions['G'].width = 14
+    ws.column_dimensions['H'].width = 14
+    ws.column_dimensions['I'].width = 14
+    ws.column_dimensions['J'].width = 12
+    ws.column_dimensions['K'].width = 12
 
 
 def create_airline_breakdown(ws, start_row, flights, passenger_type, thin_border, is_summary=False):
@@ -389,23 +446,28 @@ def create_airline_breakdown(ws, start_row, flights, passenger_type, thin_border
     row_idx = start_row
     
     # Aggregate airline data
-    airline_data = defaultdict(lambda: {'flights': 0, 'operations': 0, 'passengers': 0, 
-                                        'departure': 0, 'arrival': 0})
-    
+    airline_data = defaultdict(lambda: {'flights': 0, 'operations': 0, 'passengers': 0,
+                                        'departure': 0, 'arrival': 0,
+                                        'departure_infants': 0, 'arrival_infants': 0})
+
     for flight in flights:
         airline = flight['airline_name'] or "Nepoznato"
         airline_data[airline]['flights'] += 1
-        
+
         if flight['arrivalFlightNumber']:
             airline_data[airline]['operations'] += 1
         if flight['departureFlightNumber']:
             airline_data[airline]['operations'] += 1
-        
+
         dep_pax = flight['departurePassengers'] or 0
         arr_pax = flight['arrivalPassengers'] or 0
+        dep_inf = flight['departureInfants'] or 0
+        arr_inf = flight['arrivalInfants'] or 0
         airline_data[airline]['departure'] += dep_pax
         airline_data[airline]['arrival'] += arr_pax
-        
+        airline_data[airline]['departure_infants'] += dep_inf
+        airline_data[airline]['arrival_infants'] += arr_inf
+
         if passenger_type == "departure":
             airline_data[airline]['passengers'] += dep_pax
         elif passenger_type == "arrival":
@@ -417,8 +479,8 @@ def create_airline_breakdown(ws, start_row, flights, passenger_type, thin_border
         # Header
         breakdown_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
         header_text = "PREGLED PO AVIOKOMPANIJAMA (cijeli period)" if is_summary else "PREGLED PO AVIOKOMPANIJAMA"
-        header_end_col = 8 if is_summary else 7
-        
+        header_end_col = 12 if passenger_type == "all" else 7
+
         create_merged_cell(
             ws, row_idx, 1, header_end_col,
             header_text,
@@ -428,9 +490,14 @@ def create_airline_breakdown(ws, start_row, flights, passenger_type, thin_border
             border=thin_border
         )
         row_idx += 1
-        
+
         # Column headers
-        headers = ["Aviokompanija", "Letova", "Operacija", "Odlazeći", "Dolazeći", "Ukupno", "Prosječno"]
+        if passenger_type == "all":
+            headers = ["Aviokompanija", "Letova", "Operacija", "Odlazeći", "Bebe (odl)",
+                      "Dolazeći", "Bebe (dol)", "Ukupno", "Ukupno s bebama",
+                      "Prosječno", "Prosj. s bebama"]
+        else:
+            headers = ["Aviokompanija", "Letova", "Operacija", "Odlazeći", "Dolazeći", "Ukupno", "Prosječno"]
         for col_idx, header in enumerate(headers, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=header)
             cell.font = Font(bold=True)
@@ -443,10 +510,19 @@ def create_airline_breakdown(ws, start_row, flights, passenger_type, thin_border
         for airline in sorted_airlines:
             data = airline_data[airline]
             avg = round(data['passengers'] / data['operations'], 1) if data['operations'] > 0 else 0
-            
-            row_data = [airline, data['flights'], data['operations'], 
-                       data['departure'], data['arrival'], data['passengers'], avg]
-            
+
+            if passenger_type == "all":
+                total_with_infants = data['passengers'] + data['departure_infants'] + data['arrival_infants']
+                avg_with_infants = round(total_with_infants / data['operations'], 1) if data['operations'] > 0 else 0
+                row_data = [airline, data['flights'], data['operations'],
+                           data['departure'], data['departure_infants'],
+                           data['arrival'], data['arrival_infants'],
+                           data['passengers'], total_with_infants,
+                           avg, avg_with_infants]
+            else:
+                row_data = [airline, data['flights'], data['operations'],
+                           data['departure'], data['arrival'], data['passengers'], avg]
+
             for col_idx, value in enumerate(row_data, start=1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
                 cell.border = thin_border
@@ -462,23 +538,28 @@ def create_route_breakdown(ws, start_row, flights, passenger_type, thin_border, 
     row_idx = start_row
     
     # Aggregate route data
-    route_data = defaultdict(lambda: {'flights': 0, 'operations': 0, 'passengers': 0, 
-                                      'departure': 0, 'arrival': 0})
-    
+    route_data = defaultdict(lambda: {'flights': 0, 'operations': 0, 'passengers': 0,
+                                      'departure': 0, 'arrival': 0,
+                                      'departure_infants': 0, 'arrival_infants': 0})
+
     for flight in flights:
         route = flight['route'] or "Nepoznato"
         route_data[route]['flights'] += 1
-        
+
         if flight['arrivalFlightNumber']:
             route_data[route]['operations'] += 1
         if flight['departureFlightNumber']:
             route_data[route]['operations'] += 1
-        
+
         dep_pax = flight['departurePassengers'] or 0
         arr_pax = flight['arrivalPassengers'] or 0
+        dep_inf = flight['departureInfants'] or 0
+        arr_inf = flight['arrivalInfants'] or 0
         route_data[route]['departure'] += dep_pax
         route_data[route]['arrival'] += arr_pax
-        
+        route_data[route]['departure_infants'] += dep_inf
+        route_data[route]['arrival_infants'] += arr_inf
+
         if passenger_type == "departure":
             route_data[route]['passengers'] += dep_pax
         elif passenger_type == "arrival":
@@ -490,8 +571,8 @@ def create_route_breakdown(ws, start_row, flights, passenger_type, thin_border, 
         # Header
         breakdown_fill = PatternFill(start_color="64748B", end_color="64748B", fill_type="solid")
         header_text = "PREGLED PO RUTAMA (cijeli period)" if is_summary else "PREGLED PO RUTAMA"
-        header_end_col = 8 if is_summary else 7
-        
+        header_end_col = 12 if passenger_type == "all" else 7
+
         create_merged_cell(
             ws, row_idx, 1, header_end_col,
             header_text,
@@ -501,24 +582,38 @@ def create_route_breakdown(ws, start_row, flights, passenger_type, thin_border, 
             border=thin_border
         )
         row_idx += 1
-        
+
         # Column headers
-        headers = ["Ruta", "Letova", "Operacija", "Odlazeći", "Dolazeći", "Ukupno", "Prosječno"]
+        if passenger_type == "all":
+            headers = ["Ruta", "Letova", "Operacija", "Odlazeći", "Bebe (odl)",
+                      "Dolazeći", "Bebe (dol)", "Ukupno", "Ukupno s bebama",
+                      "Prosječno", "Prosj. s bebama"]
+        else:
+            headers = ["Ruta", "Letova", "Operacija", "Odlazeći", "Dolazeći", "Ukupno", "Prosječno"]
         for col_idx, header in enumerate(headers, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=header)
             cell.font = Font(bold=True)
             cell.border = thin_border
             cell.alignment = Alignment(horizontal="center")
         row_idx += 1
-        
+
         # Data rows - sorted by flight count
         for route in sorted(route_data.keys(), key=lambda x: route_data[x]['flights'], reverse=True):
             data = route_data[route]
             avg = round(data['passengers'] / data['operations'], 1) if data['operations'] > 0 else 0
-            
-            row_data = [route, data['flights'], data['operations'], 
-                       data['departure'], data['arrival'], data['passengers'], avg]
-            
+
+            if passenger_type == "all":
+                total_with_infants = data['passengers'] + data['departure_infants'] + data['arrival_infants']
+                avg_with_infants = round(total_with_infants / data['operations'], 1) if data['operations'] > 0 else 0
+                row_data = [route, data['flights'], data['operations'],
+                           data['departure'], data['departure_infants'],
+                           data['arrival'], data['arrival_infants'],
+                           data['passengers'], total_with_infants,
+                           avg, avg_with_infants]
+            else:
+                row_data = [route, data['flights'], data['operations'],
+                           data['departure'], data['arrival'], data['passengers'], avg]
+
             for col_idx, value in enumerate(row_data, start=1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
                 cell.border = thin_border
@@ -572,15 +667,19 @@ def create_monthly_sheet(wb, month_flights, year, month, passenger_type):
         ("Ukupno letova:", stats['flights']),
         ("Ukupno operacija:", stats['operations']),
         ("Ukupno putnika:", stats['passengers']),
-        ("Prosječno po letu:", stats['avg_per_flight']),
     ]
-    
+
+    if passenger_type == "all":
+        summary_data.append(("Ukupno putnika s bebama:", stats['passengers_with_infants']))
+
+    summary_data.append(("Prosječno po letu:", stats['avg_per_flight']))
+
     for label, value in summary_data:
         label_cell = ws.cell(row=row_idx, column=1, value=label)
         label_cell.font = Font(bold=True)
         label_cell.fill = stats_fill
         label_cell.border = thin_border
-        
+
         value_cell = ws.cell(row=row_idx, column=2, value=value)
         value_cell.font = Font(bold=True)
         value_cell.fill = stats_fill
@@ -598,9 +697,13 @@ def create_monthly_sheet(wb, month_flights, year, month, passenger_type):
     row_idx = create_route_breakdown(ws, row_idx, month_flights, passenger_type, thin_border, is_summary=False)
     row_idx += 2
     
+    # Daily data headers
+    base_headers = ["Datum", "Aviokompanija", "Tip aviona", "Registracija", "Ruta", "Tip operacije"]
+
     # Daily breakdown header
+    header_col_span = len(base_headers) + (8 if passenger_type == "all" else 5)
     create_merged_cell(
-        ws, row_idx, 1, 11,
+        ws, row_idx, 1, header_col_span,
         "DNEVNI PREGLED",
         font=Font(bold=True, size=11, color="FFFFFF"),
         fill=PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid"),
@@ -609,14 +712,11 @@ def create_monthly_sheet(wb, month_flights, year, month, passenger_type):
     )
     row_idx += 1
     
-    # Daily data headers
-    base_headers = ["Datum", "Aviokompanija", "Tip aviona", "Registracija", "Ruta", "Tip operacije"]
-    
     if passenger_type == "all":
         headers = base_headers + [
-            "Broj leta (dolazak)", "Putnici (dolazak)",
-            "Broj leta (odlazak)", "Putnici (odlazak)",
-            "Ukupno putnika"
+            "Broj leta (dolazak)", "Putnici (dolazak)", "Bebe (dolazak)",
+            "Broj leta (odlazak)", "Putnici (odlazak)", "Bebe (odlazak)",
+            "Ukupno putnika", "Ukupno putnika s bebama"
         ]
     elif passenger_type == "departure":
         headers = base_headers + [
@@ -688,12 +788,17 @@ def create_monthly_sheet(wb, month_flights, year, month, passenger_type):
         else:  # all
             arr_pax = flight['arrivalPassengers'] or 0
             dep_pax = flight['departurePassengers'] or 0
+            arr_inf = flight['arrivalInfants'] or 0
+            dep_inf = flight['departureInfants'] or 0
             passenger_data = [
                 flight['arrivalFlightNumber'] or "-",
                 arr_pax,
+                arr_inf,
                 flight['departureFlightNumber'] or "-",
                 dep_pax,
-                arr_pax + dep_pax
+                dep_inf,
+                arr_pax + dep_pax,
+                arr_pax + dep_pax + arr_inf + dep_inf
             ]
         
         row_data = base_data + passenger_data

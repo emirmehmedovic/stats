@@ -120,9 +120,9 @@ function calculateStats(flights: any[]) {
   }>();
 
   flights.forEach((flight) => {
-    // Sum passengers (exclude ferry legs)
-    const arrivalPax = flight.arrivalFerryIn ? 0 : (flight.arrivalPassengers || 0);
-    const departurePax = flight.departureFerryOut ? 0 : (flight.departurePassengers || 0);
+    // Sum passengers including infants (exclude ferry legs)
+    const arrivalPax = flight.arrivalFerryIn ? 0 : ((flight.arrivalPassengers || 0) + (flight.arrivalInfants || 0));
+    const departurePax = flight.departureFerryOut ? 0 : ((flight.departurePassengers || 0) + (flight.departureInfants || 0));
     const flightPassengers = arrivalPax + departurePax;
 
     totalArrivalPassengers += arrivalPax;

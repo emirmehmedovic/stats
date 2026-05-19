@@ -247,7 +247,8 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
   };
 
   useEffect(() => {
-    if (userRole === 'NAPLATE') {
+    // Don't fetch if role is not loaded yet or if user is NAPLATE
+    if (!userRole || userRole === 'NAPLATE') {
       setLoadingPassengers(false);
       return;
     }
@@ -256,6 +257,8 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
       try {
         const response = await fetch('/api/dashboard/stats');
         if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Dashboard stats API error:', response.status, errorData);
           throw new Error('Greška pri učitavanju');
         }
         const result = await response.json();

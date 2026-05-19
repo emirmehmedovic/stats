@@ -121,6 +121,7 @@ def get_flight_data(year: int, month: int):
 
             -- Departure info
             f."departurePassengers",
+            f."departureInfants",
             f."departureCargo",
             f."departureMail",
             f."departureStatus",
@@ -128,6 +129,7 @@ def get_flight_data(year: int, month: int):
 
             -- Arrival info
             f."arrivalPassengers",
+            f."arrivalInfants",
             f."arrivalCargo",
             f."arrivalMail",
             f."arrivalStatus",
@@ -165,8 +167,8 @@ def aggregate_customs_data(flights):
     """Agregira podatke za statistiku carinskog izvještaja"""
     data = {
         'scheduled': {},
-        'non_scheduled': {'flights': 0, 'embarked': 0, 'disembarked': 0},
-        'other_landings': {'flights': 0, 'embarked': 0, 'disembarked': 0},
+        'non_scheduled': {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0},
+        'other_landings': {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0},
         'freight': {'loaded': 0.0, 'unloaded': 0.0}
     }
 
@@ -189,7 +191,7 @@ def aggregate_customs_data(flights):
 
         if category == 'scheduled':
             if airline_name not in data['scheduled']:
-                data['scheduled'][airline_name] = {'flights': 0, 'embarked': 0, 'disembarked': 0}
+                data['scheduled'][airline_name] = {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0}
 
             if has_arrival:
                 data['scheduled'][airline_name]['flights'] += 1
@@ -198,8 +200,12 @@ def aggregate_customs_data(flights):
 
             if flight.get('departurePassengers'):
                 data['scheduled'][airline_name]['embarked'] += flight['departurePassengers']
+            if flight.get('departureInfants'):
+                data['scheduled'][airline_name]['embarked_infants'] += flight['departureInfants']
             if flight.get('arrivalPassengers'):
                 data['scheduled'][airline_name]['disembarked'] += flight['arrivalPassengers']
+            if flight.get('arrivalInfants'):
+                data['scheduled'][airline_name]['disembarked_infants'] += flight['arrivalInfants']
         else:
             target = data[category]
             if has_arrival:
@@ -209,8 +215,12 @@ def aggregate_customs_data(flights):
 
             if flight.get('departurePassengers'):
                 target['embarked'] += flight['departurePassengers']
+            if flight.get('departureInfants'):
+                target['embarked_infants'] += flight['departureInfants']
             if flight.get('arrivalPassengers'):
                 target['disembarked'] += flight['arrivalPassengers']
+            if flight.get('arrivalInfants'):
+                target['disembarked_infants'] += flight['arrivalInfants']
 
         if flight.get('departureCargo'):
             data['freight']['loaded'] += flight['departureCargo'] / 1000.0
@@ -232,15 +242,19 @@ def combine_customs_data(total, current):
     """Saberi mjesečne podatke u ukupne podatke"""
     for airline_name, values in current['scheduled'].items():
         if airline_name not in total['scheduled']:
-            total['scheduled'][airline_name] = {'flights': 0, 'embarked': 0, 'disembarked': 0}
+            total['scheduled'][airline_name] = {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0}
         total['scheduled'][airline_name]['flights'] += values['flights']
         total['scheduled'][airline_name]['embarked'] += values['embarked']
         total['scheduled'][airline_name]['disembarked'] += values['disembarked']
+        total['scheduled'][airline_name]['embarked_infants'] += values['embarked_infants']
+        total['scheduled'][airline_name]['disembarked_infants'] += values['disembarked_infants']
 
     for key in ['non_scheduled', 'other_landings']:
         total[key]['flights'] += current[key]['flights']
         total[key]['embarked'] += current[key]['embarked']
         total[key]['disembarked'] += current[key]['disembarked']
+        total[key]['embarked_infants'] += current[key]['embarked_infants']
+        total[key]['disembarked_infants'] += current[key]['disembarked_infants']
 
     total['freight']['loaded'] += current['freight']['loaded']
     total['freight']['unloaded'] += current['freight']['unloaded']
@@ -368,12 +382,37 @@ def add_customs_block(ws, row, title, data, styles):
     total_disembarked = scheduled_total_disembarked + data['non_scheduled']['disembarked'] + data['other_landings']['disembarked']
     total_passengers = total_embarked + total_disembarked
 
+    # Calculate infant totals
+    scheduled_total_embarked_infants = sum(airline['embarked_infants'] for airline in data['scheduled'].values())
+    scheduled_total_disembarked_infants = sum(airline['disembarked_infants'] for airline in data['scheduled'].values())
+    total_embarked_infants = scheduled_total_embarked_infants + data['non_scheduled']['embarked_infants'] + data['other_landings']['embarked_infants']
+    total_disembarked_infants = scheduled_total_disembarked_infants + data['non_scheduled']['disembarked_infants'] + data['other_landings']['disembarked_infants']
+
     ws[f'A{row}'] = "UKUPNO"
     ws[f'A{row}'].font = bold_font
     ws[f'B{row}'] = total_flights
     ws[f'C{row}'] = total_embarked
     ws[f'D{row}'] = total_disembarked
     ws[f'E{row}'] = total_passengers
+    for col in ['B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].font = bold_font
+        ws[f'{col}{row}'].alignment = right_align
+        ws[f'{col}{row}'].number_format = '#,##0'
+    for col in ['A', 'B', 'C', 'D', 'E']:
+        ws[f'{col}{row}'].fill = total_fill
+    row += 1
+
+    # Add new row: "Ukupan broj s bebama"
+    total_embarked_with_infants = total_embarked + total_embarked_infants
+    total_disembarked_with_infants = total_disembarked + total_disembarked_infants
+    total_passengers_with_infants = total_embarked_with_infants + total_disembarked_with_infants
+
+    ws[f'A{row}'] = "Ukupan broj s bebama"
+    ws[f'A{row}'].font = bold_font
+    ws[f'B{row}'] = total_flights  # Same number of flights
+    ws[f'C{row}'] = total_embarked_with_infants
+    ws[f'D{row}'] = total_disembarked_with_infants
+    ws[f'E{row}'] = total_passengers_with_infants
     for col in ['B', 'C', 'D', 'E']:
         ws[f'{col}{row}'].font = bold_font
         ws[f'{col}{row}'].alignment = right_align
@@ -436,8 +475,8 @@ def generate_director_stats(year: int, month_to: int, output_path: Path = None):
 
     total_data = {
         'scheduled': {},
-        'non_scheduled': {'flights': 0, 'embarked': 0, 'disembarked': 0},
-        'other_landings': {'flights': 0, 'embarked': 0, 'disembarked': 0},
+        'non_scheduled': {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0},
+        'other_landings': {'flights': 0, 'embarked': 0, 'disembarked': 0, 'embarked_infants': 0, 'disembarked_infants': 0},
         'freight': {'loaded': 0.0, 'unloaded': 0.0}
     }
 
