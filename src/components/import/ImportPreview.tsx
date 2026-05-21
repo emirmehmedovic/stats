@@ -152,26 +152,57 @@ export function ImportPreview({
       </div>
 
       {/* Actions */}
-      <div className="px-5 py-4 border-t border-borderSoft flex items-center justify-between">
-        <div className="text-sm text-textMuted">
-          {stats.invalidRows > 0 && (
-            <span className="text-danger">
-              Upozorenje: {stats.invalidRows} red(ova) će biti preskočeno zbog grešaka
-            </span>
-          )}
+      <div className="px-5 py-4 border-t border-borderSoft">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm text-textMuted">
+            {stats.invalidRows > 0 && (
+              <span className="text-danger">
+                Upozorenje: {stats.invalidRows} red(ova) će biti preskočeno zbog grešaka
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onCancel} disabled={isProcessing}>
+              Otkaži
+            </Button>
+            <Button
+              className="bg-primary-600 hover:bg-primary-700 text-white font-semibold shadow-lg disabled:opacity-50"
+              onClick={onConfirm}
+              disabled={isProcessing || stats.validRows === 0}
+            >
+              {isProcessing ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Importujem...
+                </span>
+              ) : (
+                `Importuj ${stats.validRows} redova`
+              )}
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onCancel} disabled={isProcessing}>
-            Otkaži
-          </Button>
-          <Button
-            className="bg-brand-primary hover:bg-brand-primary/90 text-white"
-            onClick={onConfirm}
-            disabled={isProcessing || stats.validRows === 0}
-          >
-            {isProcessing ? 'Importujem...' : `Importuj ${stats.validRows} redova`}
-          </Button>
-        </div>
+
+        {/* Warning message during import */}
+        {isProcessing && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800 mb-1">
+                  Import u toku
+                </p>
+                <p className="text-sm text-amber-700">
+                  Molimo ne zatvarajte ovu stranicu dok se import ne završi. Proces može potrajati nekoliko minuta zavisno od broja letova.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
-import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2 } from 'lucide-react';
+import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDown } from 'lucide-react';
 import { showToast } from '@/components/ui/toast';
+import { MonthlyScheduleExport } from '@/components/reports/MonthlyScheduleExport';
 
 export default function FlightsPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function FlightsPage() {
     dateTo: monthEnd,
   });
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isMonthlyExportOpen, setIsMonthlyExportOpen] = useState(false);
 
   const handleBulkDelete = async (dateFrom: string, dateTo: string) => {
     try {
@@ -120,6 +122,16 @@ export default function FlightsPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setIsMonthlyExportOpen(true)}
+                className="flex items-center gap-1.5 lg:gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-200 border-green-400/30 text-xs lg:text-sm"
+              >
+                <FileDown className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Mjesečni PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsBulkDeleteModalOpen(true)}
                 className="flex items-center gap-1.5 lg:gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-200 border-red-400/30 text-xs lg:text-sm"
               >
@@ -135,6 +147,15 @@ export default function FlightsPage() {
               >
                 <Calendar className="w-4 h-4" />
                 Import rasporeda
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/flights/import-schedule-changes')}
+                className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                <Calendar className="w-4 h-4" />
+                Schedule Changes
               </Button>
               <Button
                 variant="outline"
@@ -260,6 +281,12 @@ export default function FlightsPage() {
           isOpen={isBulkDeleteModalOpen}
           onClose={() => setIsBulkDeleteModalOpen(false)}
           onConfirm={handleBulkDelete}
+        />
+
+        {/* Monthly Schedule Export Modal */}
+        <MonthlyScheduleExport
+          isOpen={isMonthlyExportOpen}
+          onClose={() => setIsMonthlyExportOpen(false)}
         />
       </div>
     </MainLayout>
