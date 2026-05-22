@@ -259,15 +259,32 @@ const buildDailyReport = async (
     airlineCurrent.flights += 1;
     airlineCurrent.passengers += passengers;
 
-    const legCount = getLegCount(flight);
-    if (flight.availableSeats && legCount > 0 && isScheduledFlight(flight)) {
-      const seats = flight.availableSeats * legCount;
-      routeCurrent.seats += seats;
-      routeCurrent.passengersForLoad += passengers;
-      airlineCurrent.seats += seats;
-      airlineCurrent.passengersForLoad += passengers;
-      totalSeats += seats;
-      totalPassengersForLoad += passengers;
+    // Load faktor računamo samo za realizovane noge leta (koje imaju actual time)
+    if (flight.availableSeats && isScheduledFlight(flight)) {
+      let operatedLegs = 0;
+      let operatedPassengers = 0;
+
+      // Ako je dolazak realizovan (ima actual time), uračunaj ga
+      if (flight.arrivalFlightNumber && flight.arrivalActualTime) {
+        operatedLegs += 1;
+        operatedPassengers += getArrivalPassengers(flight);
+      }
+
+      // Ako je odlazak realizovan (ima actual time), uračunaj ga
+      if (flight.departureFlightNumber && flight.departureActualTime) {
+        operatedLegs += 1;
+        operatedPassengers += getDeparturePassengers(flight);
+      }
+
+      if (operatedLegs > 0) {
+        const seats = flight.availableSeats * operatedLegs;
+        routeCurrent.seats += seats;
+        routeCurrent.passengersForLoad += operatedPassengers;
+        airlineCurrent.seats += seats;
+        airlineCurrent.passengersForLoad += operatedPassengers;
+        totalSeats += seats;
+        totalPassengersForLoad += operatedPassengers;
+      }
     }
 
     const arrivalDelay = getDelayMinutes(
