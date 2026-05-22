@@ -952,6 +952,7 @@ export default function DailyReportPage() {
               {[
                 {
                   title: 'Load faktor',
+                  subtitle: 'Redovni saobraćaj',
                   value: reportData.loadFactor.overall !== null ? `${reportData.loadFactor.overall}%` : '-',
                   icon: TrendingUp,
                   color: 'text-sky-600',
@@ -982,6 +983,9 @@ export default function DailyReportPage() {
                     </div>
                     <div>
                       <p className="text-sm text-dark-500">{item.title}</p>
+                      {item.subtitle && (
+                        <p className="text-xs text-dark-400 italic">{item.subtitle}</p>
+                      )}
                       <p className="text-2xl font-bold text-dark-900">{item.value}</p>
                     </div>
                   </div>
