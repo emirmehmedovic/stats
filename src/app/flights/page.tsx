@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
-import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDown } from 'lucide-react';
+import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDown, Download } from 'lucide-react';
 import { showToast } from '@/components/ui/toast';
 import { MonthlyScheduleExport } from '@/components/reports/MonthlyScheduleExport';
+import { ScheduleCSVExport } from '@/components/reports/ScheduleCSVExport';
 
 export default function FlightsPage() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function FlightsPage() {
   });
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isMonthlyExportOpen, setIsMonthlyExportOpen] = useState(false);
+  const [isCSVExportOpen, setIsCSVExportOpen] = useState(false);
 
   const handleBulkDelete = async (dateFrom: string, dateTo: string) => {
     try {
@@ -128,6 +130,16 @@ export default function FlightsPage() {
                 <FileDown className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                 <span className="hidden sm:inline">Mjesečni PDF</span>
                 <span className="sm:hidden">PDF</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCSVExportOpen(true)}
+                className="flex items-center gap-1.5 lg:gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border-blue-400/30 text-xs lg:text-sm"
+              >
+                <Download className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">CSV</span>
               </Button>
               <Button
                 variant="outline"
@@ -287,6 +299,12 @@ export default function FlightsPage() {
         <MonthlyScheduleExport
           isOpen={isMonthlyExportOpen}
           onClose={() => setIsMonthlyExportOpen(false)}
+        />
+
+        {/* CSV Export Modal for Flight Management */}
+        <ScheduleCSVExport
+          isOpen={isCSVExportOpen}
+          onClose={() => setIsCSVExportOpen(false)}
         />
       </div>
     </MainLayout>
