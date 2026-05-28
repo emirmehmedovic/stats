@@ -34,18 +34,16 @@ function parseRouteForDestination(route: string, isArrival: boolean): string | n
 
 // Helper funkcija za formatiranje datuma i vremena u lokalnoj zoni
 function formatDateTimeLocal(date: Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TIME_ZONE_SARAJEVO,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date);
+  // Konvertuj UTC datum u lokalno vrijeme koristeći timezone offset
+  const localDate = new Date(date.toLocaleString('en-US', { timeZone: TIME_ZONE_SARAJEVO }));
 
-  const part = (type: string) => parts.find((p) => p.type === type)?.value || '';
-  return `${part('year')}-${part('month')}-${part('day')} ${part('hour')}:${part('minute')}`;
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, '0');
+  const day = String(localDate.getDate()).padStart(2, '0');
+  const hours = String(localDate.getHours()).padStart(2, '0');
+  const minutes = String(localDate.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 // GET /api/flights/export-schedule?year=2026&month=6&format=csv
