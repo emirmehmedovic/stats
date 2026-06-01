@@ -14,6 +14,7 @@ import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDow
 import { showToast } from '@/components/ui/toast';
 import { MonthlyScheduleExport } from '@/components/reports/MonthlyScheduleExport';
 import { ScheduleCSVExport } from '@/components/reports/ScheduleCSVExport';
+import { ScheduleCSVWebExport } from '@/components/reports/ScheduleCSVWebExport';
 
 export default function FlightsPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function FlightsPage() {
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isMonthlyExportOpen, setIsMonthlyExportOpen] = useState(false);
   const [isCSVExportOpen, setIsCSVExportOpen] = useState(false);
+  const [isCSVWebExportOpen, setIsCSVWebExportOpen] = useState(false);
 
   const handleBulkDelete = async (dateFrom: string, dateTo: string) => {
     try {
@@ -138,8 +140,18 @@ export default function FlightsPage() {
                 className="flex items-center gap-1.5 lg:gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-200 border-blue-400/30 text-xs lg:text-sm"
               >
                 <Download className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-                <span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">CSV FIDS</span>
+                <span className="sm:hidden">FIDS</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCSVWebExportOpen(true)}
+                className="flex items-center gap-1.5 lg:gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200 border-emerald-400/30 text-xs lg:text-sm"
+              >
+                <Download className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">CSV Web</span>
+                <span className="sm:hidden">Web</span>
               </Button>
               <Button
                 variant="outline"
@@ -305,6 +317,12 @@ export default function FlightsPage() {
         <ScheduleCSVExport
           isOpen={isCSVExportOpen}
           onClose={() => setIsCSVExportOpen(false)}
+        />
+
+        {/* CSV Web Export Modal */}
+        <ScheduleCSVWebExport
+          isOpen={isCSVWebExportOpen}
+          onClose={() => setIsCSVWebExportOpen(false)}
         />
       </div>
     </MainLayout>
