@@ -410,6 +410,7 @@ function getDestinationsFromSchedule(schedule: DaySchedule[]): DestinationInfo[]
 // Map IATA codes to full destination names
 function getDestinationName(iata: string): string {
   const destinations: Record<string, string> = {
+    AYT: 'Antalya, Turska',
     BER: 'Berlin, Njemačka',
     BTS: 'Bratislava, Slovačka',
     BVA: 'Paris Beauvais, Francuska',
@@ -419,6 +420,7 @@ function getDestinationName(iata: string): string {
     GOT: 'Gotheborg, Švedska',
     HAM: 'Hamburg, Njemačka',
     HHN: 'Frankfurt Hahn, Njemačka',
+    HRG: 'Hurghada, Egipat',
     LCA: 'Larnaca, Kipar',
     MLH: 'Basel Mulhouse, Francuska',
     MMX: 'Malmö, Švedska',

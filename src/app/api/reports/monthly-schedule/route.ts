@@ -116,8 +116,8 @@ export async function GET(request: NextRequest) {
           gte: startDate,
           lte: endDate,
         },
-        // Only include SCHEDULED (International Scheduled) flights
-        flightType: {
+        // Only include SCHEDULED operation type flights (redovni komercijalni letovi)
+        operationType: {
           code: 'SCHEDULED',
         },
       },
@@ -129,12 +129,6 @@ export async function GET(request: NextRequest) {
             icaoCode: true,
             iataCode: true,
             logoUrl: true,
-          },
-        },
-        flightType: {
-          select: {
-            code: true,
-            name: true,
           },
         },
       },
