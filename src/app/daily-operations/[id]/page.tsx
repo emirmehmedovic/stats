@@ -149,7 +149,7 @@ export default function FlightDataEntryPage() {
     arrivalScheduledTime: '',
     arrivalActualTime: '',
     arrivalEnginesOffTime: '',
-    arrivalStatus: 'OPERATED',
+    arrivalStatus: '',
     arrivalCancelReason: '',
     arrivalPassengers: '',
     arrivalMalePassengers: '',
@@ -166,7 +166,7 @@ export default function FlightDataEntryPage() {
     departureScheduledTime: '',
     departureActualTime: '',
     departureDoorClosingTime: '',
-    departureStatus: 'OPERATED',
+    departureStatus: '',
     departureCancelReason: '',
     departurePassengers: '',
     departureMalePassengers: '',
@@ -456,19 +456,9 @@ export default function FlightDataEntryPage() {
       if (result.success) {
         const flightData = result.data;
 
-        // Default status to SCHEDULED unless explicitly set or actual time exists
-        const resolvedArrivalStatus =
-          flightData.arrivalStatus
-            ? flightData.arrivalStatus
-            : flightData.arrivalActualTime
-              ? 'OPERATED'
-              : 'OPERATED';
-        const resolvedDepartureStatus =
-          flightData.departureStatus
-            ? flightData.departureStatus
-            : flightData.departureActualTime
-              ? 'OPERATED'
-              : 'OPERATED';
+        // Keep status empty unless explicitly set in database
+        const resolvedArrivalStatus = flightData.arrivalStatus || '';
+        const resolvedDepartureStatus = flightData.departureStatus || '';
         const resolvedRoute =
           typeof flightData.route === 'string'
             ? flightData.route
@@ -616,6 +606,10 @@ export default function FlightDataEntryPage() {
     if (!formData.operationTypeId) missing.push('Tip operacije');
     if (!formData.flightTypeId) missing.push('Tip leta');
 
+    // Check if status is selected for arrival/departure when there's data
+    if (hasArrivalData && !formData.arrivalStatus) missing.push('Status dolaska');
+    if (hasDepartureData && !formData.departureStatus) missing.push('Status odlaska');
+
     return missing;
   }, [
     formData.airlineId,
@@ -625,6 +619,10 @@ export default function FlightDataEntryPage() {
     formData.availableSeats,
     formData.operationTypeId,
     formData.flightTypeId,
+    hasArrivalData,
+    hasDepartureData,
+    formData.arrivalStatus,
+    formData.departureStatus,
   ]);
   const canEnableVerification = verificationMissingFields.length === 0;
   const verificationWarningText =
@@ -635,6 +633,24 @@ export default function FlightDataEntryPage() {
   const handleSubmit = async (e: FormEvent, bypassWarnings = false) => {
     e.preventDefault();
     setError('');
+
+    // Check if status is still SCHEDULED when trying to verify
+    if (formData.isVerified) {
+      const scheduledStatusErrors: string[] = [];
+
+      if (hasArrivalData && formData.arrivalStatus === 'SCHEDULED') {
+        scheduledStatusErrors.push('Status dolaska ne može ostati "Zakazan" - odaberite Realizovan, Otkazan, Divertovan ili Nije realizovan');
+      }
+
+      if (hasDepartureData && formData.departureStatus === 'SCHEDULED') {
+        scheduledStatusErrors.push('Status odlaska ne može ostati "Zakazan" - odaberite Realizovan, Otkazan, Divertovan ili Nije realizovan');
+      }
+
+      if (scheduledStatusErrors.length > 0) {
+        setError(scheduledStatusErrors.join(' | '));
+        return;
+      }
+    }
 
     if (formData.isVerified && !canEnableVerification) {
       setError(`Za verifikaciju popunite: ${verificationMissingFields.join(', ')}`);
@@ -1501,17 +1517,34 @@ export default function FlightDataEntryPage() {
                             id="departureStatus"
                             value={formData.departureStatus}
                             onChange={(e) => handleChange('departureStatus', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                            className={`w-full px-3 py-2 border rounded-xl ${
+                              !formData.departureStatus
+                                ? 'border-red-500 bg-red-50'
+                                : formData.departureStatus === 'SCHEDULED'
+                                ? 'border-amber-500 bg-amber-50'
+                                : 'border-slate-300'
+                            }`}
                           >
+                            <option value="">-- Odaberite status --</option>
                             <option value="OPERATED">Realizovan</option>
                             <option value="CANCELLED">Otkazan</option>
                             <option value="DIVERTED">Divertovan</option>
-                            <option value="SCHEDULED">Zakazan</option>
+                            <option value="SCHEDULED">Zakazan (privremeno)</option>
                             <option value="NOT_OPERATED">Nije realizovan</option>
                           </select>
-                          <p className="mt-1 text-xs text-orange-700">
-                            Odaberite status odlaska prije čuvanja.
-                          </p>
+                          {!formData.departureStatus ? (
+                            <p className="mt-1 text-xs text-red-600 font-semibold">
+                              ⚠️ Status odlaska nije odabran - obavezno za verifikaciju
+                            </p>
+                          ) : formData.departureStatus === 'SCHEDULED' ? (
+                            <p className="mt-1 text-xs text-amber-600 font-semibold">
+                              ⚠️ Status "Zakazan" nije dozvoljen za verifikaciju - odaberite finalni status
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-green-600 font-semibold">
+                              ✓ Status odlaska odabran
+                            </p>
+                          )}
                         </div>
 
                         {formData.departureStatus === 'CANCELLED' && (
@@ -1852,17 +1885,34 @@ export default function FlightDataEntryPage() {
                             id="arrivalStatus"
                             value={formData.arrivalStatus}
                             onChange={(e) => handleChange('arrivalStatus', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                            className={`w-full px-3 py-2 border rounded-xl ${
+                              !formData.arrivalStatus
+                                ? 'border-red-500 bg-red-50'
+                                : formData.arrivalStatus === 'SCHEDULED'
+                                ? 'border-amber-500 bg-amber-50'
+                                : 'border-slate-300'
+                            }`}
                           >
+                            <option value="">-- Odaberite status --</option>
                             <option value="OPERATED">Realizovan</option>
                             <option value="CANCELLED">Otkazan</option>
                             <option value="DIVERTED">Divertovan</option>
-                            <option value="SCHEDULED">Zakazan</option>
+                            <option value="SCHEDULED">Zakazan (privremeno)</option>
                             <option value="NOT_OPERATED">Nije realizovan</option>
                           </select>
-                          <p className="mt-1 text-xs text-blue-700">
-                            Odaberite status dolaska prije čuvanja.
-                          </p>
+                          {!formData.arrivalStatus ? (
+                            <p className="mt-1 text-xs text-red-600 font-semibold">
+                              ⚠️ Status dolaska nije odabran - obavezno za verifikaciju
+                            </p>
+                          ) : formData.arrivalStatus === 'SCHEDULED' ? (
+                            <p className="mt-1 text-xs text-amber-600 font-semibold">
+                              ⚠️ Status "Zakazan" nije dozvoljen za verifikaciju - odaberite finalni status
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-green-600 font-semibold">
+                              ✓ Status dolaska odabran
+                            </p>
+                          )}
                         </div>
 
                         {formData.arrivalStatus === 'CANCELLED' && (
@@ -2040,14 +2090,6 @@ export default function FlightDataEntryPage() {
             </div>
             )}
         </fieldset>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
 
         {/* Summary */}
         <div className="bg-gradient-to-br from-white to-slate-50 rounded-3xl shadow-soft border border-slate-200 p-6">
@@ -2262,6 +2304,14 @@ export default function FlightDataEntryPage() {
 
         {/* Actions */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-red-700">{error}</p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-slate-600">

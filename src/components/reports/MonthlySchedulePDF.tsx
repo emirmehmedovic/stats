@@ -305,15 +305,27 @@ function getDayName(date: Date): string {
   return days[date.getDay()];
 }
 
-// Get destination from route (TZL-BER-TZL -> BER)
+// Get destination from route (TZL-BER-TZL -> BER, AYT-TZL-AYT -> AYT)
 function getDestination(route: string): string {
   const parts = route.split('-');
-  if (parts.length === 3 && parts[0] === 'TZL' && parts[2] === 'TZL') {
-    return parts[1]; // Round trip: TZL-BER-TZL -> BER
+
+  // Handle 3-part routes (round trips)
+  if (parts.length === 3) {
+    // If TZL is in the middle (AYT-TZL-AYT -> AYT)
+    if (parts[1] === 'TZL') {
+      return parts[0]; // or parts[2], they should be the same
+    }
+    // If TZL is at start and end (TZL-BER-TZL -> BER)
+    if (parts[0] === 'TZL' && parts[2] === 'TZL') {
+      return parts[1];
+    }
   }
+
+  // Handle 2-part routes
   if (parts.length === 2) {
     return parts[0] === 'TZL' ? parts[1] : parts[0]; // TZL-BER or BER-TZL
   }
+
   return route;
 }
 

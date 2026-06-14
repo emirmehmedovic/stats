@@ -450,6 +450,40 @@ function DailyOperationsContent() {
     });
   };
 
+  const getStatusDisplay = (status: string | undefined) => {
+    if (!status) return null;
+
+    const statusMap = {
+      OPERATED: {
+        label: 'realizovan',
+        textColor: 'text-green-700',
+        bgColor: 'bg-green-100',
+      },
+      CANCELLED: {
+        label: 'otkazan',
+        textColor: 'text-red-700',
+        bgColor: 'bg-red-100',
+      },
+      DIVERTED: {
+        label: 'divertovan',
+        textColor: 'text-orange-700',
+        bgColor: 'bg-orange-100',
+      },
+      SCHEDULED: {
+        label: 'zakazan',
+        textColor: 'text-yellow-700',
+        bgColor: 'bg-yellow-100',
+      },
+      NOT_OPERATED: {
+        label: 'nije realizovan',
+        textColor: 'text-gray-700',
+        bgColor: 'bg-gray-100',
+      },
+    };
+
+    return statusMap[status as keyof typeof statusMap] || null;
+  };
+
   const applyDateFilter = () => {
     if (pendingDate && pendingDate !== selectedDate) {
       setSelectedDate(pendingDate);
@@ -798,7 +832,11 @@ function DailyOperationsContent() {
                                 </span>
                                 <span>Dolazak</span>
                               </div>
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">ARR</span>
+                              {getStatusDisplay(flight.arrivalStatus) && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusDisplay(flight.arrivalStatus)?.bgColor} ${getStatusDisplay(flight.arrivalStatus)?.textColor}`}>
+                                  {getStatusDisplay(flight.arrivalStatus)?.label}
+                                </span>
+                              )}
                             </div>
                             <p className="relative z-10 font-semibold text-dark-900">
                               {formatTime(flight.arrivalActualTime || flight.arrivalScheduledTime)}
@@ -819,7 +857,11 @@ function DailyOperationsContent() {
                                 </span>
                                 <span>Odlazak</span>
                               </div>
-                              <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[10px] font-semibold">DEP</span>
+                              {getStatusDisplay(flight.departureStatus) && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusDisplay(flight.departureStatus)?.bgColor} ${getStatusDisplay(flight.departureStatus)?.textColor}`}>
+                                  {getStatusDisplay(flight.departureStatus)?.label}
+                                </span>
+                              )}
                             </div>
                             <p className="relative z-10 font-semibold text-dark-900">
                               {formatTime(flight.departureActualTime || flight.departureScheduledTime)}

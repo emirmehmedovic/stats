@@ -109,15 +109,17 @@ export async function GET(request: NextRequest) {
 
     console.log(`Date range: ${startDate.toISOString()} - ${endDate.toISOString()}`);
 
-    // Fetch all flights for the month
+    // Fetch all flights for the month - only SCHEDULED (International Scheduled) flights
     const flights = await prisma.flight.findMany({
       where: {
         date: {
           gte: startDate,
           lte: endDate,
         },
-        // Only include non-cancelled flights or show all?
-        // For now, include all flights but they'll be marked as cancelled in PDF
+        // Only include SCHEDULED (International Scheduled) flights
+        flightType: {
+          code: 'SCHEDULED',
+        },
       },
       include: {
         airline: {
@@ -127,6 +129,12 @@ export async function GET(request: NextRequest) {
             icaoCode: true,
             iataCode: true,
             logoUrl: true,
+          },
+        },
+        flightType: {
+          select: {
+            code: true,
+            name: true,
           },
         },
       },
