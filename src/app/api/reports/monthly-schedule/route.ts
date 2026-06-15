@@ -109,17 +109,30 @@ export async function GET(request: NextRequest) {
 
     console.log(`Date range: ${startDate.toISOString()} - ${endDate.toISOString()}`);
 
-    // Fetch all flights for the month - only SCHEDULED (International Scheduled) flights
+    // Fetch all flights for the month - SCHEDULED and CHARTER flights
     const flights = await prisma.flight.findMany({
       where: {
         date: {
           gte: startDate,
           lte: endDate,
         },
-        // Only include SCHEDULED operation type flights (redovni komercijalni letovi)
-        operationType: {
-          code: 'SCHEDULED',
-        },
+        OR: [
+          // International Scheduled - redovni komercijalni letovi
+          {
+            operationType: {
+              code: 'SCHEDULED',
+            },
+          },
+          // International Non-Scheduled Charter - charter letovi
+          {
+            operationType: {
+              code: 'INTERNATIONAL-NON-SCHEDULED',
+            },
+            flightType: {
+              code: 'CHARTER FLIGHT',
+            },
+          },
+        ],
       },
       include: {
         airline: {
