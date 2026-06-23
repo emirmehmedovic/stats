@@ -127,19 +127,36 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
       }
 
       // Extract total passengers from PAX field
-      const paxMatch = passengerInfoLine.match(/PAX\/(\d+)/);
-      if (paxMatch) {
-        result.totalPassengers = parseInt(paxMatch[1], 10);
+      // Format može biti:
+      // 1. PAX/217 (stari format - broj je ukupno putnika)
+      // 2. PAX/0/0/189 (novi format - TREĆI broj je ukupno putnika)
+      const paxNewFormatMatch = passengerInfoLine.match(/PAX\/\d+\/\d+\/(\d+)/);
+      if (paxNewFormatMatch) {
+        // Novi format: PAX/0/0/189 - treći broj je ukupno putnika
+        result.totalPassengers = parseInt(paxNewFormatMatch[1], 10);
+      } else {
+        // Stari format: PAX/217 - direktno ukupno putnika
+        const paxOldFormatMatch = passengerInfoLine.match(/PAX\/(\d+)/);
+        if (paxOldFormatMatch) {
+          result.totalPassengers = parseInt(paxOldFormatMatch[1], 10);
+        }
       }
     }
 
     const allText = lines.join(' ');
 
-    // Pronađi ukupno putnika iz bilo koje linije
+    // Pronađi ukupno putnika iz bilo koje linije (fallback)
     if (result.totalPassengers === null) {
-      const paxMatch = allText.match(/PAX\/(\d+)/i);
-      if (paxMatch) {
-        result.totalPassengers = parseInt(paxMatch[1], 10);
+      // Prvo pokušaj novi format sa tri broja
+      const paxNewFormatMatch = allText.match(/PAX\/\d+\/\d+\/(\d+)/i);
+      if (paxNewFormatMatch) {
+        result.totalPassengers = parseInt(paxNewFormatMatch[1], 10);
+      } else {
+        // Stari format sa jednim brojem
+        const paxOldFormatMatch = allText.match(/PAX\/(\d+)/i);
+        if (paxOldFormatMatch) {
+          result.totalPassengers = parseInt(paxOldFormatMatch[1], 10);
+        }
       }
     }
 
@@ -149,7 +166,8 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
     // 2. Na istoj liniji sa SI: "SI B/70/1051"
     // 3. Bilo gdje u poruci: "...B/70/1051..."
     // 4. Alternativno: ".BAGS/20/285"
-    // 5. CHECKED BGG PCS: "CHECKED BGG PCS SAW 3/Y/102"
+    // 5. Novi format: "BAG 176/ 2391" (sa razmakom)
+    // 6. CHECKED BGG PCS: "CHECKED BGG PCS SAW 3/Y/102"
     let baggageInfoLine = lines.find(line => line.startsWith('B/') || line.includes(' B/') || line.includes('BAGS/'));
 
     // Ako nije nađena u linijama, pretraži cijelu poruku
@@ -160,12 +178,21 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
     }
 
     if (baggageInfoLine) {
-      // Parse baggage: B/70/1051
-      // Pattern: B/<COUNT>/<WEIGHT>
-      const baggageMatch = baggageInfoLine.match(/B\/(\d+)\/(\d+)/);
-      if (baggageMatch) {
-        result.baggageCount = parseInt(baggageMatch[1], 10);
-        result.baggageWeight = parseInt(baggageMatch[2], 10);
+      // Parse baggage - može biti više formata:
+      // 1. B/115/1813 - dva broja (komadi/kilogrami) - PEGASUS format
+      // 2. B/1405 - jedan broj (samo kilogrami) - AJET format
+      const baggageTwoNumbersMatch = baggageInfoLine.match(/B\/(\d+)\/(\d+)/);
+      if (baggageTwoNumbersMatch) {
+        // Format sa dva broja: B/115/1813
+        result.baggageCount = parseInt(baggageTwoNumbersMatch[1], 10);
+        result.baggageWeight = parseInt(baggageTwoNumbersMatch[2], 10);
+      } else {
+        // Format sa jednim brojem: B/1405 (samo težina)
+        const baggageOneNumberMatch = baggageInfoLine.match(/B\/(\d+)(?!\/)/);
+        if (baggageOneNumberMatch) {
+          result.baggageWeight = parseInt(baggageOneNumberMatch[1], 10);
+          // Broj komada će biti pronađen kasnije iz CHECKED BGG PCS linije
+        }
       }
     }
 
@@ -174,6 +201,24 @@ export function parseLdmMessage(ldmMessage: string): LdmData {
       if (bagsMatch) {
         result.baggageCount = parseInt(bagsMatch[1], 10);
         result.baggageWeight = parseInt(bagsMatch[2], 10);
+      }
+    }
+
+    // Format: BAG/119/1799 (BAG sa slash bez razmaka)
+    if (result.baggageCount === null || result.baggageWeight === null) {
+      const bagSlashMatch = allText.match(/BAG\/(\d+)\/(\d+)/i);
+      if (bagSlashMatch) {
+        result.baggageCount = parseInt(bagSlashMatch[1], 10);
+        result.baggageWeight = parseInt(bagSlashMatch[2], 10);
+      }
+    }
+
+    // Format: BAG 176/ 2391 (sa razmakom između BAG i brojeva)
+    if (result.baggageCount === null || result.baggageWeight === null) {
+      const bagSpaceMatch = allText.match(/BAG\s+(\d+)\/\s*(\d+)/i);
+      if (bagSpaceMatch) {
+        result.baggageCount = parseInt(bagSpaceMatch[1], 10);
+        result.baggageWeight = parseInt(bagSpaceMatch[2], 10);
       }
     }
 

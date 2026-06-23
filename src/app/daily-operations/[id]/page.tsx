@@ -1586,17 +1586,15 @@ export default function FlightDataEntryPage() {
                         <h3 className="text-sm font-semibold text-orange-900">Putnici</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        <div className="md:col-span-2 lg:col-span-3">
-                          <label className="flex items-center gap-2 text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={formData.departureFerryOut}
-                              onChange={(e) => handleFerryToggle('departureFerryOut', e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300"
-                              disabled={flight.isLocked}
-                            />
-                            Ferry OUT (prazan let bez putnika)
-                          </label>
+                        <div className="md:col-span-2 lg:col-span-3 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.departureFerryOut}
+                            onChange={(e) => handleFerryToggle('departureFerryOut', e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                            disabled={flight.isLocked}
+                          />
+                          <span className="text-sm text-slate-700">Ferry OUT (prazan let bez putnika)</span>
                         </div>
 
                         <div className="md:col-span-2">
@@ -1935,17 +1933,15 @@ export default function FlightDataEntryPage() {
                         <h3 className="text-sm font-semibold text-blue-900">Putnici</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        <div className="md:col-span-2 lg:col-span-3">
-                          <label className="flex items-center gap-2 text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={formData.arrivalFerryIn}
-                              onChange={(e) => handleFerryToggle('arrivalFerryIn', e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300"
-                              disabled={flight.isLocked}
-                            />
-                            Ferry IN (prazan let bez putnika)
-                          </label>
+                        <div className="md:col-span-2 lg:col-span-3 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.arrivalFerryIn}
+                            onChange={(e) => handleFerryToggle('arrivalFerryIn', e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                            disabled={flight.isLocked}
+                          />
+                          <span className="text-sm text-slate-700">Ferry IN (prazan let bez putnika)</span>
                         </div>
 
                         <div className="md:col-span-2">
