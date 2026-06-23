@@ -369,89 +369,49 @@ export default function LoadFactorPage() {
     }
   };
 
-  const handleExportToExcel = () => {
+  const handleExportToExcel = async () => {
     if (!analyticsData) return;
 
-    const wb = XLSX.utils.book_new();
-    const operationTypeLabel =
-      selectedOperationType === 'ALL'
-        ? 'SVE'
-        : operationTypes.find((type) => type.id === selectedOperationType)?.name || selectedOperationType;
+    try {
+      setIsLoading(true);
+      setError(null);
 
-    // Summary sheet
-    const summaryData = [
-      ['LOAD FACTOR ANALIZA - Aerodrom Tuzla'],
-      ['Period:', `${formatDateDisplay(analyticsData.filters.dateFrom)} - ${formatDateDisplay(analyticsData.filters.dateTo)}`],
-      ['Aviokompanije:', analyticsData.filters.airlines.length ? analyticsData.filters.airlines.join(', ') : 'SVE'],
-      ['Rute:', analyticsData.filters.routes.length ? analyticsData.filters.routes.join(', ') : 'SVE'],
-      ['Tip saobraćaja:', operationTypeLabel],
-      ['Smjer:', analyticsData.filters.direction === 'arrival' ? 'Dolazni' : analyticsData.filters.direction === 'departure' ? 'Odlazni' : 'Svi'],
-      [],
-      ['SAŽETAK'],
-      ['Ukupno letova:', analyticsData.summary.totalFlights],
-      ['Prosječna popunjenost:', `${analyticsData.summary.averageLoadFactor}%`],
-      ['Ukupno putnika:', analyticsData.summary.totalPassengers],
-      ['Ukupno sjedišta:', analyticsData.summary.totalSeats],
-    ];
+      const response = await fetch('/api/analytics/load-factor/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dateFrom,
+          dateTo,
+          airlines: selectedAirlines,
+          routes: selectedRoutes,
+          operationTypeId: selectedOperationType !== 'ALL' ? selectedOperationType : undefined,
+          direction,
+        }),
+      });
 
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Sažetak');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Greška pri generisanju izvještaja');
+      }
 
-    // By airline sheet
-    const airlineData = analyticsData.byAirline.map(a => ({
-      'Aviokompanija': a.airline,
-      'ICAO': a.icaoCode,
-      'Letovi': a.flights,
-      'Prosječna popunjenost (%)': a.averageLoadFactor,
-      'Ukupno putnika': a.totalPassengers,
-      'Ukupno sjedišta': a.totalSeats,
-    }));
+      // Download file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Load_Factor_${formatDateDisplay(getTodayDateString())}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-    const airlineSheet = XLSX.utils.json_to_sheet(airlineData);
-    XLSX.utils.book_append_sheet(wb, airlineSheet, 'Po aviokompanijama');
-
-    // By route sheet
-    const routeData = analyticsData.byRoute.map(r => ({
-      'Ruta': r.route,
-      'Letovi': r.flights,
-      'Prosječna popunjenost (%)': r.averageLoadFactor,
-      'Ukupno putnika': r.totalPassengers,
-      'Ukupno sjedišta': r.totalSeats,
-    }));
-
-    const routeSheet = XLSX.utils.json_to_sheet(routeData);
-    XLSX.utils.book_append_sheet(wb, routeSheet, 'Po rutama');
-
-    // Daily trend sheet
-    const trendData = analyticsData.dailyTrend.map(d => ({
-      'Datum': d.date,
-      'Letovi': d.flights,
-      'Prosječna popunjenost (%)': d.averageLoadFactor,
-      'Ukupno putnika': d.totalPassengers,
-    }));
-
-    const trendSheet = XLSX.utils.json_to_sheet(trendData);
-    XLSX.utils.book_append_sheet(wb, trendSheet, 'Dnevni trend');
-
-    // Monthly trend sheet (only for periods longer than 32 days)
-    const dateFrom = new Date(analyticsData.filters.dateFrom);
-    const dateTo = new Date(analyticsData.filters.dateTo);
-    const daysDiff = Math.ceil((dateTo.getTime() - dateFrom.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysDiff > 32 && analyticsData.monthlyTrend.length > 0) {
-      const monthlyData = analyticsData.monthlyTrend.map(m => ({
-        'Mjesec': m.month,
-        'Letovi': m.flights,
-        'Prosječna popunjenost (%)': m.averageLoadFactor,
-        'Ukupno putnika': m.totalPassengers,
-        'Ukupno sjedišta': m.totalSeats,
-      }));
-
-      const monthlySheet = XLSX.utils.json_to_sheet(monthlyData);
-      XLSX.utils.book_append_sheet(wb, monthlySheet, 'Mjesečni trend');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Greška pri exportu');
+    } finally {
+      setIsLoading(false);
     }
-
-    XLSX.writeFile(wb, `Load_Factor_${formatDateDisplay(getTodayDateString())}.xlsx`);
   };
 
   const distributionChartData = analyticsData ? [
