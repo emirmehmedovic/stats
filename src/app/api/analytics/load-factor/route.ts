@@ -202,16 +202,62 @@ export async function GET(request: NextRequest) {
       FROM flight_stats;
     `;
 
+    const routeQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          f.route,
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        route,
+        COUNT(*) FILTER (WHERE total_seats > 0)::int AS flights,
+        SUM(total_passengers)::int AS total_passengers,
+        SUM(total_seats)::int AS total_seats,
+        AVG(CASE WHEN total_seats > 0 THEN (total_passengers::float / total_seats) * 100 END) AS avg_load_factor
+      FROM flight_stats
+      GROUP BY route
+      ORDER BY avg_load_factor DESC;
+    `;
+
+    const monthlyQuery = Prisma.sql`
+      WITH flight_stats AS (
+        SELECT
+          date_trunc('month', f.date) AS month,
+          (${passengerExpr})::int AS total_passengers,
+          (${seatsExpr})::int AS total_seats
+        FROM "Flight" f
+        LEFT JOIN "AircraftType" at ON f."aircraftTypeId" = at.id
+        WHERE ${whereClauseSql}
+      )
+      SELECT
+        month,
+        COUNT(*) FILTER (WHERE total_seats > 0)::int AS flights,
+        SUM(total_passengers)::int AS total_passengers,
+        SUM(total_seats)::int AS total_seats,
+        AVG(CASE WHEN total_seats > 0 THEN (total_passengers::float / total_seats) * 100 END) AS avg_load_factor
+      FROM flight_stats
+      GROUP BY month
+      ORDER BY month ASC;
+    `;
+
     const [
       summaryRows,
       airlineRows,
       dailyRows,
       distributionRows,
+      routeRows,
+      monthlyRows,
     ] = await Promise.all([
       prisma.$queryRaw<any[]>(summaryQuery),
       prisma.$queryRaw<any[]>(airlineQuery),
       prisma.$queryRaw<any[]>(dailyQuery),
       prisma.$queryRaw<any[]>(distributionQuery),
+      prisma.$queryRaw<any[]>(routeQuery),
+      prisma.$queryRaw<any[]>(monthlyQuery),
     ]);
 
     const summaryRow = summaryRows[0] || {
@@ -260,6 +306,26 @@ export async function GET(request: NextRequest) {
       high: distributionRow.high || 0,
       veryHigh: distributionRow.very_high || 0,
     };
+
+    const byRoute = routeRows.map((row) => ({
+      route: row.route || 'Unknown',
+      flights: row.flights || 0,
+      averageLoadFactor: row.avg_load_factor ? Math.round(row.avg_load_factor) : 0,
+      totalPassengers: row.total_passengers || 0,
+      totalSeats: row.total_seats || 0,
+    }));
+
+    const monthlyTrend = monthlyRows.map((row) => {
+      const monthDate = new Date(row.month);
+      return {
+        month: `${monthDate.getMonth() + 1}/${monthDate.getFullYear()}`,
+        monthDate: getDateStringInTimeZone(monthDate, TIME_ZONE_SARAJEVO),
+        flights: row.flights || 0,
+        averageLoadFactor: row.avg_load_factor ? Math.round(row.avg_load_factor) : 0,
+        totalPassengers: row.total_passengers || 0,
+        totalSeats: row.total_seats || 0,
+      };
+    });
 
     const details = await prisma.flight.findMany({
       where: {
@@ -356,7 +422,9 @@ export async function GET(request: NextRequest) {
         totalSeats: summaryRow.total_seats || 0,
       },
       byAirline,
+      byRoute,
       dailyTrend,
+      monthlyTrend,
       distribution,
       flights: flightsWithLoadFactor,
       totalFlightsCount: summaryRow.total_flights || 0,

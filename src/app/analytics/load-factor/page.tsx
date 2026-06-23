@@ -40,12 +40,27 @@ interface LoadFactorData {
     totalPassengers: number;
     totalSeats: number;
   }>;
+  byRoute: Array<{
+    route: string;
+    flights: number;
+    averageLoadFactor: number;
+    totalPassengers: number;
+    totalSeats: number;
+  }>;
   dailyTrend: Array<{
     date: string;
     displayDate: string;
     flights: number;
     averageLoadFactor: number;
     totalPassengers: number;
+  }>;
+  monthlyTrend: Array<{
+    month: string;
+    monthDate: string;
+    flights: number;
+    averageLoadFactor: number;
+    totalPassengers: number;
+    totalSeats: number;
   }>;
   distribution: {
     veryLow: number;
@@ -395,6 +410,18 @@ export default function LoadFactorPage() {
     const airlineSheet = XLSX.utils.json_to_sheet(airlineData);
     XLSX.utils.book_append_sheet(wb, airlineSheet, 'Po aviokompanijama');
 
+    // By route sheet
+    const routeData = analyticsData.byRoute.map(r => ({
+      'Ruta': r.route,
+      'Letovi': r.flights,
+      'Prosječna popunjenost (%)': r.averageLoadFactor,
+      'Ukupno putnika': r.totalPassengers,
+      'Ukupno sjedišta': r.totalSeats,
+    }));
+
+    const routeSheet = XLSX.utils.json_to_sheet(routeData);
+    XLSX.utils.book_append_sheet(wb, routeSheet, 'Po rutama');
+
     // Daily trend sheet
     const trendData = analyticsData.dailyTrend.map(d => ({
       'Datum': d.date,
@@ -405,6 +432,24 @@ export default function LoadFactorPage() {
 
     const trendSheet = XLSX.utils.json_to_sheet(trendData);
     XLSX.utils.book_append_sheet(wb, trendSheet, 'Dnevni trend');
+
+    // Monthly trend sheet (only for periods longer than 32 days)
+    const dateFrom = new Date(analyticsData.filters.dateFrom);
+    const dateTo = new Date(analyticsData.filters.dateTo);
+    const daysDiff = Math.ceil((dateTo.getTime() - dateFrom.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff > 32 && analyticsData.monthlyTrend.length > 0) {
+      const monthlyData = analyticsData.monthlyTrend.map(m => ({
+        'Mjesec': m.month,
+        'Letovi': m.flights,
+        'Prosječna popunjenost (%)': m.averageLoadFactor,
+        'Ukupno putnika': m.totalPassengers,
+        'Ukupno sjedišta': m.totalSeats,
+      }));
+
+      const monthlySheet = XLSX.utils.json_to_sheet(monthlyData);
+      XLSX.utils.book_append_sheet(wb, monthlySheet, 'Mjesečni trend');
+    }
 
     XLSX.writeFile(wb, `Load_Factor_${formatDateDisplay(getTodayDateString())}.xlsx`);
   };
