@@ -46,6 +46,31 @@ MONTH_NAMES = {
     9: "September", 10: "October", 11: "November", 12: "December"
 }
 
+ALL_OTHER_MOVEMENT_CODES = {
+    'ALL-OTHER-MVMT',
+    'ALL_OTHER_MOVEMENT',
+    'ALL OTHER MOVEMENT',
+    'ALL_OTHER_MVMT',
+    'ALL OTHER MVMT',
+}
+
+AIR_TAXI_CODES = {
+    'AIR_TAXI',
+    'AIR-TAXI',
+    'AIR TAXI',
+    'COMMERCIAL_BUSINESS',
+    'COMMERCIAL BUSINESS',
+}
+
+CARGO_CODES = {
+    'CARGO',
+    'ALL_FREIGHT',
+    'ALL-FREIGHT',
+    'ALL FREIGHT',
+    'FREIGHT',
+    'MAIL',
+}
+
 
 def get_db_connection():
     """Konekcija na PostgreSQL bazu"""
@@ -84,6 +109,90 @@ def sanitize_text(value):
 
     # Step 5: Strip whitespace
     return value.strip()
+
+
+def normalize_report_code(value):
+    return (value or '').strip().upper()
+
+
+def flight_codes_and_names(flight):
+    return {
+        normalize_report_code(flight.get('operation_type_code')),
+        normalize_report_code(flight.get('operation_type_name')),
+        normalize_report_code(flight.get('flight_type_code')),
+        normalize_report_code(flight.get('flight_type_name')),
+    }
+
+
+def is_scheduled_flight(flight):
+    flight_type_code = normalize_report_code(flight.get('flight_type_code'))
+    if flight_type_code:
+        return flight_type_code == 'SCHEDULED'
+    return normalize_report_code(flight.get('operation_type_code')) == 'SCHEDULED'
+
+
+def is_all_other_movement(flight):
+    values = flight_codes_and_names(flight)
+    return any(
+        value in ALL_OTHER_MOVEMENT_CODES or 'ALL OTHER MOVEMENT' in value or 'ALL OTHER MVMT' in value
+        for value in values
+    )
+
+
+def is_air_taxi_flight(flight):
+    values = flight_codes_and_names(flight)
+    return any(
+        value in AIR_TAXI_CODES or 'AIR TAXI' in value or 'COMMERCIAL BUSINESS' in value
+        for value in values
+    )
+
+
+def is_cargo_flight(flight):
+    values = flight_codes_and_names(flight)
+    return any(
+        value in CARGO_CODES or 'CARGO' in value or 'ALL-FREIGHT' in value or 'ALL FREIGHT' in value
+        for value in values
+    )
+
+
+def empty_traffic_bucket():
+    return {
+        'movements': 0,
+        'embarked': 0,
+        'disembarked': 0,
+        'freight_loaded': 0,
+        'freight_unloaded': 0,
+        'mail_loaded': 0,
+        'mail_unloaded': 0,
+    }
+
+
+def add_flight_to_bucket(bucket, flight):
+    # ICAO aircraft movements are counted separately for arrival and departure.
+    if flight.get('arrivalPassengers') is not None and flight.get('arrivalPassengers') > 0 and not flight.get('arrivalFerryIn'):
+        bucket['movements'] += 1
+    elif flight.get('arrivalStatus') == 'OPERATED' and not flight.get('arrivalFerryIn'):
+        bucket['movements'] += 1
+
+    if flight.get('departurePassengers') is not None and flight.get('departurePassengers') > 0 and not flight.get('departureFerryOut'):
+        bucket['movements'] += 1
+    elif flight.get('departureStatus') == 'OPERATED' and not flight.get('departureFerryOut'):
+        bucket['movements'] += 1
+
+    if flight.get('departurePassengers') is not None:
+        bucket['embarked'] += flight['departurePassengers']
+    if flight.get('arrivalPassengers') is not None:
+        bucket['disembarked'] += flight['arrivalPassengers']
+
+    if flight.get('departureCargo') is not None:
+        bucket['freight_loaded'] += flight['departureCargo'] / 1000.0
+    if flight.get('arrivalCargo') is not None:
+        bucket['freight_unloaded'] += flight['arrivalCargo'] / 1000.0
+
+    if flight.get('departureMail') is not None:
+        bucket['mail_loaded'] += flight['departureMail'] / 1000.0
+    if flight.get('arrivalMail') is not None:
+        bucket['mail_unloaded'] += flight['arrivalMail'] / 1000.0
 
 
 def create_merged_cell(ws, row, start_col, end_col, value, font=None, fill=None, alignment=None, border=None):
@@ -261,37 +370,19 @@ def aggregate_airport_traffic(flights):
         'international_scheduled': {'movements': X, 'embarked': Y, 'disembarked': Z, ...},
         'international_non_scheduled': {...},
         'domestic': {...},
+        'all_freight_mail': {...},
+        'air_taxi_business': {...},
+        'all_other_movements': {...},
         ...
     }
     """
     data = {
-        'international_scheduled': {
-            'movements': 0,
-            'embarked': 0,
-            'disembarked': 0,
-            'freight_loaded': 0,
-            'freight_unloaded': 0,
-            'mail_loaded': 0,
-            'mail_unloaded': 0,
-        },
-        'international_non_scheduled': {
-            'movements': 0,
-            'embarked': 0,
-            'disembarked': 0,
-            'freight_loaded': 0,
-            'freight_unloaded': 0,
-            'mail_loaded': 0,
-            'mail_unloaded': 0,
-        },
-        'domestic': {
-            'movements': 0,
-            'embarked': 0,
-            'disembarked': 0,
-            'freight_loaded': 0,
-            'freight_unloaded': 0,
-            'mail_loaded': 0,
-            'mail_unloaded': 0,
-        },
+        'international_scheduled': empty_traffic_bucket(),
+        'international_non_scheduled': empty_traffic_bucket(),
+        'domestic': empty_traffic_bucket(),
+        'all_freight_mail': empty_traffic_bucket(),
+        'air_taxi_business': empty_traffic_bucket(),
+        'all_other_movements': empty_traffic_bucket(),
     }
 
     # Debug: Ispis prvog flight-a da vidimo strukturu
@@ -305,12 +396,6 @@ def aggregate_airport_traffic(flights):
         print(f"  flight_type_code: {flights[0].get('flight_type_code')}")
         print()
 
-    def is_scheduled_flight(flight):
-        flight_type_code = (flight.get('flight_type_code') or '').upper()
-        if flight_type_code:
-            return flight_type_code == 'SCHEDULED'
-        return (flight.get('operation_type_code') or '').upper() == 'SCHEDULED'
-
     for flight in flights:
         # Određivanje da li je international ili domestic
         # TZL je u BiH, pa ako drugi aerodrom nije u BiH onda je international
@@ -322,52 +407,25 @@ def aggregate_airport_traffic(flights):
         if (arr_country == 'Bosnia and Herzegovina' and dep_country == 'Bosnia and Herzegovina'):
             is_domestic = True
 
-        # Određivanje scheduled vs non-scheduled
-        is_scheduled = is_scheduled_flight(flight)
+        if is_all_other_movement(flight):
+            add_flight_to_bucket(data['all_other_movements'], flight)
+            continue
 
-        # Odabir kategorije
+        # Odabir glavne komercijalne kategorije.
         if is_domestic:
             category = 'domestic'
-        elif is_scheduled:
+        elif is_scheduled_flight(flight):
             category = 'international_scheduled'
         else:
             category = 'international_non_scheduled'
 
-        # Brojanje movementa - svaki arrival i svaki departure se broje odvojeno
-        # ICAO standard: Aircraft Movements = broj arrival + broj departure
-        # Pošto flight numbers često nisu postavljeni, brojimo po tome da li postoje passengers
+        add_flight_to_bucket(data[category], flight)
 
-        # Arrival movement - ako ima arrival putnika i nije ferry
-        if flight.get('arrivalPassengers') is not None and flight.get('arrivalPassengers') > 0 and not flight.get('arrivalFerryIn'):
-            data[category]['movements'] += 1
-        # Ako nema putnika ali ima arrivalStatus = OPERATED, i dalje brojimo
-        elif flight.get('arrivalStatus') == 'OPERATED' and not flight.get('arrivalFerryIn'):
-            data[category]['movements'] += 1
-
-        # Departure movement - ako ima departure putnika i nije ferry
-        if flight.get('departurePassengers') is not None and flight.get('departurePassengers') > 0 and not flight.get('departureFerryOut'):
-            data[category]['movements'] += 1
-        # Ako nema putnika ali ima departureStatus = OPERATED, i dalje brojimo
-        elif flight.get('departureStatus') == 'OPERATED' and not flight.get('departureFerryOut'):
-            data[category]['movements'] += 1
-
-        # Passengers
-        if flight.get('departurePassengers') is not None:
-            data[category]['embarked'] += flight['departurePassengers']
-        if flight.get('arrivalPassengers') is not None:
-            data[category]['disembarked'] += flight['arrivalPassengers']
-
-        # Freight (konvertovati kg u tonne)
-        if flight.get('departureCargo') is not None:
-            data[category]['freight_loaded'] += flight['departureCargo'] / 1000.0
-        if flight.get('arrivalCargo') is not None:
-            data[category]['freight_unloaded'] += flight['arrivalCargo'] / 1000.0
-
-        # Mail (konvertovati kg u tonne)
-        if flight.get('departureMail') is not None:
-            data[category]['mail_loaded'] += flight['departureMail'] / 1000.0
-        if flight.get('arrivalMail') is not None:
-            data[category]['mail_unloaded'] += flight['arrivalMail'] / 1000.0
+        # BHDCA redovi 25/26 su breakdown i po uputstvu ostaju uključeni u redove 1-5.
+        if is_cargo_flight(flight):
+            add_flight_to_bucket(data['all_freight_mail'], flight)
+        if is_air_taxi_flight(flight):
+            add_flight_to_bucket(data['air_taxi_business'], flight)
 
     # Zaokružiti freight i mail na 2 decimale
     for category in data:
@@ -580,15 +638,12 @@ def aggregate_city_pair_data(flights, scheduled_only=True):
         print(f"  flight_type_code: {flights[0].get('flight_type_code')}")
         print()
 
-    def is_scheduled_flight(flight):
-        flight_type_code = (flight.get('flight_type_code') or '').upper()
-        if flight_type_code:
-            return flight_type_code == 'SCHEDULED'
-        return (flight.get('operation_type_code') or '').upper() == 'SCHEDULED'
-
     TZL_IATA = 'TZL'
 
     for flight in flights:
+        if is_all_other_movement(flight):
+            continue
+
         is_scheduled = is_scheduled_flight(flight)
 
         # Filtrirati po scheduled/non-scheduled
@@ -679,6 +734,9 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     print(f"International Scheduled: {airport_traffic['international_scheduled']}")
     print(f"International Non-Scheduled: {airport_traffic['international_non_scheduled']}")
     print(f"Domestic: {airport_traffic['domestic']}")
+    print(f"All-freight/mail services: {airport_traffic['all_freight_mail']}")
+    print(f"Air taxi/business flights: {airport_traffic['air_taxi_business']}")
+    print(f"All other movements: {airport_traffic['all_other_movements']}")
     print(f"\nCity-pairs Scheduled: {len(city_pairs_scheduled)} parova")
     print(f"City-pairs Non-Scheduled: {len(city_pairs_non_scheduled)} parova")
     print("========================\n")
@@ -761,6 +819,33 @@ def generate_bhdca_report(year: int, month: int, output_path: Path = None):
     ws1['L24'] = total_comm_freight_unloaded
     ws1['N24'] = total_comm_mail_loaded
     ws1['O24'] = total_comm_mail_unloaded
+
+    # Red 25: All-freight/mail services (breakdown; included in rows 1-5)
+    ws1['F25'] = airport_traffic['all_freight_mail']['movements']
+    ws1['G25'] = airport_traffic['all_freight_mail']['embarked']
+    ws1['H25'] = airport_traffic['all_freight_mail']['disembarked']
+    ws1['K25'] = airport_traffic['all_freight_mail']['freight_loaded']
+    ws1['L25'] = airport_traffic['all_freight_mail']['freight_unloaded']
+    ws1['N25'] = airport_traffic['all_freight_mail']['mail_loaded']
+    ws1['O25'] = airport_traffic['all_freight_mail']['mail_unloaded']
+
+    # Red 26: Air taxi and commercial business flights (breakdown; included in rows 2-5)
+    ws1['F26'] = airport_traffic['air_taxi_business']['movements']
+    ws1['G26'] = airport_traffic['air_taxi_business']['embarked']
+    ws1['H26'] = airport_traffic['air_taxi_business']['disembarked']
+    ws1['K26'] = airport_traffic['air_taxi_business']['freight_loaded']
+    ws1['L26'] = airport_traffic['air_taxi_business']['freight_unloaded']
+    ws1['N26'] = airport_traffic['air_taxi_business']['mail_loaded']
+    ws1['O26'] = airport_traffic['air_taxi_business']['mail_unloaded']
+
+    # Red 27: All other movements (not included in international non-scheduled)
+    ws1['F27'] = airport_traffic['all_other_movements']['movements']
+    ws1['G27'] = airport_traffic['all_other_movements']['embarked']
+    ws1['H27'] = airport_traffic['all_other_movements']['disembarked']
+    ws1['K27'] = airport_traffic['all_other_movements']['freight_loaded']
+    ws1['L27'] = airport_traffic['all_other_movements']['freight_unloaded']
+    ws1['N27'] = airport_traffic['all_other_movements']['mail_loaded']
+    ws1['O27'] = airport_traffic['all_other_movements']['mail_unloaded']
 
     # 5. Popuniti Sheet 2 - O-D TRAFFIC (Scheduled)
     print("Popunjavam Sheet 2 - O-D TRAFFIC (Scheduled)...")
