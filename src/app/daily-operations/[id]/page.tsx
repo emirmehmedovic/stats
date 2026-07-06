@@ -11,6 +11,7 @@ import { ErrorDisplay } from '@/components/ui/error';
 import { showToast } from '@/components/ui/toast';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ValidationWarningModal } from '@/components/daily-operations/ValidationWarningModal';
+import { VerificationConfirmModal } from '@/components/daily-operations/VerificationConfirmModal';
 import { PassengerBreakdownInput, type PassengerBreakdown } from '@/components/daily-operations/PassengerBreakdownInput';
 import { MultipleDelaysInput, type DelayInput } from '@/components/daily-operations/MultipleDelaysInput';
 import { LdmMessageInput } from '@/components/daily-operations/LdmMessageInput';
@@ -190,6 +191,9 @@ export default function FlightDataEntryPage() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+
+  // Verification confirmation modal
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const maxScheduledDateTimeLocal = flight
     ? `${getDateStringInTimeZone(new Date(flight.date), TIME_ZONE_SARAJEVO)}T23:59`
@@ -2318,7 +2322,15 @@ export default function FlightDataEntryPage() {
                   <input
                     type="checkbox"
                     checked={formData.isVerified}
-                    onChange={(e) => handleBooleanChange('isVerified', e.target.checked)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        // Show confirmation modal when verifying
+                        setShowVerificationModal(true);
+                      } else {
+                        // Directly unverify without modal
+                        handleBooleanChange('isVerified', false);
+                      }
+                    }}
                     className="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
                     disabled={isReadOnly || (!canEnableVerification && !formData.isVerified)}
                   />
@@ -2370,6 +2382,34 @@ export default function FlightDataEntryPage() {
         warnings={validationWarnings}
         onConfirm={handleWarningConfirm}
         onCancel={handleWarningCancel}
+      />
+
+      {/* Verification Confirmation Modal */}
+      <VerificationConfirmModal
+        isOpen={showVerificationModal}
+        arrival={hasArrivalData ? {
+          flightNumber: formData.arrivalFlightNumber || null,
+          passengers: formData.arrivalPassengers ? parseInt(formData.arrivalPassengers) : null,
+          male: formData.arrivalMalePassengers ? parseInt(formData.arrivalMalePassengers) : null,
+          female: formData.arrivalFemalePassengers ? parseInt(formData.arrivalFemalePassengers) : null,
+          children: formData.arrivalChildren ? parseInt(formData.arrivalChildren) : null,
+          infants: formData.arrivalInfants ? parseInt(formData.arrivalInfants) : null,
+          isFerry: formData.arrivalFerryIn,
+        } : null}
+        departure={hasDepartureData ? {
+          flightNumber: formData.departureFlightNumber || null,
+          passengers: formData.departurePassengers ? parseInt(formData.departurePassengers) : null,
+          male: formData.departureMalePassengers ? parseInt(formData.departureMalePassengers) : null,
+          female: formData.departureFemalePassengers ? parseInt(formData.departureFemalePassengers) : null,
+          children: formData.departureChildren ? parseInt(formData.departureChildren) : null,
+          infants: formData.departureInfants ? parseInt(formData.departureInfants) : null,
+          isFerry: formData.departureFerryOut,
+        } : null}
+        onConfirm={() => {
+          setShowVerificationModal(false);
+          handleBooleanChange('isVerified', true);
+        }}
+        onCancel={() => setShowVerificationModal(false)}
       />
       </div>
     </MainLayout>
