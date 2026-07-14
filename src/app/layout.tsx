@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { CsrfBootstrap } from "@/components/CsrfBootstrap";
+import { TranslationProvider } from "@/contexts/TranslationContext";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,8 +26,10 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <CsrfBootstrap />
-          {children}
+          <TranslationProvider>
+            <CsrfBootstrap />
+            {children}
+          </TranslationProvider>
         </ThemeProvider>
       </body>
     </html>

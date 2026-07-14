@@ -15,7 +15,8 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR';
+  language?: 'BS' | 'EN';
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {

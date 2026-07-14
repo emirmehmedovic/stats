@@ -993,6 +993,12 @@ enum UserRole {
   VIEWER
   STW  // Ground staff - Predboarding access
   NAPLATE  // Billing/Collections - Financial reports access
+  AUDITOR  // External auditor - Read-only access to all, English UI
+}
+
+enum Language {
+  BS  // Bosnian (default)
+  EN  // English
 }
 
 enum BillingReportType {
@@ -1006,6 +1012,7 @@ model User {
   name      String?
   password  String
   role      UserRole @default(VIEWER)
+  language  Language @default(BS)
   isActive  Boolean  @default(true)
   billingPinHash          String?
   billingPinFailedAttempts Int      @default(0)

@@ -7,7 +7,8 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR';
+  language?: 'BS' | 'EN';
 }
 
 export default function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -52,7 +53,10 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
             isAdmin: data.user.role === 'ADMIN'
           });
           const isManagerAllowedAdminPage = managerAllowedAdminRoutes.some(route => pathname.startsWith(route));
-          if (data.user.role !== 'ADMIN' && !(data.user.role === 'MANAGER' && isManagerAllowedAdminPage)) {
+          // AUDITOR can access license-types and sectors (read-only)
+          const isAllowedRole = data.user.role === 'ADMIN' ||
+            ((data.user.role === 'MANAGER' || data.user.role === 'AUDITOR') && isManagerAllowedAdminPage);
+          if (!isAllowedRole) {
             console.log('AuthCheck - Redirecting to dashboard, role:', data.user.role);
             router.push('/dashboard');
             return;
@@ -75,6 +79,9 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
           localStorage.setItem('userEmail', data.user.email);
           localStorage.setItem('userName', data.user.name || data.user.email.split('@')[0]);
           localStorage.setItem('userRole', data.user.role);
+          // Set language based on user preference (AUDITOR defaults to EN)
+          const userLanguage = data.user.language || (data.user.role === 'AUDITOR' ? 'EN' : 'BS');
+          localStorage.setItem('userLanguage', userLanguage);
         }
       } catch (error) {
         console.error('Auth check error:', error);

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   LayoutDashboard,
   Plane,
@@ -26,6 +26,7 @@ import {
   DollarSign,
   MapPin,
 } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface NavItem {
   label: string;
@@ -39,119 +40,124 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
-  {
-    title: 'HOME',
-    items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Predboarding', href: '/predboarding', icon: Users },
-      { label: 'Dnevne operacije', href: '/daily-operations', icon: Calendar },
-      { label: 'Generisanje izvještaja', href: '/generate-report', icon: Sparkles },
-      { label: 'Pregled', href: '/summary', icon: BarChart3 },
-      {
-        label: 'Letovi',
-        href: '/flights',
-        icon: Plane,
-        subItems: [
-          { label: 'Svi letovi', href: '/flights', icon: Plane },
-          { label: 'Import rasporeda', href: '/flights/import', icon: Package },
-          { label: 'Aviokompanije', href: '/airlines', icon: Building2 },
-          { label: 'Tipovi aviona', href: '/aircraft-types', icon: Plane },
-          { label: 'Tipovi operacija', href: '/operation-types', icon: Package },
-          { label: 'Kodovi kašnjenja', href: '/delay-codes', icon: AlertTriangle },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'ANALITIKA',
-    items: [
-      {
-        label: 'Analitika',
-        href: '/analytics',
-        icon: BarChart3,
-        subItems: [
-          { label: 'Load Factor', href: '/analytics/load-factor', icon: TrendingUp },
-          { label: 'Tačnost', href: '/analytics/punctuality', icon: TrendingUp },
-          { label: 'Rute', href: '/analytics/routes', icon: TrendingUp },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'IZVJEŠTAJI',
-    items: [
-      {
-        label: 'Izvještaji',
-        href: '/reports',
-        icon: FileText,
-        subItems: [
-          { label: 'Dnevni', href: '/reports/daily', icon: Calendar },
-          { label: 'Mjesečni', href: '/reports/monthly', icon: Calendar },
-          { label: 'Godišnji', href: '/reports/yearly', icon: Calendar },
-          { label: 'Prilagođeni', href: '/reports/custom', icon: Calendar },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'POREĐENJE',
-    items: [
-      {
-        label: 'Poređenje',
-        href: '/comparison',
-        icon: TrendingUp,
-        subItems: [
-          { label: 'Pregled', href: '/comparison', icon: TrendingUp },
-          { label: 'Sedmični trend', href: '/comparison/weekly-trend', icon: TrendingUp },
-          { label: 'Mjesečni trend', href: '/comparison/monthly-trend', icon: TrendingUp },
-          { label: 'Godišnji trend', href: '/comparison/yearly-trend', icon: TrendingUp },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'PROJEKCIJE',
-    items: [
-      { label: 'Projekcije prometa', href: '/projections', icon: TrendingUp },
-    ],
-  },
-  {
-    title: 'MANAGEMENT',
-    items: [
-      {
-        label: 'Radnici',
-        href: '/employees',
-        icon: Users,
-        subItems: [
-          { label: 'Svi radnici', href: '/employees', icon: Users },
-          { label: 'Tipovi licenci', href: '/admin/license-types', icon: Shield },
-          { label: 'Sektori', href: '/admin/sectors', icon: Briefcase },
-        ],
-      },
-      {
-        label: 'Naplate',
-        href: '/naplate',
-        icon: DollarSign,
-        subItems: [
-          { label: 'Dnevni izvještaji', href: '/naplate/dnevni', icon: FileText },
-          { label: 'Mjesečni izvještaji', href: '/naplate/mjesecni', icon: FileText },
-        ],
-      },
-      { label: 'IT oprema', href: '/it-equipment', icon: Package },
-    ],
-  },
-];
+// Navigation sections are now created inside the component using translations
+function createNavSections(t: (key: string) => string): NavSection[] {
+  return [
+    {
+      title: t('nav.home').toUpperCase(),
+      items: [
+        { label: t('nav.dashboard'), href: '/dashboard', icon: LayoutDashboard },
+        { label: t('nav.predboarding'), href: '/predboarding', icon: Users },
+        { label: t('nav.dailyOperations'), href: '/daily-operations', icon: Calendar },
+        { label: t('nav.generateReport'), href: '/generate-report', icon: Sparkles },
+        { label: t('nav.summary'), href: '/summary', icon: BarChart3 },
+        {
+          label: t('nav.flights'),
+          href: '/flights',
+          icon: Plane,
+          subItems: [
+            { label: t('nav.allFlights'), href: '/flights', icon: Plane },
+            { label: t('nav.importSchedule'), href: '/flights/import', icon: Package },
+            { label: t('nav.airlines'), href: '/airlines', icon: Building2 },
+            { label: t('nav.aircraftTypes'), href: '/aircraft-types', icon: Plane },
+            { label: t('nav.operationTypes'), href: '/operation-types', icon: Package },
+            { label: t('nav.delayCodes'), href: '/delay-codes', icon: AlertTriangle },
+          ],
+        },
+      ],
+    },
+    {
+      title: t('nav.analytics').toUpperCase(),
+      items: [
+        {
+          label: t('nav.analytics'),
+          href: '/analytics',
+          icon: BarChart3,
+          subItems: [
+            { label: t('nav.loadFactor'), href: '/analytics/load-factor', icon: TrendingUp },
+            { label: t('nav.punctuality'), href: '/analytics/punctuality', icon: TrendingUp },
+            { label: t('nav.routes'), href: '/analytics/routes', icon: TrendingUp },
+          ],
+        },
+      ],
+    },
+    {
+      title: t('nav.reports').toUpperCase(),
+      items: [
+        {
+          label: t('nav.reports'),
+          href: '/reports',
+          icon: FileText,
+          subItems: [
+            { label: t('nav.dailyReports'), href: '/reports/daily', icon: Calendar },
+            { label: t('nav.monthlyReports'), href: '/reports/monthly', icon: Calendar },
+            { label: t('nav.yearlyReports'), href: '/reports/yearly', icon: Calendar },
+            { label: t('nav.customReports'), href: '/reports/custom', icon: Calendar },
+          ],
+        },
+      ],
+    },
+    {
+      title: t('nav.comparison').toUpperCase(),
+      items: [
+        {
+          label: t('nav.comparison'),
+          href: '/comparison',
+          icon: TrendingUp,
+          subItems: [
+            { label: t('nav.overview'), href: '/comparison', icon: TrendingUp },
+            { label: t('nav.weeklyTrend'), href: '/comparison/weekly-trend', icon: TrendingUp },
+            { label: t('nav.monthlyTrend'), href: '/comparison/monthly-trend', icon: TrendingUp },
+            { label: t('nav.yearlyTrend'), href: '/comparison/yearly-trend', icon: TrendingUp },
+          ],
+        },
+      ],
+    },
+    {
+      title: t('nav.projections').toUpperCase(),
+      items: [
+        { label: t('nav.trafficProjections'), href: '/projections', icon: TrendingUp },
+      ],
+    },
+    {
+      title: t('nav.management').toUpperCase(),
+      items: [
+        {
+          label: t('nav.employees'),
+          href: '/employees',
+          icon: Users,
+          subItems: [
+            { label: t('nav.employees'), href: '/employees', icon: Users },
+            { label: t('nav.licenseTypes'), href: '/admin/license-types', icon: Shield },
+            { label: t('nav.sectors'), href: '/admin/sectors', icon: Briefcase },
+          ],
+        },
+        {
+          label: t('nav.billing'),
+          href: '/naplate',
+          icon: DollarSign,
+          subItems: [
+            { label: t('nav.dailyBilling'), href: '/naplate/dnevni', icon: FileText },
+            { label: t('nav.monthlyBilling'), href: '/naplate/mjesecni', icon: FileText },
+          ],
+        },
+        { label: t('nav.itEquipment'), href: '/it-equipment', icon: Package },
+      ],
+    },
+  ];
+}
 
-const adminSection: NavSection = {
-  title: 'ADMIN',
-  items: [
-    { label: 'Admin Panel', href: '/admin/users', icon: Settings2 },
-    { label: 'Audit log', href: '/admin/audit-logs', icon: Shield },
-    { label: 'Access Control', href: '/access-control', icon: Shield },
-    { label: 'AC Lokacije', href: '/admin/access-control/places', icon: MapPin },
-  ],
-};
+function createAdminSection(t: (key: string) => string): NavSection {
+  return {
+    title: t('nav.admin').toUpperCase(),
+    items: [
+      { label: t('nav.adminPanel'), href: '/admin/users', icon: Settings2 },
+      { label: t('nav.auditLog'), href: '/admin/audit-logs', icon: Shield },
+      { label: t('nav.accessControl'), href: '/access-control', icon: Shield },
+      { label: t('nav.acLocations'), href: '/admin/access-control/places', icon: MapPin },
+    ],
+  };
+}
 
 interface SidebarProps {
   isMobileMenuOpen: boolean;
@@ -161,6 +167,7 @@ interface SidebarProps {
 export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t, language } = useTranslation();
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     '/flights': true,
     '/reports': true,
@@ -172,6 +179,10 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Create translated nav sections
+  const navSections = useMemo(() => createNavSections(t), [t, language]);
+  const adminSection = useMemo(() => createAdminSection(t), [t, language]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -542,8 +553,8 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
               {loadingPassengers
                 ? 'Učitavanje...'
                 : todayPassengers !== null
-                  ? `Putnika danas: ${todayPassengers}`
-                  : 'Nije dostupno'}
+                  ? `${t('dashboard.totalPassengers')}: ${todayPassengers}`
+                  : t('common.noData')}
             </button>
           </div>
         </div>
@@ -553,7 +564,7 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
           <Link
             href="/settings"
             className="p-1.5 lg:p-2 text-dark-400 hover:text-dark-900 hover:bg-dark-50 rounded-lg lg:rounded-xl transition-all"
-            title="Podešavanja"
+            title={t('nav.settings')}
             onClick={closeMobileMenu}
           >
             <Settings className="w-4 h-4 lg:w-5 lg:h-5" />
@@ -576,7 +587,7 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
             }}
             disabled={isLoggingOut}
             className="p-1.5 lg:p-2 text-dark-400 hover:text-red-600 hover:bg-red-50 rounded-lg lg:rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Odjavi se"
+            title={t('nav.logout')}
           >
             <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
           </button>

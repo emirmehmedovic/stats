@@ -201,6 +201,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        language: user.language || 'BS',
       },
     });
   } catch (error) {

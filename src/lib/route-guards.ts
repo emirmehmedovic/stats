@@ -47,7 +47,7 @@ async function requireRole(request: Request, allowedRoles: AuthUser['role'][]): 
 }
 
 export function requireNonOperations(request: Request): Promise<AuthCheck> {
-  return requireRole(request, ['ADMIN', 'MANAGER', 'VIEWER']);
+  return requireRole(request, ['ADMIN', 'MANAGER', 'VIEWER', 'AUDITOR']);
 }
 
 export function requireAdmin(request: Request): Promise<AuthCheck> {
@@ -56,6 +56,10 @@ export function requireAdmin(request: Request): Promise<AuthCheck> {
 
 export function requireAdminOrManager(request: Request): Promise<AuthCheck> {
   return requireRole(request, ['ADMIN', 'MANAGER']);
+}
+
+export function requireAdminManagerOrAuditor(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'MANAGER', 'AUDITOR']);
 }
 
 export function requireSTW(request: Request): Promise<AuthCheck> {
@@ -68,4 +72,9 @@ export function requireAdminOrOperations(request: Request): Promise<AuthCheck> {
 
 export function requireNaplateAccess(request: Request): Promise<AuthCheck> {
   return requireRole(request, ['ADMIN', 'NAPLATE']);
+}
+
+// Read-only access for auditors and other roles that can view all data
+export function requireReadAccess(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'MANAGER', 'OPERATIONS', 'VIEWER', 'AUDITOR']);
 }

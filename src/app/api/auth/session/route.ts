@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         role: true,
+        language: true,
         isActive: true,
       },
     });
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Always return role from database, not from token (in case role was updated)
+    // Always return role and language from database, not from token (in case they were updated)
 
     return NextResponse.json({
       authenticated: true,
@@ -49,7 +50,8 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role, // Always use role from database
+        role: user.role,
+        language: user.language,
       },
     });
   } catch (error) {
