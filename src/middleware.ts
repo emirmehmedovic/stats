@@ -205,29 +205,33 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // AUDITOR role - read-only access to everything except admin panel
+    // AUDITOR role - read-only access to employees/licenses only
     if (decoded.role === 'AUDITOR') {
-      // Allow report generation (POST for PDF/Excel exports)
-      const auditorWriteAllowedRoutes = [
-        '/api/reports',
-        '/api/analytics',
+      const auditorAllowedApiRoutes = [
+        '/api/employees',
+        '/api/licenses',
+        '/api/license-types',
+        '/api/sectors',
+        '/api/services',
+        '/api/positions',
+        '/api/documents',
+        '/api/dashboard',
         '/api/auth/session',
         '/api/auth/logout',
-        '/api/profile/password',
+        '/api/profile',
       ];
-      const hasAuditorWriteAccess = auditorWriteAllowedRoutes.some(route => pathname.startsWith(route));
+      const hasAuditorApiAccess = auditorAllowedApiRoutes.some(route => pathname.startsWith(route));
 
-      // Block write methods except for allowed routes
-      if (isWriteMethod && !hasAuditorWriteAccess) {
+      if (!hasAuditorApiAccess) {
         return applySecurityHeaders(
-          ensureCsrfCookie(NextResponse.json({ error: 'Auditor has read-only access' }, { status: 403 }))
+          ensureCsrfCookie(NextResponse.json({ error: 'Auditor access restricted' }, { status: 403 }))
         );
       }
 
-      // Block admin panel API routes
-      if (isAdminApiRoute && !pathname.startsWith('/api/admin/license-types') && !pathname.startsWith('/api/admin/sectors')) {
+      // Block write methods (AUDITOR is read-only)
+      if (isWriteMethod && !pathname.startsWith('/api/auth')) {
         return applySecurityHeaders(
-          ensureCsrfCookie(NextResponse.json({ error: 'Auditor cannot access admin functions' }, { status: 403 }))
+          ensureCsrfCookie(NextResponse.json({ error: 'Auditor has read-only access' }, { status: 403 }))
         );
       }
     }
@@ -334,10 +338,10 @@ export async function middleware(request: NextRequest) {
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
     } else if (decoded?.role === 'AUDITOR') {
-      // AUDITOR can access everything except core admin pages
-      const auditorRestrictedPages = ['/admin/admin-panel', '/admin/audit-log', '/admin/access-control'];
-      const isAuditorRestrictedPage = auditorRestrictedPages.some(route => pathname.startsWith(route));
-      if (isAuditorRestrictedPage) {
+      // AUDITOR can only access dashboard, employees, and license-related pages
+      const auditorAllowedPages = ['/dashboard', '/employees', '/admin/license-types', '/admin/sectors', '/profile'];
+      const hasAuditorPageAccess = auditorAllowedPages.some(route => pathname.startsWith(route));
+      if (!hasAuditorPageAccess) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }

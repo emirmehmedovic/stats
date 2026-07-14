@@ -59,6 +59,9 @@ export default function LoginPage() {
         localStorage.setItem('userEmail', data.user.email);
         localStorage.setItem('userName', data.user.name || data.user.email.split('@')[0]);
         localStorage.setItem('userRole', data.user.role);
+        // Set language (AUDITOR defaults to English)
+        const userLanguage = data.user.language || (data.user.role === 'AUDITOR' ? 'EN' : 'BS');
+        localStorage.setItem('userLanguage', userLanguage);
       }
 
       // Redirect to dashboard

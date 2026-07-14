@@ -426,6 +426,33 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
       return null;
     }
 
+    // AUDITOR role - show only Dashboard and employee/license management (read-only)
+    if (userRole === 'AUDITOR') {
+      if (section.title === t('nav.home').toUpperCase()) {
+        return {
+          ...section,
+          items: section.items.filter(item => item.href === '/dashboard')
+        };
+      }
+      if (section.title === t('nav.management').toUpperCase()) {
+        return {
+          ...section,
+          items: section.items
+            .filter(item => item.href === '/employees')
+            .map(item => ({
+              ...item,
+              subItems: item.subItems?.filter(subItem =>
+                ['/employees', '/admin/license-types', '/admin/sectors'].some(route =>
+                  subItem.href.startsWith(route)
+                )
+              ),
+            }))
+        };
+      }
+      // Hide all other sections for AUDITOR
+      return null;
+    }
+
     if (userRole === 'NAPLATE') {
       if (section.title !== 'MANAGEMENT') {
         return null;

@@ -53,10 +53,38 @@ export function TranslationProvider({ children, initialLanguage }: TranslationPr
 
   useEffect(() => {
     // Check localStorage for language preference
-    const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
-    if (storedLanguage && (storedLanguage === 'BS' || storedLanguage === 'EN')) {
-      setLanguageState(storedLanguage);
-    }
+    const checkLanguage = () => {
+      const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
+      const userRole = localStorage.getItem('userRole');
+
+      // AUDITOR defaults to English
+      if (userRole === 'AUDITOR' && !storedLanguage) {
+        setLanguageState('EN');
+        localStorage.setItem('userLanguage', 'EN');
+        return;
+      }
+
+      if (storedLanguage && (storedLanguage === 'BS' || storedLanguage === 'EN')) {
+        setLanguageState(storedLanguage);
+      }
+    };
+
+    checkLanguage();
+
+    // Listen for storage changes (when user logs in)
+    const handleStorageChange = () => {
+      checkLanguage();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also check periodically for same-tab updates
+    const interval = setInterval(checkLanguage, 500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const setLanguage = (lang: Language) => {
@@ -116,11 +144,49 @@ export function useIsAuditor(): boolean {
   const [isAuditor, setIsAuditor] = useState(false);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setIsAuditor(role === 'AUDITOR');
+    const checkRole = () => {
+      const role = localStorage.getItem('userRole');
+      setIsAuditor(role === 'AUDITOR');
+    };
+
+    checkRole();
+
+    // Listen for changes
+    const interval = setInterval(checkRole, 500);
+    window.addEventListener('storage', checkRole);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkRole);
+    };
   }, []);
 
   return isAuditor;
+}
+
+// Hook to check if user can edit (not AUDITOR or VIEWER)
+export function useCanEdit(): boolean {
+  const [canEdit, setCanEdit] = useState(true);
+
+  useEffect(() => {
+    const checkRole = () => {
+      const role = localStorage.getItem('userRole');
+      // AUDITOR and VIEWER cannot edit
+      setCanEdit(role !== 'AUDITOR' && role !== 'VIEWER');
+    };
+
+    checkRole();
+
+    const interval = setInterval(checkRole, 500);
+    window.addEventListener('storage', checkRole);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkRole);
+    };
+  }, []);
+
+  return canEdit;
 }
 
 // Utility component to show read-only notice for auditors

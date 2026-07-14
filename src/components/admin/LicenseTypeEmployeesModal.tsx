@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, UserPlus, Download, X, Calendar, Search, Filter } from 'lucide-react';
+import { useCanEdit, useTranslation } from '@/contexts/TranslationContext';
 
 interface LicenseType {
   id: string;
@@ -88,6 +89,8 @@ interface PositionOption {
 }
 
 export default function LicenseTypeEmployeesModal({ licenseType, onClose }: LicenseTypeEmployeesModalProps) {
+  const canEdit = useCanEdit();
+  const { t } = useTranslation();
   const [licenses, setLicenses] = useState<EmployeeLicense[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [totalEmployees, setTotalEmployees] = useState(0);
@@ -393,19 +396,21 @@ export default function LicenseTypeEmployeesModal({ licenseType, onClose }: Lice
 
         {/* Actions */}
         <div className="p-6 border-b border-slate-200 flex gap-3">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Dodaj radnika
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              {t('employees.addEmployee')}
+            </button>
+          )}
           <button
             onClick={exportToPDF}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Exportuj PDF
+            {t('licenses.exportPdf')}
           </button>
         </div>
 

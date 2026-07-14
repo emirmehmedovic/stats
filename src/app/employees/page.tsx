@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { dateOnlyToUtc, formatDateDisplay, getDateStringInTimeZone, getTodayDateString, TIME_ZONE_SARAJEVO } from '@/lib/dates';
+import { useCanEdit, useTranslation, AuditorNotice } from '@/contexts/TranslationContext';
 
 type Sector = {
   id: string;
@@ -70,6 +71,8 @@ type Employee = {
 
 export default function EmployeesPage() {
   const router = useRouter();
+  const canEdit = useCanEdit();
+  const { t } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -427,18 +430,22 @@ export default function EmployeesPage() {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-dark-900">Radnici</h1>
-            <p className="text-dark-600 mt-1">Upravljanje radnicima i njihovim licencama</p>
+            <h1 className="text-3xl font-bold text-dark-900">{t('employees.title')}</h1>
+            <p className="text-dark-600 mt-1">{t('employees.title')}</p>
           </div>
-          <Button
-            onClick={() => router.push('/employees/new')}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Dodaj radnika
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={() => router.push('/employees/new')}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {t('employees.addEmployee')}
+            </Button>
+          )}
         </div>
       </div>
+
+      <AuditorNotice />
 
       {/* Tabs */}
       <div className="bg-white rounded-2xl shadow-sm border border-dark-100 p-2">

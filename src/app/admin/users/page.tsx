@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database, Shuffle, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database, Shuffle, DollarSign, ClipboardCheck } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/dates';
 import { RouteMigrationModal } from '@/components/admin/RouteMigrationModal';
 import { FlightTypeMigrationModal } from '@/components/admin/FlightTypeMigrationModal';
@@ -10,7 +10,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
     email: '',
     password: '',
     name: '',
-    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE',
+    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR',
     isActive: true,
     billingPin: '',
   });
@@ -208,6 +208,8 @@ export default function AdminUsersPage() {
         return <Database className="w-5 h-5 text-violet-600" />;
       case 'NAPLATE':
         return <DollarSign className="w-5 h-5 text-amber-600" />;
+      case 'AUDITOR':
+        return <ClipboardCheck className="w-5 h-5 text-cyan-600" />;
       default:
         return <Eye className="w-5 h-5 text-gray-600" />;
     }
@@ -220,6 +222,7 @@ export default function AdminUsersPage() {
       OPERATIONS: 'bg-emerald-100 text-emerald-700',
       STW: 'bg-violet-100 text-violet-700',
       NAPLATE: 'bg-amber-100 text-amber-700',
+      AUDITOR: 'bg-cyan-100 text-cyan-700',
       VIEWER: 'bg-gray-100 text-gray-700',
     };
     return styles[role as keyof typeof styles] || styles.VIEWER;
@@ -471,6 +474,7 @@ export default function AdminUsersPage() {
                     <option value="OPERATIONS">Operacije</option>
                     <option value="MANAGER">Manager</option>
                     <option value="NAPLATE">Naplate</option>
+                    <option value="AUDITOR">Auditor (Read-only EN)</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>

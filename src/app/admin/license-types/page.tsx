@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Plus, Edit2, Trash2, ArrowLeft, Search, Filter } from 'lucide-react';
 import LicenseTypeEmployeesModal from '@/components/admin/LicenseTypeEmployeesModal';
+import { useCanEdit, useTranslation, AuditorNotice } from '@/contexts/TranslationContext';
 
 interface LicenseType {
   id: string;
@@ -41,6 +42,8 @@ interface LicenseType {
 }
 
 export default function LicenseTypesPage() {
+  const canEdit = useCanEdit();
+  const { t } = useTranslation();
   const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,16 +141,20 @@ export default function LicenseTypesPage() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="w-full md:w-auto px-4 lg:px-6 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm text-sm lg:text-base"
-            >
-              <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
-              <span className="hidden sm:inline">Dodaj novi tip</span>
-              <span className="sm:hidden">Dodaj</span>
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="w-full md:w-auto px-4 lg:px-6 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm text-sm lg:text-base"
+              >
+                <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="hidden sm:inline">{t('licenses.addLicense')}</span>
+                <span className="sm:hidden">{t('common.add')}</span>
+              </button>
+            )}
           </div>
         </div>
+
+        <AuditorNotice />
 
         {/* Filters */}
         <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-slate-200 p-4 lg:p-6 mb-4 lg:mb-6">
@@ -315,24 +322,26 @@ export default function LicenseTypesPage() {
                   className="w-full px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   <Shield className="w-4 h-4" />
-                  Prikaži radnike
+                  {t('licenses.employeesWithLicense')}
                 </button>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingType(type)}
-                    className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Uredi
-                  </button>
-                  <button
-                    onClick={() => handleDelete(type.id)}
-                    className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Obriši
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingType(type)}
+                      className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      {t('common.edit')}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(type.id)}
+                      className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {t('common.delete')}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
