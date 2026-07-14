@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Building2, Plus, Edit2, Trash2, ArrowLeft, Search, Users } from 'lucide-react';
+import { useCanEdit } from '@/contexts/TranslationContext';
 
 interface Sector {
   id: string;
@@ -30,6 +31,7 @@ const PRESET_COLORS = [
 ];
 
 export default function SectorsPage() {
+  const canEdit = useCanEdit();
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,6 +121,7 @@ export default function SectorsPage() {
                 </div>
               </div>
             </div>
+{canEdit && (
             <button
               onClick={() => setShowAddModal(true)}
               className="w-full md:w-auto px-4 lg:px-6 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm text-sm lg:text-base"
@@ -127,6 +130,7 @@ export default function SectorsPage() {
               <span className="hidden sm:inline">Dodaj novi sektor</span>
               <span className="sm:hidden">Dodaj</span>
             </button>
+)}
           </div>
         </div>
 
@@ -191,6 +195,7 @@ export default function SectorsPage() {
                   </span>
                 </div>
 
+{canEdit && (
                 <div className="flex gap-2 pt-4 border-t border-slate-100">
                   <button
                     onClick={() => setEditingSector(sector)}
@@ -207,6 +212,7 @@ export default function SectorsPage() {
                     Obriši
                   </button>
                 </div>
+)}
               </div>
             </div>
           ))}
@@ -228,7 +234,7 @@ export default function SectorsPage() {
       </div>
 
       {/* Add/Edit Modal */}
-      {(showAddModal || editingSector) && (
+      {canEdit && (showAddModal || editingSector) && (
         <SectorModal
           sector={editingSector}
           onClose={() => {

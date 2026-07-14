@@ -27,6 +27,7 @@ import { WorkTimeSection } from '@/components/employees/WorkTimeSection';
 import { showToast } from '@/components/ui/toast';
 import { dateOnlyToUtc, formatDateDisplay, getDateStringInTimeZone, getTodayDateString, TIME_ZONE_SARAJEVO } from '@/lib/dates';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useCanEdit, useTranslation, AuditorNotice } from '@/contexts/TranslationContext';
 
 type License = {
   id: string;
@@ -87,6 +88,8 @@ export default function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
   const employeeId = params.id as string;
+  const canEdit = useCanEdit();
+  const { t } = useTranslation();
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -283,13 +286,15 @@ export default function EmployeeDetailPage() {
                       {statusBadge.icon}
                       <span>{statusBadge.label}</span>
                     </div>
-                    <Button
-                      onClick={() => router.push(`/employees/${employeeId}/edit`)}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-900"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Uredi profil
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        onClick={() => router.push(`/employees/${employeeId}/edit`)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-900"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        {t('employees.editEmployee')}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -613,15 +618,19 @@ export default function EmployeeDetailPage() {
               <div className="space-y-4">
                 {/* Add License Button */}
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold text-slate-900">Licence i certifikati</h3>
-                  <Button
-                    onClick={() => setIsAddLicenseModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Dodaj licencu
-                  </Button>
+                  <h3 className="text-lg font-semibold text-slate-900">{t('licenses.title')}</h3>
+                  {canEdit && (
+                    <Button
+                      onClick={() => setIsAddLicenseModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('licenses.addLicense')}
+                    </Button>
+                  )}
                 </div>
+
+                <AuditorNotice />
 
                 {employee.licenses.length === 0 ? (
                   <div className="bg-white rounded-3xl shadow-soft p-12 text-center relative overflow-hidden group">
@@ -632,15 +641,17 @@ export default function EmployeeDetailPage() {
                       <div className="mx-auto w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mb-6 shadow-soft">
                         <Shield className="w-10 h-10 text-slate-400" />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">Nema licenci</h3>
-                      <p className="text-slate-600 mb-8 max-w-md mx-auto">Ovaj radnik još nema dodijeljenih licenci ili certifikata.</p>
-                      <Button
-                        onClick={() => setIsAddLicenseModalOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-soft hover:shadow-soft-lg transition-all"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Dodaj prvu licencu
-                      </Button>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{t('licenses.noLicenses')}</h3>
+                      <p className="text-slate-600 mb-8 max-w-md mx-auto">{t('licenses.noLicenses')}</p>
+                      {canEdit && (
+                        <Button
+                          onClick={() => setIsAddLicenseModalOpen(true)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white shadow-soft hover:shadow-soft-lg transition-all"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          {t('licenses.addLicense')}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -674,14 +685,16 @@ export default function EmployeeDetailPage() {
                             <div className={`px-4 py-2 rounded-xl text-sm font-semibold ${badge.bg} ${badge.text} shadow-soft`}>
                               {badge.label}
                             </div>
-                            <Button
-                              onClick={() => setEditingLicense(license)}
-                              variant="outline"
-                              size="sm"
-                              className="border-slate-300 hover:bg-slate-50 rounded-xl shadow-soft"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            {canEdit && (
+                              <Button
+                                onClick={() => setEditingLicense(license)}
+                                variant="outline"
+                                size="sm"
+                                className="border-slate-300 hover:bg-slate-50 rounded-xl shadow-soft"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
 
@@ -786,16 +799,18 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* Modals */}
-      <AddLicenseModal
-        employeeId={employeeId}
-        isOpen={isAddLicenseModalOpen}
-        onClose={() => setIsAddLicenseModalOpen(false)}
-        onSuccess={() => {
-          fetchEmployee();
-        }}
-      />
+      {canEdit && (
+        <AddLicenseModal
+          employeeId={employeeId}
+          isOpen={isAddLicenseModalOpen}
+          onClose={() => setIsAddLicenseModalOpen(false)}
+          onSuccess={() => {
+            fetchEmployee();
+          }}
+        />
+      )}
 
-      {editingLicense && (
+      {canEdit && editingLicense && (
         <EditLicenseModal
           license={editingLicense}
           isOpen={!!editingLicense}

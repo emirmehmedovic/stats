@@ -5,6 +5,7 @@ import { Upload, File, Download, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '../ui/toast';
 import { formatDateDisplay } from '@/lib/dates';
+import { useCanEdit } from '@/contexts/TranslationContext';
 
 type Document = {
   id: string;
@@ -22,6 +23,7 @@ type LicenseDocumentsProps = {
 };
 
 export function LicenseDocuments({ licenseId, documents, onDocumentsChange }: LicenseDocumentsProps) {
+  const canEdit = useCanEdit();
   const [isUploading, setIsUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,7 +129,7 @@ export function LicenseDocuments({ licenseId, documents, onDocumentsChange }: Li
     <div className="mt-4 pt-4 border-t border-slate-200">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-slate-900">Dokumenti ({documents.length})</h4>
-        {!showUpload && (
+        {canEdit && !showUpload && (
           <Button
             onClick={() => setShowUpload(true)}
             variant="outline"
@@ -141,7 +143,7 @@ export function LicenseDocuments({ licenseId, documents, onDocumentsChange }: Li
       </div>
 
       {/* Upload Form */}
-      {showUpload && (
+      {canEdit && showUpload && (
         <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
           <div className="flex items-center gap-2">
             <input
@@ -201,6 +203,7 @@ export function LicenseDocuments({ licenseId, documents, onDocumentsChange }: Li
                 >
                   <Download className="w-4 h-4 text-blue-600" />
                 </button>
+{canEdit && (
                 <button
                   onClick={() => handleDelete(doc.id, doc.fileName)}
                   className="p-1.5 hover:bg-red-100 rounded transition-colors"
@@ -208,6 +211,7 @@ export function LicenseDocuments({ licenseId, documents, onDocumentsChange }: Li
                 >
                   <Trash2 className="w-4 h-4 text-red-600" />
                 </button>
+)}
               </div>
             </div>
           ))}

@@ -4,7 +4,16 @@
  * Imports licenses from folder structure:
  * /licence/[LICENSE_TYPE]/[SERVICE]/[EMPLOYEE_NAME].pdf
  *
- * Usage: npx ts-node scripts/import-licenses.ts [--dry-run]
+ * Usage:
+ *   npx ts-node scripts/import-licenses.ts --path=/path/to/licence [--dry-run]
+ *
+ * Options:
+ *   --path=/path/to/folder   Path to the licence folder
+ *   --dry-run                Preview changes without making them
+ *
+ * Examples:
+ *   npx ts-node scripts/import-licenses.ts --path=/home/user/licence-import --dry-run
+ *   npx ts-node scripts/import-licenses.ts --path=/home/user/licence-import
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -14,9 +23,14 @@ import * as path from 'path';
 const prisma = new PrismaClient();
 
 // Configuration
-const LICENSE_FOLDER = '/Users/emir_mw/Desktop/DOKUMENTI/licence';
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'documents');
 const DRY_RUN = process.argv.includes('--dry-run');
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'documents');
+
+// Get license folder from command line or use default
+const pathArg = process.argv.find(arg => arg.startsWith('--path='));
+const LICENSE_FOLDER = pathArg
+  ? pathArg.split('=')[1]
+  : process.env.LICENSE_FOLDER || '/home/user/stats/licence-import/licence';
 
 // Stats
 const stats = {

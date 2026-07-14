@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { showToast } from '../ui/toast';
+import { useCanEdit } from '@/contexts/TranslationContext';
 
 type Document = {
   id: string;
@@ -33,6 +34,7 @@ const DOCUMENT_CATEGORIES = [
 ];
 
 export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
+  const canEdit = useCanEdit();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -110,6 +112,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
         <h3 className="text-lg font-semibold text-slate-900">
           Dokumenti ({documents.length})
         </h3>
+{canEdit && (
         <Button
           onClick={() => setShowUploadModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -117,6 +120,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
           <Plus className="w-4 h-4 mr-2" />
           Upload dokument
         </Button>
+)}
       </div>
 
       {documents.length === 0 ? (
@@ -132,6 +136,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
             <p className="text-slate-600 mb-8 max-w-md mx-auto">
               Upload-ujte dokumente kao što su ugovori, certifikati ili lični dokumenti.
             </p>
+{canEdit && (
             <Button
               onClick={() => setShowUploadModal(true)}
               variant="outline"
@@ -140,6 +145,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
               <Upload className="w-4 h-4 mr-2" />
               Upload prvi dokument
             </Button>
+)}
           </div>
         </div>
       ) : (
@@ -188,6 +194,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
                         >
                           <Download className="w-5 h-5 text-blue-600" />
                         </a>
+{canEdit && (
                         <button
                           onClick={() => handleDelete(doc.id)}
                           className="p-3 hover:bg-red-50 rounded-xl transition-colors shadow-soft"
@@ -195,6 +202,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
                         >
                           <Trash2 className="w-5 h-5 text-red-600" />
                         </button>
+)}
                       </div>
                     </div>
                     </div>
@@ -206,7 +214,7 @@ export function DocumentsSection({ employeeId }: DocumentsSectionProps) {
         </div>
       )}
 
-      {showUploadModal && (
+      {canEdit && showUploadModal && (
         <UploadDocumentModal
           employeeId={employeeId}
           onClose={() => setShowUploadModal(false)}
