@@ -387,7 +387,7 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
 
     // STW role - only show Dashboard and Predboarding from HOME section
     if (userRole === 'STW') {
-      if (section.title === 'HOME') {
+      if (section.title === t('nav.home').toUpperCase()) {
         return {
           ...section,
           items: section.items.filter(item =>
@@ -401,13 +401,13 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
 
     // MANAGER role - show Dashboard and employee-related management pages
     if (userRole === 'MANAGER') {
-      if (section.title === 'HOME') {
+      if (section.title === t('nav.home').toUpperCase()) {
         return {
           ...section,
           items: section.items.filter(item => item.href === '/dashboard')
         };
       }
-      if (section.title === 'MANAGEMENT') {
+      if (section.title === t('nav.management').toUpperCase()) {
         return {
           ...section,
           items: section.items
@@ -454,7 +454,7 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
     }
 
     if (userRole === 'NAPLATE') {
-      if (section.title !== 'MANAGEMENT') {
+      if (section.title !== t('nav.management').toUpperCase()) {
         return null;
       }
       const naplateItems = section.items.filter((item) => item.href === '/naplate');
@@ -462,13 +462,13 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
     }
 
     // OPERATIONS role - hide MANAGEMENT section
-    if (section.title === 'MANAGEMENT' && userRole === 'OPERATIONS') {
+    if (section.title === t('nav.management').toUpperCase() && userRole === 'OPERATIONS') {
       return null;
     }
 
     let adjustedSection = section;
 
-    if (section.title === 'MANAGEMENT') {
+    if (section.title === t('nav.management').toUpperCase()) {
       let filteredItems = section.items;
 
       if (userRole !== 'ADMIN') {
