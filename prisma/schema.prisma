@@ -137,6 +137,7 @@ model Airline {
   flights    Flight[]
   delayCodes AirlineDelayCode[] // Many-to-many veza sa delay kodovima
   routes     AirlineRoute[]     // Rute koje aviokompanija leti
+  supportTickets SupportTicket[] // IT tiketi vezani za ovu aviokompaniju
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -279,6 +280,9 @@ model Flight {
 
   // Relacija na boarding manifest
   boardingManifest BoardingManifest?
+
+  // IT Support tiketi vezani za ovaj let
+  supportTickets SupportTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1024,6 +1028,15 @@ model User {
   uploadedManifests     BoardingManifest[]
   completedBoardings    BoardingManifest[] @relation("CompletedBoarding")
   billingReports BillingReport[]
+
+  // IT Support Tickets
+  submittedTickets  SupportTicket[]  @relation("TicketSubmitter")
+  assignedTickets   SupportTicket[]  @relation("TicketAssignee")
+  ticketComments    TicketComment[]
+
+  // Notifikacije
+  notifications     Notification[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1071,4 +1084,196 @@ model LoginAttempt {
   @@index([email, createdAt])
   @@index([ipAddress, createdAt])
   @@index([createdAt]) // Za čišćenje starih zapisa
+}
+
+// ---------------------------------------------------------
+// MODUL 5 - IT SUPPORT TICKETING
+// ---------------------------------------------------------
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  HARDWARE
+  SOFTWARE
+  NETWORK
+  ACCESS
+  EMAIL
+  PRINTER
+  OTHER
+}
+
+enum TicketLocation {
+  CHECKIN_1
+  CHECKIN_2
+  CHECKIN_3
+  CHECKIN_4
+  CHECKIN_5
+  CHECKIN_6
+  CHECKIN_7
+  CHECKIN_8
+  BOARDING_1
+  BOARDING_2
+  BOARDING_3
+  BOARDING_4
+  OFFICE_NAPLATE
+  OFFICE_INFO
+  OTHER
+}
+
+enum TicketSystem {
+  GONOW
+  DCS_CRANE
+  NIKO
+  PRINTER
+  OTHER
+}
+
+// IT Support Ticket
+model SupportTicket {
+  id            String           @id @default(cuid())
+  title         String
+  description   String           @db.Text
+  priority      TicketPriority   @default(MEDIUM)
+  category      TicketCategory   @default(OTHER)
+  status        TicketStatus     @default(OPEN)
+
+  // Reporter info
+  reporterName  String?          // Ime i prezime osobe koja prijavljuje
+  incidentDate  DateTime?        // Datum i vrijeme kada se dogodio kvar
+
+  // Location info
+  location      TicketLocation?  // Lokacija kvara (šalter/kancelarija)
+
+  // System info
+  system        TicketSystem?    // Sistem na kojem je kvar
+  airlineId     String?          // Za DCS sisteme - koja aviokompanija
+  airline       Airline?         @relation(fields: [airlineId], references: [id])
+  flightId      String?          // Opciono: konkretni let na kojem je bio problem
+  flight        Flight?          @relation(fields: [flightId], references: [id])
+
+  // Submitter (any user can create)
+  submittedById String
+  submittedBy   User             @relation("TicketSubmitter", fields: [submittedById], references: [id])
+
+  // Assignment (ADMIN assigns)
+  assignedToId  String?
+  assignedTo    User?            @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  // Timestamps
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+
+  // Relations
+  comments      TicketComment[]
+  attachments   TicketAttachment[]
+  notifications Notification[]
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([submittedById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([location])
+  @@index([system])
+  @@index([airlineId])
+  @@index([flightId])
+  @@index([createdAt])
+}
+
+// Ticket Comment
+model TicketComment {
+  id          String             @id @default(cuid())
+  content     String             @db.Text
+  isInternal  Boolean            @default(false) // Internal comments visible only to ADMIN
+
+  // Author
+  authorId    String
+  author      User               @relation(fields: [authorId], references: [id])
+
+  // Ticket relation
+  ticketId    String
+  ticket      SupportTicket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  // Attachments on comment
+  attachments TicketAttachment[]
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@index([isInternal])
+}
+
+// Ticket Attachment (for both tickets and comments)
+model TicketAttachment {
+  id          String          @id @default(cuid())
+  fileName    String
+  filePath    String
+  fileType    String
+  fileSize    Int
+
+  // Relations (one of these will be set)
+  ticketId    String?
+  ticket      SupportTicket?  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  commentId   String?
+  comment     TicketComment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  uploadedAt  DateTime        @default(now())
+
+  @@index([ticketId])
+  @@index([commentId])
+}
+
+// ---------------------------------------------------------
+// MODUL 6 - IN-APP NOTIFIKACIJE
+// ---------------------------------------------------------
+
+enum NotificationType {
+  TICKET_CREATED      // Novi tiket kreiran (za admine)
+  TICKET_ASSIGNED     // Tiket dodijeljen (za assignee-a)
+  TICKET_UPDATED      // Status tiketa promijenjen (za vlasnika)
+  TICKET_COMMENTED    // Novi komentar na tiketu (za vlasnika i admine)
+  TICKET_RESOLVED     // Tiket riješen (za vlasnika)
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+
+  // Kome je notifikacija
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Opciona veza sa tiketom
+  ticketId    String?
+  ticket      SupportTicket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  // Metadata (npr. ko je kreirao komentar, stari/novi status, itd.)
+  metadata    Json?
+
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([ticketId])
 }

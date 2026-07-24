@@ -1,25 +1,29 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Bell, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bell, CheckCircle, MessageSquare, UserPlus, RefreshCw, TicketCheck, Ticket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+type NotificationType =
+  | 'TICKET_CREATED'
+  | 'TICKET_ASSIGNED'
+  | 'TICKET_UPDATED'
+  | 'TICKET_COMMENTED'
+  | 'TICKET_RESOLVED';
 
 type Notification = {
   id: string;
-  employee: {
+  type: NotificationType;
+  title: string;
+  message: string;
+  isRead: boolean;
+  ticketId: string | null;
+  ticket: {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  license: {
-    id: string;
-    licenseType: string;
-    licenseNumber: string;
-    expiryDate: string;
-  };
-  daysUntilExpiry: number;
-  sent: boolean;
+    title: string;
+    status: string;
+  } | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -33,7 +37,7 @@ export function NotificationsDropdown() {
 
   useEffect(() => {
     fetchNotifications();
-    // Refresh svakih 30 sekundi
+    // Refresh every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -54,7 +58,7 @@ export function NotificationsDropdown() {
   const fetchNotifications = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/notifications?unreadOnly=true&limit=10');
+      const response = await fetch('/api/notifications?limit=20');
       const result = await response.json();
 
       if (result.success) {
@@ -68,27 +72,89 @@ export function NotificationsDropdown() {
     }
   };
 
-  const markAsRead = async (notificationId: string) => {
+  const markAsRead = async (notificationIds: string[]) => {
     try {
-      await fetch(`/api/notifications/${notificationId}`, {
-        method: 'PUT',
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds }),
       });
-      fetchNotifications(); // Refresh
+      fetchNotifications();
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllRead: true }),
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+    }
+  };
+
   const handleNotificationClick = (notification: Notification) => {
-    markAsRead(notification.id);
-    router.push(`/employees/${notification.employee.id}`);
+    if (!notification.isRead) {
+      markAsRead([notification.id]);
+    }
+    if (notification.ticketId) {
+      router.push(`/support-tickets/${notification.ticketId}`);
+    }
     setIsOpen(false);
   };
 
-  const getUrgencyColor = (days: number) => {
-    if (days <= 7) return 'text-red-600 bg-red-50';
-    if (days <= 15) return 'text-orange-600 bg-orange-50';
-    return 'text-yellow-600 bg-yellow-50';
+  const getNotificationIcon = (type: NotificationType) => {
+    switch (type) {
+      case 'TICKET_CREATED':
+        return <Ticket className="w-4 h-4" />;
+      case 'TICKET_ASSIGNED':
+        return <UserPlus className="w-4 h-4" />;
+      case 'TICKET_UPDATED':
+        return <RefreshCw className="w-4 h-4" />;
+      case 'TICKET_COMMENTED':
+        return <MessageSquare className="w-4 h-4" />;
+      case 'TICKET_RESOLVED':
+        return <TicketCheck className="w-4 h-4" />;
+      default:
+        return <Bell className="w-4 h-4" />;
+    }
+  };
+
+  const getNotificationColor = (type: NotificationType) => {
+    switch (type) {
+      case 'TICKET_CREATED':
+        return 'text-blue-600 bg-blue-50';
+      case 'TICKET_ASSIGNED':
+        return 'text-purple-600 bg-purple-50';
+      case 'TICKET_UPDATED':
+        return 'text-orange-600 bg-orange-50';
+      case 'TICKET_COMMENTED':
+        return 'text-green-600 bg-green-50';
+      case 'TICKET_RESOLVED':
+        return 'text-emerald-600 bg-emerald-50';
+      default:
+        return 'text-slate-600 bg-slate-50';
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Upravo sada';
+    if (diffMins < 60) return `Prije ${diffMins} min`;
+    if (diffHours < 24) return `Prije ${diffHours}h`;
+    if (diffDays < 7) return `Prije ${diffDays} dana`;
+    return date.toLocaleDateString('bs');
   };
 
   return (
@@ -100,13 +166,15 @@ export function NotificationsDropdown() {
             fetchNotifications();
           }
         }}
-        className="relative p-2 hover:bg-slate-50 rounded-xl transition-colors"
+        className="relative p-2 lg:p-3.5 bg-white rounded-full shadow-soft hover:shadow-md transition-all group"
       >
-        <Bell className="w-5 h-5 text-slate-600" />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+        <Bell className="w-4 h-4 lg:w-5 lg:h-5 text-dark-600 group-hover:text-primary-600" />
+        {unreadCount > 0 ? (
+          <span className="absolute -top-1 -right-1 lg:top-0 lg:right-0 min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
+        ) : (
+          <span className="absolute top-2 right-2 lg:top-3 lg:right-3.5 w-2 h-2 bg-green-500 rounded-full border-2 border-white"></span>
         )}
       </button>
 
@@ -115,9 +183,19 @@ export function NotificationsDropdown() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-200">
             <h3 className="font-semibold text-slate-900">Notifikacije</h3>
-            {unreadCount > 0 && (
-              <span className="text-sm text-slate-600">{unreadCount} nepročitanih</span>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <>
+                  <span className="text-sm text-slate-600">{unreadCount} nepročitanih</span>
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Označi sve
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Notifications List */}
@@ -130,7 +208,7 @@ export function NotificationsDropdown() {
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-slate-500">
                 <CheckCircle className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                <p className="text-sm">Nema novih notifikacija</p>
+                <p className="text-sm">Nema notifikacija</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -139,32 +217,28 @@ export function NotificationsDropdown() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${
-                      !notification.sent ? 'bg-blue-50/50' : ''
+                      !notification.isRead ? 'bg-blue-50/50' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${getUrgencyColor(notification.daysUntilExpiry)}`}>
-                        <AlertCircle className="w-4 h-4" />
+                      <div className={`p-2 rounded-lg ${getNotificationColor(notification.type)}`}>
+                        {getNotificationIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 mb-1">
-                          Licenca ističe uskoro
-                        </p>
-                        <p className="text-xs text-slate-600 mb-2">
-                          {notification.employee.firstName} {notification.employee.lastName} - {notification.license.licenseType}
-                        </p>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${getUrgencyColor(notification.daysUntilExpiry)}`}>
-                            {notification.daysUntilExpiry === 0 
-                              ? 'Ističe danas!' 
-                              : notification.daysUntilExpiry === 1
-                              ? 'Ističe sutra'
-                              : `Ističe za ${notification.daysUntilExpiry} dana`}
-                          </span>
-                          {!notification.sent && (
-                            <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {notification.title}
+                          </p>
+                          {!notification.isRead && (
+                            <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
                           )}
                         </div>
+                        <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {formatTime(notification.createdAt)}
+                        </p>
                       </div>
                     </div>
                   </button>
@@ -178,12 +252,12 @@ export function NotificationsDropdown() {
             <div className="p-3 border-t border-slate-200 bg-slate-50">
               <button
                 onClick={() => {
-                  router.push('/employees');
+                  router.push('/support-tickets');
                   setIsOpen(false);
                 }}
                 className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium text-center"
               >
-                Vidi sve radnike
+                Vidi sve tikete
               </button>
             </div>
           )}
@@ -192,4 +266,3 @@ export function NotificationsDropdown() {
     </div>
   );
 }
-

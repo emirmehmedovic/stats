@@ -25,6 +25,7 @@ import {
   Briefcase,
   DollarSign,
   MapPin,
+  Headphones,
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -159,6 +160,16 @@ function createAdminSection(t: (key: string) => string): NavSection {
   };
 }
 
+// IT Support section - visible to all users
+function createSupportSection(t: (key: string) => string): NavSection {
+  return {
+    title: t('supportTickets.title').toUpperCase(),
+    items: [
+      { label: t('supportTickets.title'), href: '/support-tickets', icon: Headphones },
+    ],
+  };
+}
+
 interface SidebarProps {
   isMobileMenuOpen: boolean;
   closeMobileMenu: () => void;
@@ -183,6 +194,7 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
   // Create translated nav sections
   const navSections = useMemo(() => createNavSections(t), [t, language]);
   const adminSection = useMemo(() => createAdminSection(t), [t, language]);
+  const supportSection = useMemo(() => createSupportSection(t), [t, language]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -550,6 +562,18 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
               </div>
             </div>
           ))}
+
+          {/* IT Support Section - Visible to all users */}
+          {isMounted && (
+            <div>
+              <p className="px-3 lg:px-4 mb-1.5 lg:mb-2 text-[9px] lg:text-[10px] font-bold text-dark-400 uppercase tracking-widest">
+                {supportSection.title}
+              </p>
+              <div className="space-y-0.5 lg:space-y-1">
+                {supportSection.items.map((item) => renderNavItem(item))}
+              </div>
+            </div>
+          )}
 
           {/* ADMIN Section - Only for ADMIN role */}
           {isMounted && userRole === 'ADMIN' && (

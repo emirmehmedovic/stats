@@ -1,72 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireNonOperations } from '@/lib/route-guards';
+import { requireAnyAuth } from '@/lib/route-guards';
 
-// GET /api/notifications - Lista notifikacija
+// GET /api/notifications - Get user's notifications
 export async function GET(request: NextRequest) {
   try {
-    const authCheck = await requireNonOperations(request);
-    if ('error' in authCheck) {
-      return authCheck.error;
-    }
+    const authResult = await requireAnyAuth(request);
+    if ('error' in authResult) return authResult.error;
+    const { user } = authResult;
 
     const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: any = {};
-    if (unreadOnly) {
-      where.sent = false;
-    }
+    const where = {
+      userId: user.id,
+      ...(unreadOnly ? { isRead: false } : {}),
+    };
 
-    const notifications = await prisma.licenseNotification.findMany({
-      where,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        include: {
+          ticket: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
           },
         },
-        license: {
-          select: {
-            id: true,
-            licenseType: true,
-            licenseNumber: true,
-            expiryDate: true,
-          },
-        },
-      },
-    });
-
-    // Calculate days until expiry
-    const notificationsWithDays = notifications.map(notif => {
-      const daysUntilExpiry = Math.floor(
-        (new Date(notif.license.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-      );
-      return {
-        ...notif,
-        daysUntilExpiry,
-      };
-    });
-
-    const unreadCount = await prisma.licenseNotification.count({
-      where: { sent: false },
-    });
+      }),
+      prisma.notification.count({
+        where: { userId: user.id, isRead: false },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: notificationsWithDays,
+      data: notifications,
       unreadCount,
     });
   } catch (error) {
-    console.error('Notifications GET error:', error);
+    console.error('Error fetching notifications:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
+      { success: false, error: 'Failed to fetch notifications' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/notifications - Mark notifications as read
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await requireAnyAuth(request);
+    if ('error' in authResult) return authResult.error;
+    const { user } = authResult;
+
+    const body = await request.json();
+    const { notificationIds, markAllRead } = body;
+
+    if (markAllRead) {
+      await prisma.notification.updateMany({
+        where: { userId: user.id, isRead: false },
+        data: { isRead: true },
+      });
+    } else if (notificationIds && Array.isArray(notificationIds)) {
+      await prisma.notification.updateMany({
+        where: {
+          id: { in: notificationIds },
+          userId: user.id,
+        },
+        data: { isRead: true },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Notifications marked as read',
+    });
+  } catch (error) {
+    console.error('Error updating notifications:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update notifications' },
       { status: 500 }
     );
   }

@@ -23,7 +23,8 @@ import {
   Package,
   DollarSign,
   Briefcase,
-  MapPin
+  MapPin,
+  Headphones,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -244,6 +245,14 @@ const naplateItems: MenuItem[] = [
   },
 ];
 
+// IT Support - visible to all users
+const supportItem: MenuItem = {
+  id: 'support-tickets',
+  label: 'IT Podrška',
+  icon: Headphones,
+  href: '/support-tickets',
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>(['analytics', 'reports', 'naplate']);
@@ -436,6 +445,14 @@ export default function Sidebar() {
           <div className="space-y-1">
             {(userRole === 'VIEWER' ? filterViewerMenuItems(menuItems) : menuItems)
               .map(item => renderMenuItem(item))}
+          </div>
+        </div>
+
+        {/* IT Support - Visible to all users */}
+        <div>
+          <div className="text-xs font-semibold text-slate-400 mb-2 px-2">PODRŠKA</div>
+          <div className="space-y-1">
+            {renderMenuItem(supportItem)}
           </div>
         </div>
 

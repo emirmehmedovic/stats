@@ -119,7 +119,6 @@ export async function middleware(request: NextRequest) {
       '/api/employees',
       '/api/licenses',
       '/api/license-types',
-      '/api/notifications',
       '/api/sectors',
       '/api/documents',
       '/api/upload/employee-photo',
@@ -165,6 +164,8 @@ export async function middleware(request: NextRequest) {
         '/api/auth/session',
         '/api/auth/logout',
         '/api/profile',
+        '/api/support-tickets',
+        '/api/notifications',
       ];
       const hasManagerApiAccess = allowedManagerApiRoutes.some(route => pathname.startsWith(route));
 
@@ -183,9 +184,9 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // STW role - can only access predboarding API, dashboard API, and yearly dashboard trend data
+    // STW role - can only access predboarding API, dashboard API, yearly dashboard trend data, support tickets, and notifications
     if (decoded.role === 'STW') {
-      const allowedSTWRoutes = ['/api/predboarding', '/api/dashboard', '/api/comparison/trends'];
+      const allowedSTWRoutes = ['/api/predboarding', '/api/dashboard', '/api/comparison/trends', '/api/support-tickets', '/api/notifications'];
       const hasSTWAccess = allowedSTWRoutes.some(route => pathname.startsWith(route));
 
       if (!hasSTWAccess) {
@@ -196,7 +197,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (decoded.role === 'NAPLATE') {
-      const allowedNaplateApiRoutes = ['/api/naplate', '/api/auth/session', '/api/auth/logout'];
+      const allowedNaplateApiRoutes = ['/api/naplate', '/api/auth/session', '/api/auth/logout', '/api/support-tickets', '/api/notifications'];
       const hasNaplateAccess = allowedNaplateApiRoutes.some(route => pathname.startsWith(route));
       if (!hasNaplateAccess) {
         return applySecurityHeaders(
@@ -205,7 +206,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // AUDITOR role - read-only access to employees/licenses only
+    // AUDITOR role - read-only access to employees/licenses only + support tickets + notifications
     if (decoded.role === 'AUDITOR') {
       const auditorAllowedApiRoutes = [
         '/api/employees',
@@ -219,6 +220,8 @@ export async function middleware(request: NextRequest) {
         '/api/auth/session',
         '/api/auth/logout',
         '/api/profile',
+        '/api/support-tickets',
+        '/api/notifications',
       ];
       const hasAuditorApiAccess = auditorAllowedApiRoutes.some(route => pathname.startsWith(route));
 
@@ -297,10 +300,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // STW role - can only access /dashboard and /predboarding
+  // STW role - can only access /dashboard, /predboarding, and /support-tickets
   const stwRoutes = ['/predboarding'];
   const isSTWRoute = stwRoutes.some(route => pathname.startsWith(route));
-  const allowedSTWPages = ['/dashboard', '/predboarding'];
+  const allowedSTWPages = ['/dashboard', '/predboarding', '/support-tickets'];
   const viewerRestrictedPages = [
     '/flights',
     '/airlines',
@@ -321,14 +324,14 @@ export async function middleware(request: NextRequest) {
       }
     } else if (decoded?.role === 'MANAGER') {
       // MANAGER can only access specific pages
-      const allowedManagerPages = ['/employees', '/dashboard', '/profile', '/admin/license-types', '/admin/sectors'];
+      const allowedManagerPages = ['/employees', '/dashboard', '/profile', '/admin/license-types', '/admin/sectors', '/support-tickets'];
       const hasManagerPageAccess = allowedManagerPages.some(route => pathname.startsWith(route));
       if (!hasManagerPageAccess) {
         const response = NextResponse.redirect(new URL('/employees', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
     } else if (decoded?.role === 'NAPLATE') {
-      if (!pathname.startsWith('/naplate')) {
+      if (!pathname.startsWith('/naplate') && !pathname.startsWith('/support-tickets')) {
         const response = NextResponse.redirect(new URL('/naplate/dnevni', request.url));
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
@@ -338,8 +341,8 @@ export async function middleware(request: NextRequest) {
         return applySecurityHeaders(ensureCsrfCookie(response));
       }
     } else if (decoded?.role === 'AUDITOR') {
-      // AUDITOR can only access dashboard, employees, and license-related pages
-      const auditorAllowedPages = ['/dashboard', '/employees', '/admin/license-types', '/admin/sectors', '/profile'];
+      // AUDITOR can only access dashboard, employees, license-related pages, and support tickets
+      const auditorAllowedPages = ['/dashboard', '/employees', '/admin/license-types', '/admin/sectors', '/profile', '/support-tickets'];
       const hasAuditorPageAccess = auditorAllowedPages.some(route => pathname.startsWith(route));
       if (!hasAuditorPageAccess) {
         const response = NextResponse.redirect(new URL('/dashboard', request.url));

@@ -78,3 +78,8 @@ export function requireNaplateAccess(request: Request): Promise<AuthCheck> {
 export function requireReadAccess(request: Request): Promise<AuthCheck> {
   return requireRole(request, ['ADMIN', 'MANAGER', 'OPERATIONS', 'VIEWER', 'AUDITOR']);
 }
+
+// Any authenticated user - for IT support tickets
+export function requireAnyAuth(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'MANAGER', 'OPERATIONS', 'VIEWER', 'STW', 'NAPLATE', 'AUDITOR']);
+}

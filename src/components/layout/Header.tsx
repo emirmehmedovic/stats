@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Bell, Calendar, User, Menu } from 'lucide-react';
+import { Search, Calendar, User, Menu } from 'lucide-react';
+import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { formatDateDisplay, getTodayDateString } from '@/lib/dates';
 
 interface HeaderProps {
@@ -77,11 +78,8 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
             <Calendar className="w-5 h-5 text-dark-400 ml-2" />
           </div>
 
-          {/* Notification Bell */}
-          <button className="relative p-2 lg:p-3.5 bg-white rounded-full shadow-soft hover:shadow-primary transition-all group">
-            <Bell className="w-4 h-4 lg:w-5 lg:h-5 text-dark-600 group-hover:text-primary-600" />
-            <span className="absolute top-2 right-2 lg:top-3 lg:right-3.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
+          {/* Notifications */}
+          <NotificationsDropdown />
 
           {/* User Profile */}
           <Link
