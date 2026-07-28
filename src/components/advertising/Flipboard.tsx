@@ -9,7 +9,7 @@ interface FlipCharacterProps {
 }
 
 function FlipCharacter({ char, color, isFlipping }: FlipCharacterProps) {
-  const colorClass = color === 'primary' ? 'text-primary-400' : 'text-white';
+  const colorClass = 'text-white';
 
   if (char === ' ') {
     return <div className="w-2 sm:w-3 lg:w-4" />;
