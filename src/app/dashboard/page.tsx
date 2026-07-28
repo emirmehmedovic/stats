@@ -111,6 +111,12 @@ export default function DashboardPage() {
     }) ?? [];
   }, [stats?.punctuality7Days]);
 
+  const averagePassengers30d = useMemo(() => {
+    if (!stats?.passengersPerDay?.length) return 0;
+    const total = stats.passengersPerDay.reduce((sum, day) => sum + day.passengers, 0);
+    return Math.round(total / stats.passengersPerDay.length);
+  }, [stats?.passengersPerDay]);
+
   useEffect(() => {
     fetchStats();
   }, []);
@@ -450,12 +456,24 @@ export default function DashboardPage() {
               <div className="absolute top-0 right-0 -mt-6 -mr-10 w-40 h-40 bg-blue-200 rounded-full blur-3xl opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all"></div>
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mb-10 -ml-8 opacity-60 group-hover:opacity-90 group-hover:scale-110 transition-all"></div>
 
-              <div className="flex items-center justify-between mb-4 lg:mb-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                 <div>
                   <h3 className="text-sm sm:text-base lg:text-lg font-bold text-dark-900">Promet putnika</h3>
                   <p className="text-xs lg:text-sm text-dark-500">Ukupan broj putnika po danu (30 dana)</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3 lg:gap-4">
+                  <div className="relative bg-white rounded-2xl p-4 lg:p-5 shadow-soft border-2 border-primary-100 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-50 to-blue-50 opacity-60"></div>
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-primary-200 rounded-full blur-2xl opacity-40 -mr-6 -mt-6"></div>
+                    <div className="relative z-10 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-primary-500" />
+                        <p className="text-[10px] lg:text-xs text-primary-600 font-semibold uppercase tracking-wide">Prosjek dnevno</p>
+                      </div>
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary-700">{averagePassengers30d.toLocaleString('bs-BA')}</p>
+                      <p className="text-[10px] lg:text-xs text-dark-500 mt-1">putnika / dan</p>
+                    </div>
+                  </div>
                   <span className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-xl text-xs lg:text-sm font-medium bg-dark-50 text-dark-600">
                     30d
                   </span>
