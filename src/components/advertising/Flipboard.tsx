@@ -58,7 +58,7 @@ function FlipboardRow({ label, value, valueColor = 'white', isFlipping }: Flipbo
   const words = value.split(' ');
 
   return (
-    <div className="flex items-start gap-2 sm:gap-4 lg:gap-6 py-2 sm:py-3 lg:py-4 min-h-[52px] sm:min-h-[72px] lg:min-h-[88px] border-b border-dark-700/50 last:border-b-0">
+    <div className="flex items-start gap-2 sm:gap-4 lg:gap-6 py-2 sm:py-3 lg:py-4 h-[52px] sm:h-[72px] lg:h-[88px] border-b border-dark-700/50 last:border-b-0 overflow-hidden">
       {/* Label */}
       <div className="w-16 sm:w-24 lg:w-32 flex-shrink-0 pt-1 sm:pt-2">
         <span className="text-[9px] sm:text-xs lg:text-sm font-semibold text-dark-400 tracking-wider uppercase">
