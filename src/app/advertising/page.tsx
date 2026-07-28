@@ -3,7 +3,6 @@
 import { Flipboard } from '@/components/advertising/Flipboard';
 import { BenefitCard } from '@/components/advertising/BenefitCard';
 import { AdvertisingPositionCard } from '@/components/advertising/AdvertisingPositionCard';
-import { ContactForm } from '@/components/advertising/ContactForm';
 import { Footer } from '@/components/advertising/Footer';
 import { PricingSection } from '@/components/advertising/PricingSection';
 import { advertisingPositions, processSteps, benefits } from '@/components/advertising/types';
@@ -221,7 +220,7 @@ export default function AdvertisingPage() {
               Zainteresirani ste za oglašavanje?
             </h2>
             <p className="text-sm sm:text-base lg:text-lg text-dark-500 max-w-2xl mx-auto">
-              Popunite formu i naš tim će vam se javiti sa prilagođenom ponudom.
+              Kontaktirajte nas i naš tim će vam se javiti sa prilagođenom ponudom.
             </p>
           </div>
 
@@ -235,13 +234,14 @@ export default function AdvertisingPage() {
                 <h3 className="text-lg sm:text-xl font-bold text-dark-900 mb-6">Kontakt informacije</h3>
 
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-4 bg-dark-50 rounded-2xl border border-dark-100">
+                  <div className="flex items-start gap-4 p-4 bg-dark-50 rounded-2xl border border-dark-100">
                     <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center flex-shrink-0">
                       <Mail className="w-5 h-5 text-primary-600" />
                     </div>
                     <div>
                       <p className="text-xs sm:text-sm text-dark-500">Email</p>
-                      <p className="text-sm sm:text-base text-dark-900 font-medium">marketing@tuzla-airport.ba</p>
+                      <p className="text-sm sm:text-base text-dark-900 font-medium">iris.piric@tuzla-airport.ba</p>
+                      <p className="text-sm sm:text-base text-dark-900 font-medium">mirela.vilic@tuzla-airport.ba</p>
                     </div>
                   </div>
 
@@ -268,13 +268,28 @@ export default function AdvertisingPage() {
               </div>
             </div>
 
-            {/* Right - Form Card */}
-            <div className="bg-white rounded-2xl lg:rounded-3xl p-6 sm:p-8 shadow-soft border-4 border-white relative overflow-hidden">
+            {/* Right - CTA Card */}
+            <div className="bg-white rounded-2xl lg:rounded-3xl p-6 sm:p-8 shadow-soft border-4 border-white relative overflow-hidden flex flex-col justify-center">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-50/40 via-white/70 to-blue-50/40 opacity-70" />
               <div className="absolute top-0 right-0 w-48 h-48 bg-primary-100 rounded-full blur-3xl opacity-30 -mr-24 -mt-24" />
 
-              <div className="relative z-10">
-                <ContactForm />
+              <div className="relative z-10 text-center py-8 sm:py-12">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary-50 border border-primary-100 flex items-center justify-center mx-auto mb-4 sm:mb-5">
+                  <Mail className="w-7 h-7 sm:w-8 sm:h-8 text-primary-600" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-dark-900 mb-2">
+                  Pošaljite upit
+                </h3>
+                <p className="text-xs sm:text-sm text-dark-500 mb-5 sm:mb-6 max-w-sm mx-auto">
+                  Kliknite na dugme ispod da nam pošaljete email sa vašim upitom za oglašavanje.
+                </p>
+                <a
+                  href="mailto:iris.piric@tuzla-airport.ba,mirela.vilic@tuzla-airport.ba?subject=Upit%20za%20ogla%C5%A1avanje%20na%20Aerodromu%20Tuzla"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-2xl hover:bg-primary-700 transition-all shadow-soft text-sm sm:text-base"
+                >
+                  <Mail className="w-4 h-4" />
+                  Pošaljite email
+                </a>
               </div>
             </div>
           </div>

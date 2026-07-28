@@ -244,7 +244,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public routes that don't need authentication
-  const publicRoutes = ['/'];
+  const publicRoutes = ['/', '/advertising'];
   
   // Check if the current route is public
   const isPublicRoute = publicRoutes.includes(pathname);
