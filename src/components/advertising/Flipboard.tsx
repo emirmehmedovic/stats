@@ -54,6 +54,9 @@ interface FlipboardRowProps {
 }
 
 function FlipboardRow({ label, value, valueColor = 'white', isFlipping }: FlipboardRowProps) {
+  // Split value into words to prevent word breaking
+  const words = value.split(' ');
+
   return (
     <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 py-3 sm:py-4 lg:py-5 border-b border-dark-700/50 last:border-b-0">
       {/* Label */}
@@ -63,15 +66,19 @@ function FlipboardRow({ label, value, valueColor = 'white', isFlipping }: Flipbo
         </span>
       </div>
 
-      {/* Value - Split flap characters */}
-      <div className="flex-1 flex flex-wrap gap-[2px] sm:gap-1 lg:gap-1.5">
-        {value.split('').map((char, index) => (
-          <FlipCharacter
-            key={`${index}-${char}`}
-            char={char}
-            color={valueColor}
-            isFlipping={isFlipping}
-          />
+      {/* Value - Split flap characters grouped by words */}
+      <div className="flex-1 flex flex-wrap gap-x-2 gap-y-1 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2">
+        {words.map((word, wordIndex) => (
+          <div key={wordIndex} className="flex gap-[2px] sm:gap-1 lg:gap-1.5 flex-shrink-0">
+            {word.split('').map((char, charIndex) => (
+              <FlipCharacter
+                key={`${wordIndex}-${charIndex}-${char}`}
+                char={char}
+                color={valueColor}
+                isFlipping={isFlipping}
+              />
+            ))}
+          </div>
         ))}
       </div>
     </div>
