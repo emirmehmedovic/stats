@@ -18,7 +18,7 @@ function FlipCharacter({ char, color, isFlipping }: FlipCharacterProps) {
   return (
     <div
       className={`
-        relative w-5 h-7 sm:w-7 sm:h-9 lg:w-9 lg:h-12 bg-dark-800 rounded-sm overflow-hidden
+        relative w-[14px] h-5 sm:w-6 sm:h-8 lg:w-8 lg:h-11 bg-dark-800 rounded-sm overflow-hidden
         ${isFlipping ? 'animate-flip' : ''}
       `}
       style={{ boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)' }}
@@ -31,7 +31,7 @@ function FlipCharacter({ char, color, isFlipping }: FlipCharacterProps) {
       <span
         className={`
           absolute inset-0 flex items-center justify-center
-          text-sm sm:text-lg lg:text-2xl font-bold tracking-tight
+          text-[10px] sm:text-base lg:text-xl font-bold tracking-tight
           ${colorClass}
         `}
         style={{ fontFamily: "'Courier New', monospace" }}
@@ -58,18 +58,18 @@ function FlipboardRow({ label, value, valueColor = 'white', isFlipping }: Flipbo
   const words = value.split(' ');
 
   return (
-    <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 py-3 sm:py-4 lg:py-5 border-b border-dark-700/50 last:border-b-0">
+    <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 py-2 sm:py-4 lg:py-5 border-b border-dark-700/50 last:border-b-0">
       {/* Label */}
-      <div className="w-20 sm:w-28 lg:w-36 flex-shrink-0">
-        <span className="text-[10px] sm:text-xs lg:text-sm font-semibold text-dark-400 tracking-wider uppercase">
+      <div className="w-16 sm:w-24 lg:w-32 flex-shrink-0">
+        <span className="text-[9px] sm:text-xs lg:text-sm font-semibold text-dark-400 tracking-wider uppercase">
           {label}
         </span>
       </div>
 
       {/* Value - Split flap characters grouped by words */}
-      <div className="flex-1 flex flex-wrap gap-x-2 gap-y-1 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2">
+      <div className="flex-1 flex flex-wrap gap-x-2 gap-y-1 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2 overflow-hidden">
         {words.map((word, wordIndex) => (
-          <div key={wordIndex} className="flex gap-[2px] sm:gap-1 lg:gap-1.5 flex-shrink-0">
+          <div key={wordIndex} className="flex gap-[1px] sm:gap-0.5 lg:gap-1 flex-shrink-0">
             {word.split('').map((char, charIndex) => (
               <FlipCharacter
                 key={`${wordIndex}-${charIndex}-${char}`}
