@@ -58,18 +58,18 @@ function FlipboardRow({ label, value, valueColor = 'white', isFlipping }: Flipbo
   const words = value.split(' ');
 
   return (
-    <div className="flex items-start gap-2 sm:gap-4 lg:gap-6 py-2 sm:py-3 lg:py-4 h-[52px] sm:h-[72px] lg:h-[88px] border-b border-dark-700/50 last:border-b-0 overflow-hidden">
+    <div className="flex items-start gap-2 sm:gap-4 lg:gap-6 py-2 h-[70px] sm:h-[90px] lg:h-[115px] border-b border-dark-700/50 last:border-b-0 overflow-hidden">
       {/* Label */}
-      <div className="w-16 sm:w-24 lg:w-32 flex-shrink-0 pt-1 sm:pt-2">
+      <div className="w-16 sm:w-24 lg:w-32 flex-shrink-0 pt-0.5 sm:pt-1">
         <span className="text-[9px] sm:text-xs lg:text-sm font-semibold text-dark-400 tracking-wider uppercase">
           {label}
         </span>
       </div>
 
       {/* Value - Split flap characters grouped by words */}
-      <div className="flex-1 flex flex-wrap gap-x-2 gap-y-1 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2 overflow-hidden">
+      <div className="flex-1 flex flex-wrap gap-x-2 gap-y-1 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2 overflow-hidden content-start">
         {words.map((word, wordIndex) => (
-          <div key={wordIndex} className="flex gap-[1px] sm:gap-0.5 lg:gap-1 flex-shrink-0">
+          <div key={wordIndex} className="flex flex-nowrap gap-[1px] sm:gap-0.5 lg:gap-1 flex-shrink-0">
             {word.split('').map((char, charIndex) => (
               <FlipCharacter
                 key={`${wordIndex}-${charIndex}-${char}`}
