@@ -100,9 +100,13 @@ export default function FlightDataEntryPage() {
   const flightId = params.id as string;
   const searchParams = useSearchParams();
   const returnDate = searchParams?.get('date');
-  const returnPath = returnDate
-    ? `/daily-operations?date=${encodeURIComponent(returnDate)}`
-    : '/daily-operations';
+  const errorId = searchParams?.get('errorId');
+  const isErrorFixMode = !!errorId;
+  const returnPath = isErrorFixMode
+    ? `/error-review/${errorId}`
+    : returnDate
+      ? `/daily-operations?date=${encodeURIComponent(returnDate)}`
+      : '/daily-operations';
 
   const [flight, setFlight] = useState<Flight | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1019,6 +1023,21 @@ export default function FlightDataEntryPage() {
   return (
     <MainLayout>
       <div className="p-8 space-y-8">
+        {/* Error Fix Mode Banner */}
+        {isErrorFixMode && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-900">Ispravljanje prijavljene greške</h3>
+              <p className="text-sm text-amber-700">
+                Ispravite podatke leta, sačuvajte promjene, a zatim označite grešku kao riješenu.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Back Button */}
         <Button
           variant="outline"
@@ -1026,7 +1045,7 @@ export default function FlightDataEntryPage() {
           className="flex items-center gap-2 hover:bg-slate-100 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Nazad na pregled
+          {isErrorFixMode ? 'Nazad na pregled greške' : 'Nazad na pregled'}
         </Button>
 
         {/* Flight Info Header Card */}

@@ -153,6 +153,7 @@ function createAdminSection(t: (key: string) => string): NavSection {
     title: t('nav.admin').toUpperCase(),
     items: [
       { label: t('nav.adminPanel'), href: '/admin/users', icon: Settings2 },
+      { label: 'Greške na letovima', href: '/admin/flight-errors', icon: AlertTriangle },
       { label: t('nav.auditLog'), href: '/admin/audit-logs', icon: Shield },
       { label: t('nav.accessControl'), href: '/access-control', icon: Shield },
       { label: t('nav.acLocations'), href: '/admin/access-control/places', icon: MapPin },

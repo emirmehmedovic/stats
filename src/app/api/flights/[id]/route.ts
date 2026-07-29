@@ -487,6 +487,7 @@ export async function PUT(
         ...verificationUpdate,
         arrivalLoadFactor,
         departureLoadFactor,
+        updatedByUserId: decodedUser?.id || null,
       },
       include: {
         airline: true,

@@ -47,11 +47,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Find unverified flights, but exclude those with active error reports
+    // (those are intentionally unverified for error correction)
     const pendingFlights = await prisma.flight.groupBy({
       by: ['date'],
       where: {
         date: { lt: normalizedDate },
         isVerified: false,
+        // Exclude flights that have active (OPEN or IN_PROGRESS) error reports
+        NOT: {
+          errorReports: {
+            some: {
+              status: { in: ['OPEN', 'IN_PROGRESS'] },
+            },
+          },
+        },
       },
     });
 

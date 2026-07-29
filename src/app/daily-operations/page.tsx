@@ -16,7 +16,11 @@ import {
   Lock,
   AlertCircle,
   DoorClosed,
+  Flag,
+  CheckCircle2,
 } from 'lucide-react';
+import { ErrorReportModal } from '@/components/flight-errors';
+import { FlightErrorType, FlightErrorPriority, FlightErrorStatus } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
@@ -246,6 +250,9 @@ function DailyOperationsContent() {
   const [pendingVerificationDate, setPendingVerificationDate] = useState<string | null>(null);
   const [pendingVerificationDates, setPendingVerificationDates] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | null>(null);
+  const [errorReportModalOpen, setErrorReportModalOpen] = useState(false);
+  const [selectedFlightForError, setSelectedFlightForError] = useState<Flight | null>(null);
+  const [flightErrorStatuses, setFlightErrorStatuses] = useState<Record<string, { hasResolved: boolean; hasPending: boolean }>>({});
 
   useEffect(() => {
     // Get date from query params if available
@@ -301,6 +308,35 @@ function DailyOperationsContent() {
     };
   }, [selectedDate, today]);
 
+  const fetchFlightErrorStatuses = async (flightIds: string[]) => {
+    if (flightIds.length === 0) return;
+
+    try {
+      const params = new URLSearchParams();
+      flightIds.forEach(id => params.append('flightIds', id));
+
+      const response = await fetch(`/api/flight-errors/by-flights?${params.toString()}`);
+      const result = await response.json();
+
+      if (result.success) {
+        const statuses: Record<string, { hasResolved: boolean; hasPending: boolean }> = {};
+        for (const error of result.data) {
+          if (!statuses[error.flightId]) {
+            statuses[error.flightId] = { hasResolved: false, hasPending: false };
+          }
+          if (error.status === 'RESOLVED' || error.status === 'CLOSED') {
+            statuses[error.flightId].hasResolved = true;
+          } else if (error.status === 'OPEN' || error.status === 'IN_PROGRESS') {
+            statuses[error.flightId].hasPending = true;
+          }
+        }
+        setFlightErrorStatuses(statuses);
+      }
+    } catch (err) {
+      console.error('Error fetching flight error statuses:', err);
+    }
+  };
+
   const fetchFlights = async () => {
     setIsLoading(true);
     setError('');
@@ -314,7 +350,7 @@ function DailyOperationsContent() {
 
       const url = `/api/flights?${params.toString()}`;
       console.log('Fetching flights:', url);
-      
+
       const response = await fetch(url);
       const result = await response.json();
 
@@ -325,6 +361,10 @@ function DailyOperationsContent() {
         const flightsArray = Array.isArray(result.data) ? result.data : [];
         console.log('Setting flights:', flightsArray.length);
         setFlights(flightsArray);
+
+        // Fetch error statuses for these flights
+        const flightIds = flightsArray.map((f: Flight) => f.id);
+        fetchFlightErrorStatuses(flightIds);
       } else {
         setError(result.error || 'Greška pri učitavanju letova');
         if (result.details) {
@@ -493,6 +533,36 @@ function DailyOperationsContent() {
   const yesterdayDate = getPreviousDateString(today);
   const requiresPastVerification = selectedDate === today;
   const canEditSelectedDate = !requiresPastVerification || allPastVerified || userRole === 'ADMIN';
+
+  const canReportError = userRole === 'ADMIN' || userRole === 'OPERATIONS';
+
+  const handleOpenErrorReport = (flight: Flight) => {
+    setSelectedFlightForError(flight);
+    setErrorReportModalOpen(true);
+  };
+
+  const handleSubmitErrorReport = async (data: { errorType: FlightErrorType; priority: FlightErrorPriority; description: string }) => {
+    if (!selectedFlightForError) return;
+
+    const response = await fetch('/api/flight-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        flightId: selectedFlightForError.id,
+        errorType: data.errorType,
+        priority: data.priority,
+        description: data.description,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Greška pri prijavi');
+    }
+
+    setSelectedFlightForError(null);
+    setErrorReportModalOpen(false);
+  };
 
 
   if (isLoading) {
@@ -931,15 +1001,42 @@ function DailyOperationsContent() {
                         </div>
                       </div>
 
-                      <Button
-                        onClick={() => router.push(`/daily-operations/${flight.id}?date=${encodeURIComponent(selectedDate)}`)}
-                        variant="outline"
-                        className="flex items-center gap-2 border-primary-200 text-primary-700 bg-white/80 hover:bg-primary-50 hover:border-primary-300"
-                        disabled={!canEditSelectedDate}
-                      >
-                        <Edit className="w-4 h-4" />
-                        {flight.isVerified ? (userRole === 'ADMIN' ? 'Uredi' : 'Pregled') : 'Unesi podatke'}
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          onClick={() => router.push(`/daily-operations/${flight.id}?date=${encodeURIComponent(selectedDate)}`)}
+                          variant="outline"
+                          className="flex items-center gap-2 border-primary-200 text-primary-700 bg-white/80 hover:bg-primary-50 hover:border-primary-300"
+                          disabled={!canEditSelectedDate}
+                        >
+                          <Edit className="w-4 h-4" />
+                          {flight.isVerified ? (userRole === 'ADMIN' ? 'Uredi' : 'Pregled') : 'Unesi podatke'}
+                        </Button>
+                        {canReportError && hasData(flight) && (
+                          <div className="flex items-center gap-2">
+                            {flightErrorStatuses[flight.id]?.hasResolved && (
+                              <span className="px-2 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-medium flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Ispravljen
+                              </span>
+                            )}
+                            {flightErrorStatuses[flight.id]?.hasPending && (
+                              <span className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Greška
+                              </span>
+                            )}
+                            <Button
+                              onClick={() => handleOpenErrorReport(flight)}
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2 border-red-200 text-red-600 bg-white/80 hover:bg-red-50 hover:border-red-300"
+                            >
+                              <Flag className="w-3 h-3" />
+                              Prijavi grešku
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -968,6 +1065,24 @@ function DailyOperationsContent() {
             )}
           </div>
         </div>
+
+        {/* Error Report Modal */}
+        <ErrorReportModal
+          isOpen={errorReportModalOpen}
+          flight={selectedFlightForError ? {
+            id: selectedFlightForError.id,
+            route: selectedFlightForError.route,
+            date: selectedFlightForError.date,
+            arrivalFlightNumber: null,
+            departureFlightNumber: null,
+            airline: selectedFlightForError.airline,
+          } : null}
+          onClose={() => {
+            setErrorReportModalOpen(false);
+            setSelectedFlightForError(null);
+          }}
+          onSubmit={handleSubmitErrorReport}
+        />
       </div>
     </MainLayout>
   );

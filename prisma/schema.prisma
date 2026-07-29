@@ -284,6 +284,9 @@ model Flight {
   // IT Support tiketi vezani za ovaj let
   supportTickets SupportTicket[]
 
+  // Flight Error Reports vezani za ovaj let
+  errorReports FlightErrorReport[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1037,6 +1040,13 @@ model User {
   // Notifikacije
   notifications     Notification[]
 
+  // Flight Error relacije
+  reportedErrors    FlightErrorReport[]    @relation("ReportedErrors")
+  assignedErrors    FlightErrorReport[]    @relation("AssignedErrors")
+  closedErrors      FlightErrorReport[]    @relation("ClosedErrors")
+  errorAttachments  FlightErrorAttachment[]
+  errorHistory      FlightErrorHistory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1251,6 +1261,11 @@ enum NotificationType {
   TICKET_UPDATED      // Status tiketa promijenjen (za vlasnika)
   TICKET_COMMENTED    // Novi komentar na tiketu (za vlasnika i admine)
   TICKET_RESOLVED     // Tiket riješen (za vlasnika)
+
+  // Flight Error notifikacije
+  FLIGHT_ERROR_ASSIGNED   // Greška vam je dodijeljena
+  FLIGHT_ERROR_RESOLVED   // Prijavljena greška je riješena
+  FLIGHT_ERROR_DISPUTED   // Korisnik osporava grešku
 }
 
 model Notification {
@@ -1276,4 +1291,146 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@index([ticketId])
+
+  // Opciona veza sa flight error-om
+  flightErrorId   String?
+  flightError     FlightErrorReport? @relation(fields: [flightErrorId], references: [id], onDelete: Cascade)
+
+  @@index([flightErrorId])
+}
+
+// ---------------------------------------------------------
+// MODUL 7 - FLIGHT ERROR DELEGATION
+// ---------------------------------------------------------
+
+enum FlightErrorType {
+  GENERAL                 // Opće
+  DEPARTURE_PASSENGERS    // Broj odlaznih putnika
+  ARRIVAL_PASSENGERS      // Broj dolaznih putnika
+  AIRCRAFT_TYPE           // Tip aviona
+  OPERATION_TYPE          // Tip operacije
+  FLIGHT_TYPE             // Tip leta
+  NOT_VERIFIED            // Let nije verifikovan
+}
+
+enum FlightErrorPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum FlightErrorStatus {
+  OPEN           // Nova greška
+  IN_PROGRESS    // Korisnik je vidio
+  RESOLVED       // Ispravljena
+  DISPUTED       // Korisnik tvrdi da nema greške
+  CLOSED         // Admin zatvorio
+}
+
+// Flight Error Report - Glavni model za greške
+model FlightErrorReport {
+  id              String               @id @default(cuid())
+
+  // Let na koji se odnosi greška
+  flightId        String
+  flight          Flight               @relation(fields: [flightId], references: [id], onDelete: Cascade)
+
+  // Tip i prioritet greške
+  errorType       FlightErrorType
+  priority        FlightErrorPriority  @default(MEDIUM)
+  description     String               @db.Text
+
+  // Status greške
+  status          FlightErrorStatus    @default(OPEN)
+
+  // Ko je prijavio (skriven od assignee-a)
+  reportedById    String
+  reportedBy      User                 @relation("ReportedErrors", fields: [reportedById], references: [id])
+
+  // Kome je dodijeljena (automatski - zadnji ko je sačuvao let)
+  assignedToId    String
+  assignedTo      User                 @relation("AssignedErrors", fields: [assignedToId], references: [id])
+
+  // Praćenje promjena vrijednosti
+  oldValue        Json?                // Stare vrijednosti prije ispravke
+  newValue        Json?                // Nove vrijednosti nakon ispravke
+
+  // Dispute info
+  disputeReason   String?              @db.Text
+  disputedAt      DateTime?
+
+  // Admin zatvaranje
+  closedById      String?
+  closedBy        User?                @relation("ClosedErrors", fields: [closedById], references: [id])
+  closedAt        DateTime?
+  closedNotes     String?              @db.Text
+
+  // Označavanje lažne prijave (admin može označiti kad zatvara osporenu grešku)
+  isFalseReport   Boolean              @default(false)
+
+  // Relacije
+  attachments     FlightErrorAttachment[]
+  history         FlightErrorHistory[]
+  notifications   Notification[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([flightId])
+  @@index([reportedById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([errorType])
+  @@index([createdAt])
+  @@index([assignedToId, status])
+}
+
+// Flight Error Attachment - Prilozi za dispute
+model FlightErrorAttachment {
+  id              String             @id @default(cuid())
+
+  // Veza sa error reportom
+  errorReportId   String
+  errorReport     FlightErrorReport  @relation(fields: [errorReportId], references: [id], onDelete: Cascade)
+
+  // File info
+  fileName        String
+  filePath        String
+  fileType        String
+  fileSize        Int
+
+  // Ko je uploadovao
+  uploadedById    String
+  uploadedBy      User               @relation(fields: [uploadedById], references: [id])
+  uploadedAt      DateTime           @default(now())
+
+  @@index([errorReportId])
+  @@index([uploadedById])
+}
+
+// Flight Error History - Audit trail promjena statusa
+model FlightErrorHistory {
+  id              String             @id @default(cuid())
+
+  // Veza sa error reportom
+  errorReportId   String
+  errorReport     FlightErrorReport  @relation(fields: [errorReportId], references: [id], onDelete: Cascade)
+
+  // Akcija
+  action          String             // CREATED, STATUS_CHANGED, DISPUTED, RESOLVED, CLOSED
+  fromStatus      FlightErrorStatus?
+  toStatus        FlightErrorStatus?
+  notes           String?            @db.Text
+
+  // Ko je izvršio akciju
+  performedById   String
+  performedBy     User               @relation(fields: [performedById], references: [id])
+
+  createdAt       DateTime           @default(now())
+
+  @@index([errorReportId])
+  @@index([performedById])
+  @@index([createdAt])
 }
