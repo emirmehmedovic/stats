@@ -1001,6 +1001,7 @@ enum UserRole {
   STW  // Ground staff - Predboarding access
   NAPLATE  // Billing/Collections - Financial reports access
   AUDITOR  // External auditor - Read-only access to all, English UI
+  PARKING  // Parking revenue management
 }
 
 enum Language {
@@ -1046,6 +1047,10 @@ model User {
   closedErrors      FlightErrorReport[]    @relation("ClosedErrors")
   errorAttachments  FlightErrorAttachment[]
   errorHistory      FlightErrorHistory[]
+
+  // Parking Revenue relacije
+  parkingRevenueCreated  ParkingRevenue[]  @relation("ParkingRevenueCreatedBy")
+  parkingRevenueUpdated  ParkingRevenue[]  @relation("ParkingRevenueUpdatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1432,5 +1437,38 @@ model FlightErrorHistory {
 
   @@index([errorReportId])
   @@index([performedById])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------
+// MODUL 8 - PARKING REVENUE
+// ---------------------------------------------------------
+
+model ParkingRevenue {
+  id              String   @id @default(cuid())
+
+  // Datum za koji se unosi pazar
+  date            DateTime @db.Date
+
+  // Dnevni pazar u KM (konvertibilna marka)
+  amount          Decimal  @db.Decimal(12, 2)
+
+  // Opcionalna napomena
+  notes           String?  @db.Text
+
+  // Ko je unio i kada
+  createdById     String
+  createdBy       User     @relation("ParkingRevenueCreatedBy", fields: [createdById], references: [id])
+
+  // Ko je zadnji ažurirao
+  updatedById     String?
+  updatedBy       User?    @relation("ParkingRevenueUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+  @@index([createdById])
   @@index([createdAt])
 }

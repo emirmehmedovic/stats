@@ -26,6 +26,7 @@ import {
   DollarSign,
   MapPin,
   Headphones,
+  ParkingCircle,
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -142,6 +143,7 @@ function createNavSections(t: (key: string) => string): NavSection[] {
             { label: t('nav.monthlyBilling'), href: '/naplate/mjesecni', icon: FileText },
           ],
         },
+        { label: 'Naplata parkinga', href: '/parking', icon: ParkingCircle },
         { label: t('nav.itEquipment'), href: '/it-equipment', icon: Package },
       ],
     },
@@ -474,6 +476,15 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
       return { ...section, items: naplateItems };
     }
 
+    // PARKING role - only show parking page
+    if (userRole === 'PARKING') {
+      if (section.title !== t('nav.management').toUpperCase()) {
+        return null;
+      }
+      const parkingItems = section.items.filter((item) => item.href === '/parking');
+      return { ...section, items: parkingItems };
+    }
+
     // OPERATIONS role - hide MANAGEMENT section
     if (section.title === t('nav.management').toUpperCase() && userRole === 'OPERATIONS') {
       return null;
@@ -490,6 +501,11 @@ export function Sidebar({ isMobileMenuOpen, closeMobileMenu }: SidebarProps) {
 
       if (userRole !== 'ADMIN' && userRole !== 'NAPLATE') {
         filteredItems = filteredItems.filter((item) => item.href !== '/naplate');
+      }
+
+      // Parking is only visible to ADMIN and PARKING roles
+      if (userRole !== 'ADMIN' && userRole !== 'PARKING') {
+        filteredItems = filteredItems.filter((item) => item.href !== '/parking');
       }
 
       adjustedSection = { ...section, items: filteredItems };

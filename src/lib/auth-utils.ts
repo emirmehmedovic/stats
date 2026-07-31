@@ -15,7 +15,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR' | 'PARKING';
   language?: 'BS' | 'EN';
 }
 

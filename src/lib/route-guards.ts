@@ -81,5 +81,9 @@ export function requireReadAccess(request: Request): Promise<AuthCheck> {
 
 // Any authenticated user - for IT support tickets
 export function requireAnyAuth(request: Request): Promise<AuthCheck> {
-  return requireRole(request, ['ADMIN', 'MANAGER', 'OPERATIONS', 'VIEWER', 'STW', 'NAPLATE', 'AUDITOR']);
+  return requireRole(request, ['ADMIN', 'MANAGER', 'OPERATIONS', 'VIEWER', 'STW', 'NAPLATE', 'AUDITOR', 'PARKING']);
+}
+
+export function requireParkingAccess(request: Request): Promise<AuthCheck> {
+  return requireRole(request, ['ADMIN', 'PARKING']);
 }
