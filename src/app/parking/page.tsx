@@ -766,6 +766,91 @@ export default function ParkingPage() {
           </div>
         )}
 
+        {/* Entries Table - moved here after forms */}
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-dark-50 rounded-xl">
+                <Calendar className="w-5 h-5 text-dark-400" />
+              </div>
+              <input
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="px-4 py-2.5 border-2 border-dark-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+              <Button variant="outline" size="sm" onClick={fetchData} className="p-2.5">
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft overflow-hidden">
+            {entries.length === 0 ? (
+              <div className="text-center py-16 text-dark-500">
+                <ParkingCircle className="w-12 h-12 text-dark-300 mx-auto mb-4" />
+                <p className="font-medium">Nema unosa za odabrani period</p>
+                <p className="text-sm text-dark-400 mt-1">Odaberite drugi mjesec ili dodajte novi unos</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-dark-50 border-b border-dark-100">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider">Datum</th>
+                      <th className="px-4 lg:px-6 py-4 text-right text-xs font-bold text-dark-500 uppercase tracking-wider">Iznos</th>
+                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider hidden md:table-cell">Napomena</th>
+                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider hidden lg:table-cell">Unio</th>
+                      <th className="px-4 lg:px-6 py-4 text-right text-xs font-bold text-dark-500 uppercase tracking-wider">Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-100">
+                    {entries.map((entry) => (
+                      <tr key={entry.id} className="hover:bg-dark-50 transition-colors">
+                        <td className="px-4 lg:px-6 py-4">
+                          <div className="text-sm font-semibold text-dark-900">
+                            {format(new Date(entry.date), 'dd.MM.yyyy', { locale: bs })}
+                          </div>
+                          <div className="text-xs text-dark-500 capitalize">
+                            {format(new Date(entry.date), 'EEEE', { locale: bs })}
+                          </div>
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-right">
+                          <span className="text-lg font-bold text-dark-900">
+                            {formatCurrency(entry.amount)}
+                          </span>
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-dark-500 hidden md:table-cell max-w-[200px] truncate">
+                          {entry.notes || '-'}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-dark-500 hidden lg:table-cell">
+                          {entry.createdBy?.name || entry.createdBy?.email}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleEdit(entry)}
+                              className="p-2 text-dark-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(entry.id)}
+                              className="p-2 text-dark-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Charts Section */}
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* Last 7 Days Chart */}
@@ -936,92 +1021,6 @@ export default function ParkingPage() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full items-center justify-center text-dark-400">Nema dostupnih podataka</div>
-            )}
-          </div>
-        </section>
-
-        {/* Filter and Entries Table */}
-        <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-dark-50 rounded-xl">
-                <Calendar className="w-5 h-5 text-dark-400" />
-              </div>
-              <input
-                type="month"
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
-                className="px-4 py-2.5 border-2 border-dark-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <Button variant="outline" size="sm" onClick={fetchData} className="p-2.5">
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Entries Table */}
-          <div className="bg-white rounded-2xl lg:rounded-3xl shadow-soft overflow-hidden">
-            {entries.length === 0 ? (
-              <div className="text-center py-16 text-dark-500">
-                <ParkingCircle className="w-12 h-12 text-dark-300 mx-auto mb-4" />
-                <p className="font-medium">Nema unosa za odabrani period</p>
-                <p className="text-sm text-dark-400 mt-1">Odaberite drugi mjesec ili dodajte novi unos</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-dark-50 border-b border-dark-100">
-                    <tr>
-                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider">Datum</th>
-                      <th className="px-4 lg:px-6 py-4 text-right text-xs font-bold text-dark-500 uppercase tracking-wider">Iznos</th>
-                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider hidden md:table-cell">Napomena</th>
-                      <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-dark-500 uppercase tracking-wider hidden lg:table-cell">Unio</th>
-                      <th className="px-4 lg:px-6 py-4 text-right text-xs font-bold text-dark-500 uppercase tracking-wider">Akcije</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-dark-100">
-                    {entries.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-dark-50 transition-colors">
-                        <td className="px-4 lg:px-6 py-4">
-                          <div className="text-sm font-semibold text-dark-900">
-                            {format(new Date(entry.date), 'dd.MM.yyyy', { locale: bs })}
-                          </div>
-                          <div className="text-xs text-dark-500 capitalize">
-                            {format(new Date(entry.date), 'EEEE', { locale: bs })}
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-right">
-                          <span className="text-lg font-bold text-dark-900">
-                            {formatCurrency(entry.amount)}
-                          </span>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-dark-500 hidden md:table-cell max-w-[200px] truncate">
-                          {entry.notes || '-'}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-dark-500 hidden lg:table-cell">
-                          {entry.createdBy?.name || entry.createdBy?.email}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
-                            <button
-                              onClick={() => handleEdit(entry)}
-                              className="p-2 text-dark-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(entry.id)}
-                              className="p-2 text-dark-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             )}
           </div>
         </section>
