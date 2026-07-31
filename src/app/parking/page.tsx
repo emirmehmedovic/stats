@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -237,64 +237,55 @@ export default function ParkingPage() {
     return num.toLocaleString('bs-BA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' KM';
   };
 
-  // Helper to check if a date has an entry
-  const getEntryForDate = (dateStr: string): ParkingRevenueEntry | undefined => {
+  // Helper to check if a date has an entry - use useCallback to ensure fresh reference
+  const getEntryForDate = useCallback((dateStr: string): ParkingRevenueEntry | undefined => {
     return allEntries.find((entry) => entry.date.split('T')[0] === dateStr);
-  };
+  }, [allEntries]);
 
-  const hasEntryForDate = (dateStr: string): boolean => {
+  const hasEntryForDate = useCallback((dateStr: string): boolean => {
     return !!getEntryForDate(dateStr);
-  };
+  }, [getEntryForDate]);
 
   // Get the current form date as Date object
   const formDateObj = useMemo(() => new Date(formDate), [formDate]);
 
-  // Navigation functions for date selection
-  const goToPreviousDay = () => {
-    const newDate = subDays(formDateObj, 1);
-    setFormDate(format(newDate, 'yyyy-MM-dd'));
-    const existingEntry = getEntryForDate(format(newDate, 'yyyy-MM-dd'));
-    if (existingEntry) {
-      setEditingEntry(existingEntry);
-      setFormAmount(existingEntry.amount);
-      setFormNotes(existingEntry.notes || '');
+  // Fill form with entry data
+  const fillFormWithEntry = useCallback((entry: ParkingRevenueEntry | undefined) => {
+    if (entry) {
+      setEditingEntry(entry);
+      setFormAmount(entry.amount);
+      setFormNotes(entry.notes || '');
     } else {
       setEditingEntry(null);
       setFormAmount('');
       setFormNotes('');
     }
-  };
+  }, []);
 
-  const goToNextDay = () => {
+  // Navigation functions for date selection
+  const goToPreviousDay = useCallback(() => {
+    const newDate = subDays(formDateObj, 1);
+    const newDateStr = format(newDate, 'yyyy-MM-dd');
+    setFormDate(newDateStr);
+    const existingEntry = allEntries.find((entry) => entry.date.split('T')[0] === newDateStr);
+    fillFormWithEntry(existingEntry);
+  }, [formDateObj, allEntries, fillFormWithEntry]);
+
+  const goToNextDay = useCallback(() => {
     const newDate = addDays(formDateObj, 1);
     if (newDate > new Date()) return;
-    setFormDate(format(newDate, 'yyyy-MM-dd'));
-    const existingEntry = getEntryForDate(format(newDate, 'yyyy-MM-dd'));
-    if (existingEntry) {
-      setEditingEntry(existingEntry);
-      setFormAmount(existingEntry.amount);
-      setFormNotes(existingEntry.notes || '');
-    } else {
-      setEditingEntry(null);
-      setFormAmount('');
-      setFormNotes('');
-    }
-  };
+    const newDateStr = format(newDate, 'yyyy-MM-dd');
+    setFormDate(newDateStr);
+    const existingEntry = allEntries.find((entry) => entry.date.split('T')[0] === newDateStr);
+    fillFormWithEntry(existingEntry);
+  }, [formDateObj, allEntries, fillFormWithEntry]);
 
-  const selectDate = (date: Date) => {
+  const selectDate = useCallback((date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     setFormDate(dateStr);
-    const existingEntry = getEntryForDate(dateStr);
-    if (existingEntry) {
-      setEditingEntry(existingEntry);
-      setFormAmount(existingEntry.amount);
-      setFormNotes(existingEntry.notes || '');
-    } else {
-      setEditingEntry(null);
-      setFormAmount('');
-      setFormNotes('');
-    }
-  };
+    const existingEntry = allEntries.find((entry) => entry.date.split('T')[0] === dateStr);
+    fillFormWithEntry(existingEntry);
+  }, [allEntries, fillFormWithEntry]);
 
   // Get date label
   const getDateLabel = (date: Date): string => {
@@ -308,12 +299,15 @@ export default function ParkingPage() {
     const dates = [];
     for (let i = 0; i < 7; i++) {
       const date = subDays(new Date(), i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const entryForDate = allEntries.find((entry) => entry.date.split('T')[0] === dateStr);
       dates.push({
         date,
-        dateStr: format(date, 'yyyy-MM-dd'),
+        dateStr,
         label: getDateLabel(date),
         dayNum: format(date, 'dd'),
-        hasEntry: hasEntryForDate(format(date, 'yyyy-MM-dd')),
+        hasEntry: !!entryForDate,
+        entryAmount: entryForDate ? parseFloat(entryForDate.amount) : 0,
       });
     }
     return dates;
