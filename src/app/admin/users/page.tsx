@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database, Shuffle, DollarSign, ClipboardCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, UserCheck, Eye, Briefcase, Database, Shuffle, DollarSign, ClipboardCheck, ParkingCircle } from 'lucide-react';
 import { formatDateDisplay } from '@/lib/dates';
 import { RouteMigrationModal } from '@/components/admin/RouteMigrationModal';
 import { FlightTypeMigrationModal } from '@/components/admin/FlightTypeMigrationModal';
@@ -10,7 +10,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR';
+  role: 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR' | 'PARKING';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
     email: '',
     password: '',
     name: '',
-    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR',
+    role: 'VIEWER' as 'ADMIN' | 'MANAGER' | 'OPERATIONS' | 'VIEWER' | 'STW' | 'NAPLATE' | 'AUDITOR' | 'PARKING',
     isActive: true,
     billingPin: '',
   });
@@ -210,6 +210,8 @@ export default function AdminUsersPage() {
         return <DollarSign className="w-5 h-5 text-amber-600" />;
       case 'AUDITOR':
         return <ClipboardCheck className="w-5 h-5 text-cyan-600" />;
+      case 'PARKING':
+        return <ParkingCircle className="w-5 h-5 text-teal-600" />;
       default:
         return <Eye className="w-5 h-5 text-gray-600" />;
     }
@@ -223,6 +225,7 @@ export default function AdminUsersPage() {
       STW: 'bg-violet-100 text-violet-700',
       NAPLATE: 'bg-amber-100 text-amber-700',
       AUDITOR: 'bg-cyan-100 text-cyan-700',
+      PARKING: 'bg-teal-100 text-teal-700',
       VIEWER: 'bg-gray-100 text-gray-700',
     };
     return styles[role as keyof typeof styles] || styles.VIEWER;
@@ -474,6 +477,7 @@ export default function AdminUsersPage() {
                     <option value="OPERATIONS">Operacije</option>
                     <option value="MANAGER">Manager</option>
                     <option value="NAPLATE">Naplate</option>
+                    <option value="PARKING">Parking</option>
                     <option value="AUDITOR">Auditor (Read-only EN)</option>
                     <option value="ADMIN">Admin</option>
                   </select>
