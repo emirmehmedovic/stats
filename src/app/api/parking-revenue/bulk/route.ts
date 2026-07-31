@@ -53,9 +53,15 @@ export async function POST(request: NextRequest) {
       // Cumulative import - distribute amount across days
       const validatedData = bulkImportSchema.parse(body);
 
-      const endDate = new Date(validatedData.endDate);
-      const year = endDate.getFullYear();
-      const startDate = new Date(year, 0, 1); // January 1st of the year
+      // Parse the end date string to avoid timezone issues
+      const [endYearStr, endMonthStr, endDayStr] = validatedData.endDate.split('-');
+      const endYear = parseInt(endYearStr);
+      const endMonth = parseInt(endMonthStr) - 1; // 0-indexed
+      const endDay = parseInt(endDayStr);
+
+      // Create dates at noon UTC to avoid timezone boundary issues
+      const endDate = new Date(Date.UTC(endYear, endMonth, endDay, 12, 0, 0));
+      const startDate = new Date(Date.UTC(endYear, 0, 1, 12, 0, 0)); // January 1st of the same year
 
       // Calculate number of days
       const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -70,12 +76,16 @@ export async function POST(request: NextRequest) {
       // Calculate daily amount (rounded to 2 decimal places)
       const dailyAmount = Math.round((validatedData.cumulativeAmount / daysDiff) * 100) / 100;
 
+      // For database queries, use start of day UTC
+      const queryStartDate = new Date(Date.UTC(endYear, 0, 1, 0, 0, 0));
+      const queryEndDate = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59));
+
       // Check for existing entries in this period
       const existingEntries = await prisma.parkingRevenue.findMany({
         where: {
           date: {
-            gte: startDate,
-            lte: endDate,
+            gte: queryStartDate,
+            lte: queryEndDate,
           },
         },
       });
@@ -92,23 +102,24 @@ export async function POST(request: NextRequest) {
 
       // Create entries for each day
       const entries: Prisma.ParkingRevenueCreateManyInput[] = [];
-      let currentDate = new Date(startDate);
       let remainingAmount = validatedData.cumulativeAmount;
 
-      while (currentDate <= endDate) {
-        const isLastDay = currentDate.getTime() === endDate.getTime();
+      // Generate dates by incrementing day by day
+      for (let dayOffset = 0; dayOffset < daysDiff; dayOffset++) {
+        const isLastDay = dayOffset === daysDiff - 1;
         // On last day, use remaining amount to avoid rounding errors
         const amount = isLastDay ? remainingAmount : dailyAmount;
         remainingAmount -= dailyAmount;
 
+        // Create date at noon UTC, then set to start of day for storage
+        const entryDate = new Date(Date.UTC(endYear, 0, 1 + dayOffset, 12, 0, 0));
+
         entries.push({
-          date: new Date(currentDate),
+          date: entryDate,
           amount: new Prisma.Decimal(Math.max(0, amount)),
-          notes: validatedData.notes || `Zbirni unos od ${startDate.toISOString().split('T')[0]} do ${validatedData.endDate}`,
+          notes: validatedData.notes || `Zbirni unos od ${endYear}-01-01 do ${validatedData.endDate}`,
           createdById: user.id,
         });
-
-        currentDate.setDate(currentDate.getDate() + 1);
       }
 
       await prisma.parkingRevenue.createMany({
@@ -123,7 +134,7 @@ export async function POST(request: NextRequest) {
           totalAmount: validatedData.cumulativeAmount,
           dailyAmount,
           period: {
-            from: startDate.toISOString().split('T')[0],
+            from: `${endYear}-01-01`,
             to: validatedData.endDate,
           },
         },
