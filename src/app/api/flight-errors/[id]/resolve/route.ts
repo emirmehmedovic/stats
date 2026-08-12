@@ -75,9 +75,24 @@ export async function POST(
     // Capture current flight values as newValue
     const newValue = captureFlightValues(errorReport.flight, errorReport.errorType);
 
-    // For NOT_VERIFIED errors, we don't require value changes - just verification
-    // For other error types, verify that values have actually changed
-    if (errorReport.errorType !== FlightErrorType.NOT_VERIFIED) {
+    // For NOT_VERIFIED errors, check that the flight has actually been verified
+    if (errorReport.errorType === FlightErrorType.NOT_VERIFIED) {
+      const currentFlight = await prisma.flight.findUnique({
+        where: { id: errorReport.flightId },
+        select: { isVerified: true },
+      });
+
+      if (!currentFlight?.isVerified) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Let mora biti verifikovan prije označavanja greške kao riješene. Molimo verifikujte let.'
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For other error types, verify that values have actually changed
       const oldValue = errorReport.oldValue as Record<string, unknown> | null;
 
       if (oldValue && !hasValuesChanged(oldValue, newValue)) {
