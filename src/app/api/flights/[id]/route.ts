@@ -23,6 +23,15 @@ const hasUnverifiedPastDates = async (cutoffDate: Date) => {
     where: {
       date: { lt: cutoffDate },
       isVerified: false,
+      // Exclude flights that have active (OPEN or IN_PROGRESS) error reports
+      // Those are intentionally unverified for error correction
+      NOT: {
+        errorReports: {
+          some: {
+            status: { in: ['OPEN', 'IN_PROGRESS'] },
+          },
+        },
+      },
     },
   });
   return pendingCount > 0;
