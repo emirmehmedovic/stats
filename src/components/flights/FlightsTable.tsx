@@ -17,13 +17,69 @@ import { formatDateDisplay } from '@/lib/dates';
 interface FlightsTableProps {
   data: FlightWithRelations[];
   isLoading?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (selectedIds: Set<string>) => void;
 }
 
-export function FlightsTable({ data, isLoading }: FlightsTableProps) {
+export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }: FlightsTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  const isSelectionMode = selectedIds !== undefined && onSelectionChange !== undefined;
+  const allSelected = isSelectionMode && data.length > 0 && data.every(flight => selectedIds.has(flight.id));
+  const someSelected = isSelectionMode && data.some(flight => selectedIds.has(flight.id));
+
+  const handleSelectAll = () => {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      // Deselect all on current page
+      const newSelected = new Set(selectedIds);
+      data.forEach(flight => newSelected.delete(flight.id));
+      onSelectionChange(newSelected);
+    } else {
+      // Select all on current page
+      const newSelected = new Set(selectedIds);
+      data.forEach(flight => newSelected.add(flight.id));
+      onSelectionChange(newSelected);
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    if (!onSelectionChange || !selectedIds) return;
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    onSelectionChange(newSelected);
+  };
+
   const columns: ColumnDef<FlightWithRelations>[] = [
+    ...(isSelectionMode ? [{
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = someSelected && !allSelected;
+          }}
+          onChange={handleSelectAll}
+          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+      cell: ({ row }: { row: { original: FlightWithRelations } }) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(row.original.id)}
+          onChange={() => handleSelectRow(row.original.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+      enableSorting: false,
+    } as ColumnDef<FlightWithRelations>] : []),
     {
       accessorKey: 'date',
       header: 'Datum',
@@ -108,11 +164,24 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
       cell: ({ row }) => {
         const flightNumber = row.getValue('arrivalFlightNumber') as string | null;
         const passengers = row.original.arrivalPassengers;
+        const status = row.original.arrivalStatus;
+        const isCancelled = status === 'CANCELLED';
+
         if (!flightNumber) return <span className="text-xs text-textMuted">-</span>;
+
         return (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{flightNumber}</span>
-            {passengers !== null && (
+          <div className={`flex flex-col ${isCancelled ? 'opacity-60' : ''}`}>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-sm font-medium ${isCancelled ? 'line-through text-red-600' : ''}`}>
+                {flightNumber}
+              </span>
+              {isCancelled && (
+                <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
+                  CNL
+                </span>
+              )}
+            </div>
+            {!isCancelled && passengers !== null && (
               <span className="text-xs text-textMuted">{passengers} putnika</span>
             )}
           </div>
@@ -125,11 +194,24 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
       cell: ({ row }) => {
         const flightNumber = row.getValue('departureFlightNumber') as string | null;
         const passengers = row.original.departurePassengers;
+        const status = row.original.departureStatus;
+        const isCancelled = status === 'CANCELLED';
+
         if (!flightNumber) return <span className="text-xs text-textMuted">-</span>;
+
         return (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{flightNumber}</span>
-            {passengers !== null && (
+          <div className={`flex flex-col ${isCancelled ? 'opacity-60' : ''}`}>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-sm font-medium ${isCancelled ? 'line-through text-red-600' : ''}`}>
+                {flightNumber}
+              </span>
+              {isCancelled && (
+                <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
+                  CNL
+                </span>
+              )}
+            </div>
+            {!isCancelled && passengers !== null && (
               <span className="text-xs text-textMuted">{passengers} putnika</span>
             )}
           </div>
@@ -250,18 +332,29 @@ export function FlightsTable({ data, isLoading }: FlightsTableProps) {
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-borderSoft hover:bg-shellBg transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 lg:px-4 py-2.5 lg:py-3">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const bothCancelled = row.original.arrivalStatus === 'CANCELLED' && row.original.departureStatus === 'CANCELLED';
+                const anyCancelled = row.original.arrivalStatus === 'CANCELLED' || row.original.departureStatus === 'CANCELLED';
+
+                return (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-borderSoft transition-colors ${
+                      bothCancelled
+                        ? 'bg-red-50/50 hover:bg-red-100/50'
+                        : anyCancelled
+                        ? 'bg-amber-50/30 hover:bg-amber-100/30'
+                        : 'hover:bg-shellBg'
+                    }`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 lg:px-4 py-2.5 lg:py-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

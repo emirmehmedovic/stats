@@ -18,6 +18,8 @@ export interface FlightsResponse {
   };
 }
 
+export type FlightStatusFilter = 'SCHEDULED' | 'OPERATED' | 'CANCELLED' | 'DIVERTED' | 'NOT_OPERATED';
+
 export interface FlightFilters {
   page?: number;
   limit?: number;
@@ -27,4 +29,7 @@ export interface FlightFilters {
   dateTo?: string;
   route?: string;
   operationType?: OperationType['code'];
+  arrivalStatus?: FlightStatusFilter;
+  departureStatus?: FlightStatusFilter;
+  bothCancelled?: boolean;
 }

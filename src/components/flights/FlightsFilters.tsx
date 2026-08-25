@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { FlightFilters } from '@/types/flight';
 import { Airline } from '@prisma/client';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
@@ -18,9 +19,19 @@ const OPERATION_TYPE_LABELS: Record<string, string> = {
   MEDEVAC: 'Medicinska evakuacija',
 };
 
+const FLIGHT_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Zakazano',
+  OPERATED: 'Operisano',
+  CANCELLED: 'Otkazano',
+  DIVERTED: 'Preusmjereno',
+  NOT_OPERATED: 'Nije operisano',
+};
+
 export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps) {
   const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [routes, setRoutes] = useState<string[]>([]);
   const [isLoadingAirlines, setIsLoadingAirlines] = useState(true);
+  const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
 
   const today = getTodayDateString();
   const monthStart = getMonthStartDateString(today);
@@ -43,6 +54,44 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
       setIsLoadingAirlines(false);
     }
   };
+
+  const fetchRoutes = useCallback(async (airlineId?: string) => {
+    setIsLoadingRoutes(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('limit', '100');
+      if (airlineId) {
+        params.append('airlines', airlineId);
+      }
+      const response = await fetch(`/api/routes?${params.toString()}`);
+      if (response.ok) {
+        const result = await response.json();
+        setRoutes(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching routes:', error);
+    } finally {
+      setIsLoadingRoutes(false);
+    }
+  }, []);
+
+  // Fetch routes when airline changes
+  useEffect(() => {
+    fetchRoutes(filters.airlineId);
+  }, [filters.airlineId, fetchRoutes]);
+
+  // Prepare airline options for SearchableSelect
+  const airlineOptions = airlines.map((airline) => ({
+    value: airline.id,
+    label: airline.icaoCode || airline.iataCode || airline.name,
+    subtitle: airline.name,
+  }));
+
+  // Prepare route options for SearchableSelect
+  const routeOptions = routes.map((route) => ({
+    value: route,
+    label: route,
+  }));
 
   const handleFilterChange = (key: keyof FlightFilters, value: any) => {
     onFiltersChange({
@@ -67,7 +116,10 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
     filters.dateFrom ||
     filters.dateTo ||
     filters.route ||
-    filters.operationType;
+    filters.operationType ||
+    filters.arrivalStatus ||
+    filters.departureStatus ||
+    filters.bothCancelled;
 
   return (
     <div className="bg-white/90 backdrop-blur rounded-2xl lg:rounded-3xl border border-dark-100 shadow-soft px-4 lg:px-5 py-3 lg:py-4 mb-4 lg:mb-6">
@@ -106,35 +158,47 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
           <label htmlFor="airline" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Aviokompanija
           </label>
-          <select
-            id="airline"
-            value={filters.airlineId || ''}
-            onChange={(e) => handleFilterChange('airlineId', e.target.value || undefined)}
-            disabled={isLoadingAirlines}
-            className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-white px-2 lg:px-3 text-xs lg:text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-          >
-            <option value="">Sve aviokompanije</option>
-            {airlines.map((airline) => (
-              <option key={airline.id} value={airline.id}>
-                {airline.name} ({airline.icaoCode})
-              </option>
-            ))}
-          </select>
+          {isLoadingAirlines ? (
+            <div className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-slate-50 px-3 flex items-center text-xs text-textMuted">
+              Učitavanje...
+            </div>
+          ) : (
+            <SearchableSelect
+              options={airlineOptions}
+              value={filters.airlineId || ''}
+              onChange={(value) => {
+                // When airline changes, clear route filter
+                onFiltersChange({
+                  ...filters,
+                  airlineId: value || undefined,
+                  route: undefined,
+                  page: 1,
+                });
+              }}
+              placeholder="Sve aviokompanije"
+              className="text-xs lg:text-sm"
+            />
+          )}
         </div>
 
         {/* Route */}
         <div>
           <label htmlFor="route" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
-            Ruta
+            Ruta {filters.airlineId && <span className="text-primary-600">(filtrirano)</span>}
           </label>
-          <Input
-            id="route"
-            type="text"
-            placeholder="npr. TZL-IST"
-            value={filters.route || ''}
-            onChange={(e) => handleFilterChange('route', e.target.value || undefined)}
-            className="h-8 lg:h-9 text-xs lg:text-sm"
-          />
+          {isLoadingRoutes ? (
+            <div className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-slate-50 px-3 flex items-center text-xs text-textMuted">
+              Učitavanje ruta...
+            </div>
+          ) : (
+            <SearchableSelect
+              options={routeOptions}
+              value={filters.route || ''}
+              onChange={(value) => handleFilterChange('route', value || undefined)}
+              placeholder={filters.airlineId ? 'Odaberi rutu' : 'Sve rute'}
+              className="text-xs lg:text-sm"
+            />
+          )}
         </div>
 
         {/* Operation Type */}
@@ -182,6 +246,81 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             className="h-8 lg:h-9 text-xs lg:text-sm"
           />
         </div>
+
+        {/* Arrival Status */}
+        <div>
+          <label htmlFor="arrivalStatus" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
+            Status dolaska
+          </label>
+          <select
+            id="arrivalStatus"
+            value={filters.arrivalStatus || ''}
+            onChange={(e) => handleFilterChange('arrivalStatus', e.target.value || undefined)}
+            disabled={filters.bothCancelled}
+            className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-white px-2 lg:px-3 text-xs lg:text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:opacity-50"
+          >
+            <option value="">Svi statusi</option>
+            {Object.entries(FLIGHT_STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Departure Status */}
+        <div>
+          <label htmlFor="departureStatus" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
+            Status odlaska
+          </label>
+          <select
+            id="departureStatus"
+            value={filters.departureStatus || ''}
+            onChange={(e) => handleFilterChange('departureStatus', e.target.value || undefined)}
+            disabled={filters.bothCancelled}
+            className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-white px-2 lg:px-3 text-xs lg:text-sm text-textMain focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:opacity-50"
+          >
+            <option value="">Svi statusi</option>
+            {Object.entries(FLIGHT_STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Quick Filters */}
+      <div className="mt-3 lg:mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => {
+            if (filters.bothCancelled) {
+              onFiltersChange({
+                ...filters,
+                bothCancelled: undefined,
+                arrivalStatus: undefined,
+                departureStatus: undefined,
+                page: 1,
+              });
+            } else {
+              onFiltersChange({
+                ...filters,
+                bothCancelled: true,
+                arrivalStatus: undefined,
+                departureStatus: undefined,
+                page: 1,
+              });
+            }
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            filters.bothCancelled
+              ? 'bg-red-100 text-red-700 border border-red-300'
+              : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+          Samo potpuno otkazani
+        </button>
       </div>
 
       {/* Active filters indicator */}
@@ -251,6 +390,39 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
                 <button
                   onClick={() => handleFilterChange('dateTo', undefined)}
                   className="hover:text-primary-900"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.arrivalStatus && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800 border border-amber-300">
+                Dolazak: {FLIGHT_STATUS_LABELS[filters.arrivalStatus] || filters.arrivalStatus}
+                <button
+                  onClick={() => handleFilterChange('arrivalStatus', undefined)}
+                  className="hover:text-amber-900"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.departureStatus && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800 border border-amber-300">
+                Odlazak: {FLIGHT_STATUS_LABELS[filters.departureStatus] || filters.departureStatus}
+                <button
+                  onClick={() => handleFilterChange('departureStatus', undefined)}
+                  className="hover:text-amber-900"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.bothCancelled && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs text-red-800 border border-red-300">
+                Potpuno otkazani
+                <button
+                  onClick={() => handleFilterChange('bothCancelled', undefined)}
+                  className="hover:text-red-900"
                 >
                   ×
                 </button>

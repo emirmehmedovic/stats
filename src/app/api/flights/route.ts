@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
       operationType: searchParams.get('operationType'),
       operationTypeId: searchParams.get('operationTypeId'),
       flightTypeId: searchParams.get('flightTypeId'),
+      arrivalStatus: searchParams.get('arrivalStatus'),
+      departureStatus: searchParams.get('departureStatus'),
+      bothCancelled: searchParams.get('bothCancelled'),
     };
 
     const validatedQuery = getFlightsQuerySchema.parse(queryParams);
-    const { page, limit, search, airlineId, dateFrom, dateTo, route, operationTypeId, flightTypeId } = validatedQuery;
+    const { page, limit, search, airlineId, dateFrom, dateTo, route, operationTypeId, flightTypeId, arrivalStatus, departureStatus, bothCancelled } = validatedQuery;
     
     // Handle operationType code filter (legacy support)
     const operationTypeCode = searchParams.get('operationType');
@@ -63,22 +66,29 @@ export async function GET(request: NextRequest) {
     const where: Prisma.FlightWhereInput = {
       AND: [
         airlineId ? { airlineId } : {},
-        dateFrom && dateTo 
-          ? { 
-              date: { 
+        dateFrom && dateTo
+          ? {
+              date: {
                 gte: dateFrom,
-                lte: dateTo 
-              } 
+                lte: dateTo
+              }
             }
-          : dateFrom 
+          : dateFrom
           ? { date: { gte: dateFrom } }
-          : dateTo 
+          : dateTo
           ? { date: { lte: dateTo } }
           : {},
         route ? { route: { contains: route, mode: 'insensitive' } } : {},
         operationTypeId ? { operationTypeId } : {},
         flightTypeId ? { flightTypeId } : {},
         operationTypeCode ? { operationType: { code: operationTypeCode } } : {},
+        // Status filters
+        bothCancelled
+          ? { arrivalStatus: 'CANCELLED', departureStatus: 'CANCELLED' }
+          : {
+              ...(arrivalStatus ? { arrivalStatus } : {}),
+              ...(departureStatus ? { departureStatus } : {}),
+            },
         search
           ? {
               OR: [

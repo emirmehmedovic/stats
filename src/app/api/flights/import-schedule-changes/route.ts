@@ -86,15 +86,58 @@ async function findExistingFlight(flight: ExpandedFlight) {
 }
 
 /**
+ * Known airline mappings (IATA -> full airline data)
+ * Used to ensure correct airline assignment during import
+ */
+const KNOWN_AIRLINES: Record<string, { name: string; icaoCode: string; iataCode: string; country: string }> = {
+  'W6': { name: 'Wizz Air', icaoCode: 'WZZ', iataCode: 'W6', country: 'Hungary' },
+  'WZZ': { name: 'Wizz Air', icaoCode: 'WZZ', iataCode: 'W6', country: 'Hungary' },
+  'W4': { name: 'Wizz Air Malta', icaoCode: 'WMT', iataCode: 'W4', country: 'Malta' },
+  'WMT': { name: 'Wizz Air Malta', icaoCode: 'WMT', iataCode: 'W4', country: 'Malta' },
+};
+
+/**
  * Find or create airline by ICAO/IATA code
  */
 async function findOrCreateAirline(carrier: string) {
-  // Try to find existing
+  const carrierUpper = carrier.toUpperCase().trim();
+
+  // Check if this is a known airline
+  const knownAirline = KNOWN_AIRLINES[carrierUpper];
+
+  if (knownAirline) {
+    // Search by ICAO code for known airlines (most reliable)
+    let airline = await prisma.airline.findFirst({
+      where: {
+        OR: [
+          { icaoCode: { equals: knownAirline.icaoCode, mode: 'insensitive' } },
+          { iataCode: { equals: knownAirline.iataCode, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    // Create with full known data if not found
+    if (!airline) {
+      airline = await prisma.airline.create({
+        data: {
+          name: knownAirline.name,
+          icaoCode: knownAirline.icaoCode,
+          iataCode: knownAirline.iataCode,
+          country: knownAirline.country,
+        },
+      });
+      console.log(`Created known airline: ${knownAirline.name} (${knownAirline.icaoCode}/${knownAirline.iataCode})`);
+    }
+
+    return airline;
+  }
+
+  // For unknown carriers, try to find existing
   let airline = await prisma.airline.findFirst({
     where: {
       OR: [
-        { icaoCode: { equals: carrier, mode: 'insensitive' } },
-        { iataCode: { equals: carrier, mode: 'insensitive' } },
+        { icaoCode: { equals: carrierUpper, mode: 'insensitive' } },
+        { iataCode: { equals: carrierUpper, mode: 'insensitive' } },
       ],
     },
   });
@@ -103,12 +146,13 @@ async function findOrCreateAirline(carrier: string) {
   if (!airline) {
     airline = await prisma.airline.create({
       data: {
-        name: carrier,
-        icaoCode: carrier.length > 2 ? carrier : `${carrier}X`, // Ensure 3+ chars for ICAO
-        iataCode: carrier.length === 2 ? carrier : null,
+        name: carrierUpper,
+        icaoCode: carrierUpper.length > 2 ? carrierUpper : `${carrierUpper}X`, // Ensure 3+ chars for ICAO
+        iataCode: carrierUpper.length === 2 ? carrierUpper : null,
         country: null,
       },
     });
+    console.log(`Created unknown airline: ${carrierUpper}`);
   }
 
   return airline;
@@ -314,6 +358,24 @@ export async function POST(request: NextRequest) {
       errors: parseResult.errors,
       warnings: parseResult.warnings,
     });
+
+    // Filter out past flights (before today)
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const futureFlights = parseResult.expandedFlights.filter(f => f.date >= today);
+    const skippedPastFlights = parseResult.expandedFlights.length - futureFlights.length;
+
+    if (skippedPastFlights > 0) {
+      parseResult.warnings.push(
+        `Preskočeno ${skippedPastFlights} letova u prošlosti (prije ${today.toISOString().split('T')[0]})`
+      );
+      console.log(`Filtered out ${skippedPastFlights} past flights`);
+    }
+
+    // Update parseResult to use filtered flights
+    parseResult.expandedFlights = futureFlights;
+    parseResult.totalFlights = futureFlights.length;
 
     if (!parseResult.success) {
       console.error('Parse failed:', parseResult.errors);

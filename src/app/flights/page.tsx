@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
-import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDown, Download } from 'lucide-react';
+import { Upload, Calendar, FileText, Plane, Sparkles, BarChart3, Trash2, FileDown, Download, X, CheckSquare, XCircle } from 'lucide-react';
 import { showToast } from '@/components/ui/toast';
 import { MonthlyScheduleExport } from '@/components/reports/MonthlyScheduleExport';
 import { ScheduleCSVExport } from '@/components/reports/ScheduleCSVExport';
 import { ScheduleCSVWebExport } from '@/components/reports/ScheduleCSVWebExport';
+
+const FILTERS_STORAGE_KEY = 'flights-filters';
 
 export default function FlightsPage() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function FlightsPage() {
   const [data, setData] = useState<FlightsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
   const [filters, setFilters] = useState<FlightFilters>({
     page: 1,
     limit: 20,
@@ -34,6 +37,36 @@ export default function FlightsPage() {
   const [isMonthlyExportOpen, setIsMonthlyExportOpen] = useState(false);
   const [isCSVExportOpen, setIsCSVExportOpen] = useState(false);
   const [isCSVWebExportOpen, setIsCSVWebExportOpen] = useState(false);
+  const [selectedFlightIds, setSelectedFlightIds] = useState<Set<string>>(new Set());
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false);
+  const [cancelledCount, setCancelledCount] = useState<number | null>(null);
+  const [isDeletingCancelled, setIsDeletingCancelled] = useState(false);
+
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Keep page at 1 when restoring, but restore other filters
+        setFilters({ ...parsed, page: 1 });
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    setFiltersLoaded(true);
+  }, []);
+
+  // Save filters to localStorage when they change (excluding page)
+  useEffect(() => {
+    if (!filtersLoaded) return;
+    try {
+      const { page, ...filtersToSave } = filters;
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filtersToSave));
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+  }, [filters, filtersLoaded]);
 
   const handleBulkDelete = async (dateFrom: string, dateTo: string) => {
     try {
@@ -50,13 +83,105 @@ export default function FlightsPage() {
       }
 
       showToast(`Uspješno obrisano ${result.data.deletedCount} letova`, 'success');
-      fetchFlights(); // Refresh the list
+      setSelectedFlightIds(new Set());
+      fetchFlights();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Greška pri brisanju letova';
       showToast(message, 'error');
       throw error;
     }
   };
+
+  const handleDeleteSelected = async () => {
+    if (selectedFlightIds.size === 0) return;
+
+    if (!confirm(`Da li ste sigurni da želite obrisati ${selectedFlightIds.size} odabranih letova?`)) {
+      return;
+    }
+
+    setIsDeletingSelected(true);
+    try {
+      const ids = Array.from(selectedFlightIds);
+      const response = await fetch('/api/flights/bulk-delete-selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Greška pri brisanju letova');
+      }
+
+      showToast(`Uspješno obrisano ${result.deletedCount} letova`, 'success');
+      setSelectedFlightIds(new Set());
+      fetchFlights();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Greška pri brisanju letova';
+      showToast(message, 'error');
+    } finally {
+      setIsDeletingSelected(false);
+    }
+  };
+
+  const fetchCancelledCount = async () => {
+    try {
+      const response = await fetch('/api/flights/bulk-delete-cancelled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview: true }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setCancelledCount(result.count);
+      }
+    } catch {
+      setCancelledCount(null);
+    }
+  };
+
+  const handleDeleteCancelled = async () => {
+    if (cancelledCount === null || cancelledCount === 0) {
+      showToast('Nema potpuno otkazanih budućih letova za brisanje', 'info');
+      return;
+    }
+
+    if (!confirm(`Da li ste sigurni da želite obrisati ${cancelledCount} potpuno otkazanih budućih letova?`)) {
+      return;
+    }
+
+    setIsDeletingCancelled(true);
+    try {
+      const response = await fetch('/api/flights/bulk-delete-cancelled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Greška pri brisanju letova');
+      }
+
+      showToast(result.message, 'success');
+      setCancelledCount(0);
+      fetchFlights();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Greška pri brisanju letova';
+      showToast(message, 'error');
+    } finally {
+      setIsDeletingCancelled(false);
+    }
+  };
+
+  // Fetch cancelled count on mount and when filters change significantly
+  useEffect(() => {
+    if (filtersLoaded) {
+      fetchCancelledCount();
+    }
+  }, [filtersLoaded]);
 
   const fetchFlights = async () => {
     setIsLoading(true);
@@ -72,6 +197,9 @@ export default function FlightsPage() {
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
       if (filters.route) params.append('route', filters.route);
       if (filters.operationType) params.append('operationType', filters.operationType);
+      if (filters.arrivalStatus) params.append('arrivalStatus', filters.arrivalStatus);
+      if (filters.departureStatus) params.append('departureStatus', filters.departureStatus);
+      if (filters.bothCancelled) params.append('bothCancelled', 'true');
 
       const response = await fetch(`/api/flights?${params.toString()}`);
 
@@ -89,8 +217,9 @@ export default function FlightsPage() {
   };
 
   useEffect(() => {
+    if (!filtersLoaded) return;
     fetchFlights();
-  }, [filters]);
+  }, [filters, filtersLoaded]);
 
   return (
     <MainLayout>
@@ -163,6 +292,23 @@ export default function FlightsPage() {
                 <span className="hidden sm:inline">Masovno brisanje</span>
                 <span className="sm:hidden">Brisanje</span>
               </Button>
+              {cancelledCount !== null && cancelledCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteCancelled}
+                  disabled={isDeletingCancelled}
+                  className="flex items-center gap-1.5 lg:gap-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-200 border-orange-400/30 text-xs lg:text-sm"
+                >
+                  <XCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">
+                    {isDeletingCancelled ? 'Brisanje...' : `Obriši otkazane (${cancelledCount})`}
+                  </span>
+                  <span className="sm:hidden">
+                    {isDeletingCancelled ? '...' : `${cancelledCount}`}
+                  </span>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -282,8 +428,47 @@ export default function FlightsPage() {
           </div>
           <div className="p-4 lg:p-5 space-y-4 lg:space-y-6">
             <FlightsFilters filters={filters} onFiltersChange={setFilters} />
+
+            {/* Selection Toolbar */}
+            {selectedFlightIds.size > 0 && (
+              <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <CheckSquare className="w-5 h-5 text-primary-600" />
+                  <span className="text-sm font-medium text-primary-800">
+                    Odabrano: {selectedFlightIds.size} letova
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedFlightIds(new Set())}
+                    className="text-xs border-primary-300 text-primary-700 hover:bg-primary-100"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Poništi
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                    disabled={isDeletingSelected}
+                    className="text-xs bg-red-600 hover:bg-red-700"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    {isDeletingSelected ? 'Brisanje...' : 'Obriši odabrane'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-2xl border border-dark-100 overflow-hidden shadow-sm">
-              <FlightsTable data={data?.data || []} isLoading={isLoading} />
+              <FlightsTable
+                data={data?.data || []}
+                isLoading={isLoading}
+                selectedIds={selectedFlightIds}
+                onSelectionChange={setSelectedFlightIds}
+              />
             </div>
             {data && data.data.length > 0 && (
               <div className="pt-2">

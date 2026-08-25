@@ -86,7 +86,7 @@ export function SearchableSelect({
         <span className={selectedOption ? 'text-dark-900' : 'text-dark-400'}>
           {selectedOption ? (
             <span>
-              <span className="font-semibold">{selectedOption.value}</span>
+              <span className="font-semibold">{selectedOption.label}</span>
               {selectedOption.subtitle && (
                 <span className="text-dark-500 ml-2">- {selectedOption.subtitle}</span>
               )}
@@ -141,7 +141,7 @@ export function SearchableSelect({
                     option.value === value ? 'bg-primary-100 text-primary-900' : 'text-dark-900'
                   }`}
                 >
-                  <div className="font-semibold">{option.value}</div>
+                  <div className="font-semibold">{option.label}</div>
                   {option.subtitle && (
                     <div className="text-xs text-dark-500 mt-0.5">{option.subtitle}</div>
                   )}

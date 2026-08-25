@@ -82,6 +82,8 @@ export const createFlightSchema = z.object({
 
 export const updateFlightSchema = createFlightSchema.partial();
 
+const flightStatusEnum = z.enum(['SCHEDULED', 'OPERATED', 'CANCELLED', 'DIVERTED', 'NOT_OPERATED']);
+
 export const getFlightsQuerySchema = z.object({
   page: z.preprocess(
     (val) => (val === null || val === undefined ? 1 : Number(val)),
@@ -112,6 +114,12 @@ export const getFlightsQuerySchema = z.object({
   route: z.string().nullable().optional().transform((val) => val || undefined),
   operationTypeId: z.string().nullable().optional().transform((val) => val || undefined),
   flightTypeId: z.string().nullable().optional().transform((val) => val || undefined),
+  arrivalStatus: flightStatusEnum.nullable().optional().transform((val) => val || undefined),
+  departureStatus: flightStatusEnum.nullable().optional().transform((val) => val || undefined),
+  bothCancelled: z.preprocess(
+    (val) => val === 'true' || val === true,
+    z.boolean().optional()
+  ),
 });
 
 export type CreateFlightInput = z.infer<typeof createFlightSchema>;
