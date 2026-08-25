@@ -28,11 +28,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
     // Validate pagination
-    if (page < 1 || limit < 1 || limit > 100) {
+    if (page < 1 || limit < 1 || limit > 500) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid pagination parameters. Page must be >= 1, limit between 1-100',
+          error: 'Invalid pagination parameters. Page must be >= 1, limit between 1-500',
         },
         { status: 400 }
       );

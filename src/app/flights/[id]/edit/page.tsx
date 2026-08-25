@@ -60,8 +60,8 @@ export default function EditFlightPage() {
         throw new Error(errorData.error || 'Greška pri izmjeni leta');
       }
 
-      // Redirect to flights list on success
-      router.push('/flights');
+      // Redirect to flight detail page on success (to verify save worked)
+      router.push(`/flights/${flightId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nepoznata greška');
     } finally {

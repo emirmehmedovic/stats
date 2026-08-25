@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { AsyncSearchableSelect } from '@/components/ui/AsyncSearchableSelect';
 import { FlightFilters } from '@/types/flight';
 import { Airline } from '@prisma/client';
 import { getMonthEndDateString, getMonthStartDateString, getTodayDateString } from '@/lib/dates';
@@ -28,70 +28,80 @@ const FLIGHT_STATUS_LABELS: Record<string, string> = {
 };
 
 export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps) {
-  const [airlines, setAirlines] = useState<Airline[]>([]);
-  const [routes, setRoutes] = useState<string[]>([]);
-  const [isLoadingAirlines, setIsLoadingAirlines] = useState(true);
-  const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
-
   const today = getTodayDateString();
   const monthStart = getMonthStartDateString(today);
   const monthEnd = getMonthEndDateString(today);
 
-  useEffect(() => {
-    fetchAirlines();
-  }, []);
+  // Store selected airline name for display in chips
+  const [selectedAirlineName, setSelectedAirlineName] = useState<string | null>(null);
 
-  const fetchAirlines = async () => {
+  // Async search for airlines
+  const fetchAirlineOptions = useCallback(async (search: string) => {
     try {
-      const response = await fetch('/api/airlines');
+      const response = await fetch(`/api/airlines?search=${encodeURIComponent(search)}&limit=20`);
       if (response.ok) {
         const result = await response.json();
-        setAirlines(result.data || []);
+        return (result.data || []).map((airline: Airline) => ({
+          value: airline.id,
+          label: airline.icaoCode || airline.iataCode || airline.name,
+          subtitle: airline.name,
+        }));
       }
     } catch (error) {
       console.error('Error fetching airlines:', error);
-    } finally {
-      setIsLoadingAirlines(false);
     }
-  };
+    return [];
+  }, []);
 
-  const fetchRoutes = useCallback(async (airlineId?: string) => {
-    setIsLoadingRoutes(true);
+  // Fetch initial airline option when value is set
+  const fetchInitialAirline = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/airlines/${id}`);
+      if (response.ok) {
+        const result = await response.json();
+        const airline = result.data;
+        if (airline) {
+          setSelectedAirlineName(airline.name);
+          return {
+            value: airline.id,
+            label: airline.icaoCode || airline.iataCode || airline.name,
+            subtitle: airline.name,
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching airline:', error);
+    }
+    return null;
+  }, []);
+
+  // Async search for routes
+  const fetchRouteOptions = useCallback(async (search: string) => {
     try {
       const params = new URLSearchParams();
-      params.append('limit', '100');
-      if (airlineId) {
-        params.append('airlines', airlineId);
+      params.append('search', search);
+      params.append('limit', '20');
+      if (filters.airlineId) {
+        params.append('airlines', filters.airlineId);
       }
       const response = await fetch(`/api/routes?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
-        setRoutes(result.data || []);
+        return (result.data || []).map((route: string) => ({
+          value: route,
+          label: route,
+        }));
       }
     } catch (error) {
       console.error('Error fetching routes:', error);
-    } finally {
-      setIsLoadingRoutes(false);
     }
+    return [];
+  }, [filters.airlineId]);
+
+  // Fetch initial route option
+  const fetchInitialRoute = useCallback(async (route: string) => {
+    return { value: route, label: route };
   }, []);
-
-  // Fetch routes when airline changes
-  useEffect(() => {
-    fetchRoutes(filters.airlineId);
-  }, [filters.airlineId, fetchRoutes]);
-
-  // Prepare airline options for SearchableSelect
-  const airlineOptions = airlines.map((airline) => ({
-    value: airline.id,
-    label: airline.icaoCode || airline.iataCode || airline.name,
-    subtitle: airline.name,
-  }));
-
-  // Prepare route options for SearchableSelect
-  const routeOptions = routes.map((route) => ({
-    value: route,
-    label: route,
-  }));
 
   const handleFilterChange = (key: keyof FlightFilters, value: any) => {
     onFiltersChange({
@@ -158,27 +168,26 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
           <label htmlFor="airline" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Aviokompanija
           </label>
-          {isLoadingAirlines ? (
-            <div className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-slate-50 px-3 flex items-center text-xs text-textMuted">
-              Učitavanje...
-            </div>
-          ) : (
-            <SearchableSelect
-              options={airlineOptions}
-              value={filters.airlineId || ''}
-              onChange={(value) => {
-                // When airline changes, clear route filter
-                onFiltersChange({
-                  ...filters,
-                  airlineId: value || undefined,
-                  route: undefined,
-                  page: 1,
-                });
-              }}
-              placeholder="Sve aviokompanije"
-              className="text-xs lg:text-sm"
-            />
-          )}
+          <AsyncSearchableSelect
+            value={filters.airlineId || ''}
+            onChange={(value, option) => {
+              // When airline changes, clear route filter and save name
+              setSelectedAirlineName(option?.subtitle || option?.label || null);
+              onFiltersChange({
+                ...filters,
+                airlineId: value || undefined,
+                route: undefined,
+                page: 1,
+              });
+            }}
+            fetchOptions={fetchAirlineOptions}
+            fetchInitialOption={fetchInitialAirline}
+            placeholder="Sve aviokompanije"
+            searchPlaceholder="Pretraži aviokompaniju..."
+            typeToSearchText="Kucajte za pretragu..."
+            noResultsText="Nema rezultata"
+            className="text-xs lg:text-sm"
+          />
         </div>
 
         {/* Route */}
@@ -186,19 +195,17 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
           <label htmlFor="route" className="block text-[10px] lg:text-xs text-textMuted mb-1 lg:mb-1.5">
             Ruta {filters.airlineId && <span className="text-primary-600">(filtrirano)</span>}
           </label>
-          {isLoadingRoutes ? (
-            <div className="h-8 lg:h-9 w-full rounded-xl border border-borderSoft bg-slate-50 px-3 flex items-center text-xs text-textMuted">
-              Učitavanje ruta...
-            </div>
-          ) : (
-            <SearchableSelect
-              options={routeOptions}
-              value={filters.route || ''}
-              onChange={(value) => handleFilterChange('route', value || undefined)}
-              placeholder={filters.airlineId ? 'Odaberi rutu' : 'Sve rute'}
-              className="text-xs lg:text-sm"
-            />
-          )}
+          <AsyncSearchableSelect
+            value={filters.route || ''}
+            onChange={(value) => handleFilterChange('route', value || undefined)}
+            fetchOptions={fetchRouteOptions}
+            fetchInitialOption={fetchInitialRoute}
+            placeholder={filters.airlineId ? 'Pretraži rutu' : 'Sve rute'}
+            searchPlaceholder="Pretraži rutu..."
+            typeToSearchText="Kucajte za pretragu (npr. TZL)..."
+            noResultsText="Nema ruta"
+            className="text-xs lg:text-sm"
+          />
         </div>
 
         {/* Operation Type */}
@@ -341,9 +348,12 @@ export function FlightsFilters({ filters, onFiltersChange }: FlightsFiltersProps
             {filters.airlineId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-primarySoft px-3 py-1 text-xs text-brand-primary">
                 Aviokompanija:{' '}
-                {airlines.find((a) => a.id === filters.airlineId)?.name || filters.airlineId}
+                {selectedAirlineName || filters.airlineId}
                 <button
-                  onClick={() => handleFilterChange('airlineId', undefined)}
+                  onClick={() => {
+                    setSelectedAirlineName(null);
+                    handleFilterChange('airlineId', undefined);
+                  }}
                   className="hover:text-brand-primary/70"
                 >
                   ×
