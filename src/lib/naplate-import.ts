@@ -259,6 +259,60 @@ function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: stri
       }
     }
 
+    // Parse Chair Airlines services (columns 25-31)
+    if (i > 2 && i < 37) {
+      const rawLabel = row[25] && typeof row[25] === 'string' ? String(row[25]).trim() : '';
+      const code = row[26] ? String(row[26]).trim() : '';
+      const unit = row[27] ? String(row[27]).trim() : 'kom';
+      const price = asNumber(row[28]);
+      const qty = asNumber(row[29]);
+      const amount = asNumber(row[30]);
+
+      // Skip if no data
+      if (qty === 0 && amount === 0) {
+        continue;
+      }
+
+      // Use "Other" if no label provided
+      const label = rawLabel && rawLabel !== 'EUR' ? rawLabel : 'Other';
+
+      // Skip Total and summary rows
+      if (label.match(/^Total/i) || label.match(/Airport remunerations/i)) {
+        continue;
+      }
+
+      console.log(`[Parser] Adding Chair service:`, { label, code, unit, price, qty, amount });
+
+      // Find existing service
+      let service;
+
+      if (label === 'Other') {
+        // For "Other" services, match by label AND price to avoid merging different items
+        service = report.carriers.chair.services.find(s =>
+          s.label === label && s.price === price
+        );
+      } else {
+        // For labeled services, prioritize label match, then code
+        service = report.carriers.chair.services.find(s => s.label === label);
+
+        // If not found by label and code exists, try by code (but only if it's a unique code)
+        if (!service && code && code !== 'BAGEXC') {
+          service = report.carriers.chair.services.find(s => s.code === code);
+        }
+      }
+
+      if (service) {
+        // Update existing service
+        service.qty += qty;
+        console.log(`[Parser] Updated existing Chair service:`, service);
+      } else {
+        // Add new service
+        report.carriers.chair.services.push(
+          createServiceItem({ label, code, unit, price, qty })
+        );
+      }
+    }
+
     // Parse Wizz Air bookings (rows 42-46 approx, columns 1 and 3)
     if (i >= 40 && i <= 60 && row[1] && typeof row[1] === 'number' && row[3]) {
       const amountEur = asNumber(row[1]);
@@ -316,6 +370,25 @@ function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: stri
       }
     }
 
+    // Parse Chair Airlines bookings (rows 42-46 approx, columns 25 and 27)
+    if (i >= 40 && i <= 60 && row[25] && typeof row[25] === 'number' && row[27]) {
+      const amountEur = asNumber(row[25]);
+      const pax = asNumber(row[27]);
+
+      if (amountEur > 0 && pax > 0) {
+        console.log(`[Parser] Adding Chair booking:`, { amountEur, pax });
+        report.carriers.chair.bookings.transactions.push(
+          createBookingTransaction({
+            pnr: '',
+            pax,
+            amountEur,
+            airportRemunerationKm: 0,
+            commissionKm: 0,
+          })
+        );
+      }
+    }
+
     // Parse Airport remuneration for bookings (row 60)
     if (rowText.match(/Airport remuneration.*Provizija/i)) {
       // Wizz Air (column 4)
@@ -355,6 +428,20 @@ function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: stri
           report.carriers.ajet.bookings.transactions.forEach(txn => {
             if (!txn.airportRemunerationKm) {
               txn.airportRemunerationKm = airportRemuneration / report.carriers.ajet.bookings.transactions.length;
+            }
+          });
+        }
+      }
+
+      // Chair Airlines (column 28)
+      if (row[28]) {
+        const airportRemuneration = asNumber(row[28]);
+        if (airportRemuneration > 0) {
+          console.log(`[Parser] Adding airport remuneration to Chair bookings:`, airportRemuneration);
+          // Add to all Chair bookings
+          report.carriers.chair.bookings.transactions.forEach(txn => {
+            if (!txn.airportRemunerationKm) {
+              txn.airportRemunerationKm = airportRemuneration / report.carriers.chair.bookings.transactions.length;
             }
           });
         }
@@ -457,6 +544,7 @@ function parseOperationalExport(rows: Array<Array<unknown>>, fallbackDate?: stri
     wizz: report.carriers.wizz.services.length,
     pegasus: report.carriers.pegasus.services.length,
     ajet: report.carriers.ajet.services.length,
+    chair: report.carriers.chair.services.length,
     wizzBookings: report.carriers.wizz.bookings.transactions.length,
     airportServices: report.airportServices.filter(s => s.qty > 0 || (s.amountOverride && s.amountOverride > 0)).length
   });
@@ -490,6 +578,7 @@ export function parseAccountingExport(buffer: Buffer, fallbackDate?: string): { 
     wizz: { pax: 0, amountEur: 0, commissionKm: 0, airportRemunerationKm: 0 },
     pegasus: { pax: 0, amountEur: 0, commissionKm: 0, airportRemunerationKm: 0 },
     ajet: { pax: 0, amountEur: 0, commissionKm: 0, airportRemunerationKm: 0 },
+    chair: { pax: 0, amountEur: 0, commissionKm: 0, airportRemunerationKm: 0 },
   };
 
   rows.forEach((row) => {

@@ -59,8 +59,9 @@ export const carrierLabels: Record<string, string> = {
   wizz: 'Wizz Air',
   pegasus: 'Pegasus',
   ajet: 'Ajet',
+  chair: 'Chair Airlines',
 };
-export const defaultCarrierOrder: CarrierKey[] = ['wizz', 'pegasus', 'ajet'];
+export const defaultCarrierOrder: CarrierKey[] = ['wizz', 'pegasus', 'ajet', 'chair'];
 
 export const defaultServices: ServiceItem[] = [
   { id: 'airport_checkin', label: 'Airport Check in', code: 'CHKA', unit: 'flight/pax', price: 40, currency: 'EUR', qty: 0 },
@@ -142,6 +143,11 @@ export function createEmptyDailyReport(date: string): DailyReport {
       },
       ajet: {
         label: carrierLabels.ajet,
+        services: createOtherServices(4),
+        bookings: { transactions: [] },
+      },
+      chair: {
+        label: carrierLabels.chair,
         services: createOtherServices(4),
         bookings: { transactions: [] },
       },
@@ -271,7 +277,7 @@ export function normalizeDailyReport(data: Partial<DailyReport> | null | undefin
           };
         })
       : baseCarrier.services;
-    const isOtherCarrier = carrier === 'pegasus' || carrier === 'ajet';
+    const isOtherCarrier = carrier === 'pegasus' || carrier === 'ajet' || carrier === 'chair';
     const wizzCodes = new Set(defaultServices.map((service: ServiceItem) => service.code));
     const hasWizzDefaults = incomingServices.some((service: ServiceItem) => wizzCodes.has(service.code));
     const services = isOtherCarrier && hasWizzDefaults
