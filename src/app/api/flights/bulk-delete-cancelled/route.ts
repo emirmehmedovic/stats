@@ -1,3 +1,4 @@
+import { getFlightDeletionCutoff } from '@/lib/flight-deletion';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminOrManager } from '@/lib/route-guards';
@@ -19,8 +20,7 @@ export async function POST(request: NextRequest) {
     const { dateFrom, dateTo } = body;
 
     // Default to today as start date
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    const today = getFlightDeletionCutoff();
 
     let fromDate = today;
     let toDate: Date | undefined;
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     await prisma.flightDelay.deleteMany({
       where: {
         flightId: { in: ids },
+        flight: whereClause,
       },
     });
 

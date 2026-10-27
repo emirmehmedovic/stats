@@ -1,3 +1,4 @@
+import { getFlightDeletionCutoff, PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminOrManager } from '@/lib/route-guards';
@@ -31,10 +32,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const cutoff = getFlightDeletionCutoff();
+    const pastFlight = await prisma.flight.findFirst({
+      where: { id: { in: ids }, date: { lt: cutoff } },
+      select: { id: true },
+    });
+    if (pastFlight) {
+      return NextResponse.json(
+        { success: false, error: PAST_FLIGHT_DELETE_ERROR },
+        { status: 403 }
+      );
+    }
+
     // Count flights to be deleted
     const count = await prisma.flight.count({
       where: {
         id: { in: ids },
+        date: { gte: cutoff },
       },
     });
 
@@ -50,6 +64,7 @@ export async function POST(request: NextRequest) {
     await prisma.flightDelay.deleteMany({
       where: {
         flightId: { in: ids },
+        flight: { date: { gte: cutoff } },
       },
     });
 
@@ -57,6 +72,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.flight.deleteMany({
       where: {
         id: { in: ids },
+        date: { gte: cutoff },
       },
     });
 

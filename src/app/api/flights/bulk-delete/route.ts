@@ -1,3 +1,4 @@
+import { getFlightDeletionCutoff, PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminOrManager } from '@/lib/route-guards';
@@ -42,8 +43,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Set time to start/end of day for proper range
-    fromDate.setHours(0, 0, 0, 0);
-    toDate.setHours(23, 59, 59, 999);
+    fromDate.setUTCHours(0, 0, 0, 0);
+    toDate.setUTCHours(23, 59, 59, 999);
+
+    if (fromDate < getFlightDeletionCutoff()) {
+      return NextResponse.json(
+        { success: false, error: PAST_FLIGHT_DELETE_ERROR },
+        { status: 403 }
+      );
+    }
 
     // Count flights to be deleted
     const count = await prisma.flight.count({

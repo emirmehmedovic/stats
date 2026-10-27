@@ -1,3 +1,4 @@
+import { canImportScheduleDate, getScheduleImportStartDate } from '@/lib/schedule-import-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseScheduleChangesFile, ExpandedFlight } from '@/lib/parsers/schedule-changes';
@@ -246,13 +247,27 @@ async function upsertFlight(
   stats: ImportStats
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Recheck each write: an import may span local midnight.
+    if (!canImportScheduleDate(flight.date)) {
+      stats.skipped++;
+      return { success: true };
+    }
     const existing = await findExistingFlight(flight);
+    if (existing && !canImportScheduleDate(existing.date)) {
+      stats.skipped++;
+      return { success: true };
+    }
     const flightData = await buildFlightData(flight, fileName);
+
+    if (!canImportScheduleDate(flight.date)) {
+      stats.skipped++;
+      return { success: true };
+    }
 
     if (existing) {
       // UPDATE existing flight
       await prisma.flight.update({
-        where: { id: existing.id },
+        where: { id: existing.id, date: { gte: getScheduleImportStartDate() } },
         data: flightData,
       });
 
@@ -359,18 +374,15 @@ export async function POST(request: NextRequest) {
       warnings: parseResult.warnings,
     });
 
-    // Filter out past flights (before today)
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    // Only tomorrow and later are eligible, in both preview and execution.
+    const importStartDate = getScheduleImportStartDate();
+    const futureFlights = parseResult.expandedFlights.filter(f => f.date >= importStartDate);
+    const skippedProtectedFlights = parseResult.expandedFlights.length - futureFlights.length;
 
-    const futureFlights = parseResult.expandedFlights.filter(f => f.date >= today);
-    const skippedPastFlights = parseResult.expandedFlights.length - futureFlights.length;
-
-    if (skippedPastFlights > 0) {
+    if (skippedProtectedFlights > 0) {
       parseResult.warnings.push(
-        `Preskočeno ${skippedPastFlights} letova u prošlosti (prije ${today.toISOString().split('T')[0]})`
+        `Preskočeno ${skippedProtectedFlights} današnjih i historijskih letova. Import je dozvoljen od ${importStartDate.toISOString().split('T')[0]} (Europe/Sarajevo).`
       );
-      console.log(`Filtered out ${skippedPastFlights} past flights`);
     }
 
     // Update parseResult to use filtered flights
@@ -487,7 +499,7 @@ export async function POST(request: NextRequest) {
 
     const totalProcessed = stats.created + stats.updated + stats.cancelled + stats.skipped;
     const importResult: ImportResult = {
-      success: totalProcessed > stats.skipped,
+      success: totalFlights === 0 || totalProcessed > stats.skipped,
       totalFlights: parseResult.totalFlights,
       created: stats.created,
       updated: stats.updated,
@@ -512,6 +524,9 @@ export async function POST(request: NextRequest) {
 }
 
 function buildImportMessage(stats: ImportStats, total: number): string {
+  if (total === 0) {
+    return 'Nema letova za import od sutrašnjeg dana. Današnji i historijski letovi nisu mijenjani.';
+  }
   const parts: string[] = [];
 
   if (stats.created > 0) {

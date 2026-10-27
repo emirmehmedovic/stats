@@ -1,5 +1,6 @@
 'use client';
 
+import { canDeleteFlightDate, PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -26,8 +27,9 @@ export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const isSelectionMode = selectedIds !== undefined && onSelectionChange !== undefined;
-  const allSelected = isSelectionMode && data.length > 0 && data.every(flight => selectedIds.has(flight.id));
-  const someSelected = isSelectionMode && data.some(flight => selectedIds.has(flight.id));
+  const deletableFlights = data.filter(flight => canDeleteFlightDate(flight.date));
+  const allSelected = isSelectionMode && deletableFlights.length > 0 && deletableFlights.every(flight => selectedIds.has(flight.id));
+  const someSelected = isSelectionMode && deletableFlights.some(flight => selectedIds.has(flight.id));
 
   const handleSelectAll = () => {
     if (!onSelectionChange) return;
@@ -39,7 +41,7 @@ export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }
     } else {
       // Select all on current page
       const newSelected = new Set(selectedIds);
-      data.forEach(flight => newSelected.add(flight.id));
+      deletableFlights.forEach(flight => newSelected.add(flight.id));
       onSelectionChange(newSelected);
     }
   };
@@ -62,6 +64,8 @@ export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }
         <input
           type="checkbox"
           checked={allSelected}
+          disabled={deletableFlights.length === 0}
+          aria-label="Odaberi sve letove dozvoljene za brisanje"
           ref={(el) => {
             if (el) el.indeterminate = someSelected && !allSelected;
           }}
@@ -73,6 +77,9 @@ export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }
         <input
           type="checkbox"
           checked={selectedIds.has(row.original.id)}
+          disabled={!canDeleteFlightDate(row.original.date)}
+          title={!canDeleteFlightDate(row.original.date) ? PAST_FLIGHT_DELETE_ERROR : undefined}
+          aria-label="Odaberi let za brisanje"
           onChange={() => handleSelectRow(row.original.id)}
           onClick={(e) => e.stopPropagation()}
           className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
@@ -243,6 +250,8 @@ export function FlightsTable({ data, isLoading, selectedIds, onSelectionChange }
             </Button>
             <Button
               variant="destructive"
+              disabled={!canDeleteFlightDate(row.original.date)}
+              title={!canDeleteFlightDate(row.original.date) ? PAST_FLIGHT_DELETE_ERROR : undefined}
               size="sm"
               className="h-7 lg:h-8 px-2 lg:px-3 text-[10px] lg:text-xs bg-rose-100 text-rose-800 border border-rose-200 hover:bg-rose-200 hidden md:inline-flex"
               onClick={async () => {

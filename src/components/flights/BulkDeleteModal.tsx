@@ -1,5 +1,8 @@
 'use client';
 
+import { getTodayDateString, getMonthEndDateString } from '@/lib/dates';
+import { PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,24 +23,11 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
 
-  // Quick month selection helpers
+  const today = getTodayDateString();
   const setCurrentMonth = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    setDateFrom(`${year}-${month}-01`);
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
-    setDateTo(`${year}-${month}-${lastDay}`);
-  };
-
-  const setPreviousMonth = () => {
-    const now = new Date();
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const year = prevMonth.getFullYear();
-    const month = String(prevMonth.getMonth() + 1).padStart(2, '0');
-    setDateFrom(`${year}-${month}-01`);
-    const lastDay = new Date(year, prevMonth.getMonth() + 1, 0).getDate();
-    setDateTo(`${year}-${month}-${lastDay}`);
+    const start = getTodayDateString();
+    setDateFrom(start);
+    setDateTo(getMonthEndDateString(start));
   };
 
   // Fetch flight count when dates change
@@ -75,6 +65,11 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
   const handleConfirm = async () => {
     if (!dateFrom || !dateTo) {
       setError('Molimo unesite oba datuma');
+      return;
+    }
+
+    if (dateFrom < getTodayDateString()) {
+      setError(PAST_FLIGHT_DELETE_ERROR);
       return;
     }
 
@@ -133,6 +128,7 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
             <AlertTriangle className="w-4 h-4 lg:w-5 lg:h-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs lg:text-sm text-amber-800">
               <p className="font-semibold mb-1">Upozorenje!</p>
+              <p>{PAST_FLIGHT_DELETE_ERROR}</p>
               <p>Ova akcija je **nepovratna**. Svi letovi u odabranom periodu će biti trajno obrisani iz baze podataka.</p>
             </div>
           </div>
@@ -149,18 +145,9 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
                 className="flex items-center gap-2"
               >
                 <Calendar className="w-4 h-4" />
-                Trenutni mjesec
+                Od danas do kraja mjeseca
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={setPreviousMonth}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="w-4 h-4" />
-                Prethodni mjesec
-              </Button>
+
             </div>
           </div>
 
@@ -173,6 +160,7 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
               <Input
                 id="dateFrom"
                 type="date"
+                min={today}
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="w-full"
@@ -185,6 +173,7 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
               <Input
                 id="dateTo"
                 type="date"
+                min={today}
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 className="w-full"
@@ -245,7 +234,7 @@ export function BulkDeleteModal({ isOpen, onClose, onConfirm }: BulkDeleteModalP
             type="button"
             size="sm"
             onClick={handleConfirm}
-            disabled={!dateFrom || !dateTo || flightCount === 0 || isLoading || isDeleting}
+            disabled={!dateFrom || !dateTo || dateFrom < today || dateTo < dateFrom || flightCount === null || flightCount === 0 || isLoading || isDeleting}
             className="bg-red-600 hover:bg-red-700 text-white text-xs lg:text-sm"
           >
             {isDeleting ? 'Brisanje...' : `Obriši ${flightCount || 0} letova`}

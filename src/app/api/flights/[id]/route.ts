@@ -1,3 +1,4 @@
+import { getFlightDeletionCutoff, PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { updateFlightSchema, type UpdateFlightInput } from '@/lib/validators/flight';
@@ -601,7 +602,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/flights/[id] - Brisanje leta (soft delete)
+// DELETE /api/flights/[id] - Brisanje leta
 export async function DELETE(
   request: NextRequest,
   context: RouteContext
@@ -612,7 +613,7 @@ export async function DELETE(
     // Check if flight is locked
     const flight = await prisma.flight.findUnique({
       where: { id },
-      select: { isLocked: true },
+      select: { isLocked: true, date: true },
     });
 
     if (!flight) {
@@ -622,6 +623,14 @@ export async function DELETE(
           error: 'Let nije pronađen',
         },
         { status: 404 }
+      );
+    }
+
+    const cutoff = getFlightDeletionCutoff();
+    if (flight.date < cutoff) {
+      return NextResponse.json(
+        { success: false, error: PAST_FLIGHT_DELETE_ERROR },
+        { status: 403 }
       );
     }
 
@@ -636,7 +645,7 @@ export async function DELETE(
     }
 
     await prisma.flight.delete({
-      where: { id },
+      where: { id, date: { gte: cutoff }, isLocked: false },
     });
 
     return NextResponse.json({

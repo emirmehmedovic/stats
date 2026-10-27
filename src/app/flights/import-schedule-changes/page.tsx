@@ -421,13 +421,13 @@ export default function ImportScheduleChangesPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-blue-700 font-semibold">4.</span>
                   <span>
-                    Potvrdite import - postojeći letovi se ažuriraju, novi se kreiraju
+                    Potvrdite import - samo letovi od sutra se kreiraju ili ažuriraju
                   </span>
                 </li>
               </ol>
               <div className="mt-3 pt-3 border-t border-blue-200">
                 <p className="text-xs text-dark-500">
-                  <strong>Napomena:</strong> Ručno uneseni letovi (dataSource=MANUAL) neće biti ažurirani.
+                  <strong>Napomena:</strong> Današnji i historijski letovi se ne kreiraju, ne ažuriraju i ne otkazuju ovim importom. Granica dana računa se prema vremenu u Sarajevu. Ručno uneseni letovi (dataSource=MANUAL) neće biti ažurirani.
                   Oni predstavljaju vanredne letove i ne spadaju u sezonski raspored.
                 </p>
               </div>

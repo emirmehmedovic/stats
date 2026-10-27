@@ -1,5 +1,7 @@
 'use client';
 
+import { canDeleteFlightDate, PAST_FLIGHT_DELETE_ERROR } from '@/lib/flight-deletion';
+
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -214,7 +216,8 @@ export default function FlightDetailPage() {
                 size="sm"
                 className="bg-rose-500 hover:bg-rose-600 text-white text-xs lg:text-sm"
                 onClick={handleDelete}
-                disabled={flight.isLocked || isDeleting}
+                disabled={flight.isLocked || isDeleting || !canDeleteFlightDate(flight.date)}
+                title={!canDeleteFlightDate(flight.date) ? PAST_FLIGHT_DELETE_ERROR : undefined}
               >
                 {isDeleting ? 'Brišem...' : 'Obriši'}
               </Button>
